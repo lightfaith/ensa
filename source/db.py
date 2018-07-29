@@ -292,6 +292,26 @@ class Database():
         except:
             traceback.print_exc()
             return None
+
+    def associate_information(self, association_id, information_ids):
+        if not ensa.current_ring:
+            log.err('First select a ring with `rs <name>`.')
+            return None
+        try:
+            ring_id = self.query("SELECT ring_id FROM Association WHERE association_id = %s", (association_id,))[0][0]
+            if ring_id != ensa.current_ring:
+                raise AttributeError
+        except:
+            log.err('Current ring has no such asssociation.')
+            return None
+        try:
+            self.query("INSERT INTO AI(association_id, information_id) SELECT %s, information_id FROM Information WHERE information_id IN (SELECT "+ information_ids +") AND subject_id IN (SELECT subject_id FROM Subject WHERE ring_id = %s)", (association_id, ensa.current_ring))
+            return tuple([(association_id, i) for i in information_ids])
+        except:
+            log.err('Failed to associate information.')
+            return None
+
+        
 # # #
 ensa.db = Database()
 # # #

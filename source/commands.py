@@ -175,6 +175,23 @@ ASSOCIATION COMMANDS
 """
 add_command(Command('a', 'list associations for this ring', '', lambda *_: ['TODO']))
 
+def aai_function(*args):
+    try:
+        association_id = args[0]
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    try:
+        information_ids = ','.join(parse_sequence(','.join(args[1:])))
+        if not information_ids:
+            raise AttributeError
+    except:
+        log.err('Information ID must be specified.')
+        return []
+    ensa.db.associate_information(association_id, information_ids)
+    return []
+add_command(Command('aai <association_id> <information_ids>', 'associate information entries to an association', '', aai_function))
+
 def aaw_function(*_):
     if not ensa.current_ring:
         log.err('First select a ring with `rs <name>`.')
@@ -192,13 +209,15 @@ def aaw_function(*_):
     return [str(association_id)]
 add_command(Command('aaw', 'use wizard to add new association to current ring', '', aaw_function))
 
-def aai_function(*args):
-    try:
-        association_id = args[0]
-        information_id = args[1]
-    # TODO
-    except:
-        pass
+
+def aga
+
+# by id
+# by notelike
+# by info
+# by time
+# by place
+
 """
 INFORMATION COMMANDS
 """
@@ -433,7 +452,7 @@ add_command(Command('r', 'print rings', '', r_function))
 
 def ra_function(*_):
     name, encrypted, note = wizard([
-            'Name of the ring (e.g. Work)?',
+            'Name of the ring (e.g. Work):',
             'Should the ring be encrypted (default: no)?',
             'Optional comment:',
         ])
