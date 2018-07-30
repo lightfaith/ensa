@@ -46,6 +46,17 @@ class Database():
             return self.cur.fetchall()
         return []
 
+    def ring_ok(self):
+        if not ensa.current_ring:
+            log.err('First select a ring with `rs <name>`.')
+            return False
+        return True
+
+    def subject_ok(self):
+        if not ensa.current_subject:
+            log.err('First select a subject with `ss <codename>`.')
+            return False
+        return True
 ###########################################
 # Ring methods
 ###########################################
@@ -78,8 +89,7 @@ class Database():
 # Subject methods
 ###########################################
     def create_subject(self, codename, note=None):
-        if not ensa.current_ring:
-            log.err('First select a ring with `rs <name>`.')
+        if not self.ring_ok():
             return None
         try:
             self.query("INSERT INTO Subject(ring_id, codename, created, note) VALUES(%s, %s, %s, %s)", (ensa.current_ring, codename, time.strftime('%Y-%m-%d %H:%M:%S'), note))
@@ -95,15 +105,13 @@ class Database():
             return None
 
     def get_subjects(self, sort='codename'):
-        if not ensa.current_ring:
-            log.err('First select a ring with `rs <name>`.')
+        if not self.ring_ok():
             return []
         result = self.query("SELECT subject_id, codename, created, note FROM Subject WHERE ring_id = %s ORDER BY %s", (ensa.current_ring, sort))
         return result
 
     def select_subject(self, codename):
-        if not ensa.current_ring:
-            log.err('First select a ring with `rs <name>`.')
+        if not self.ring_ok():
             return None
         result = self.query("SELECT subject_id FROM Subject WHERE codename = %s AND ring_id = %s", (codename, ensa.current_ring))
         if result:
@@ -112,8 +120,7 @@ class Database():
         return None
 
     def get_subject_codename(self, subject_id):
-        if not ensa.current_ring:
-            log.err('First select a ring with `rs <name>`.')
+        if not self.ring_ok():
             return None
         result = self.query("SELECT codename FROM Subject WHERE subject_id = %s AND ring_id = %s", (subject_id, ensa.current_ring))
         if result:
@@ -132,8 +139,7 @@ class Database():
         #    self.query("DELETE FROM Information WHERE type = %s AND information_id NOT IN (SELECT information_id FROM Relationship)", (Database.INFORMATION_RELATIONSHIP,))
 
     def create_information(self, info_type, name, value, accuracy=0, level=None, valid=True, note=None):
-        if not ensa.current_subject:
-            log.err('First select a subject with `ss <codename>`.')
+        if not self.subject_ok():
             return None
         try:
             self.query("INSERT INTO Information(subject_id, type, name, accuracy, level, valid, modified, note) VALUES(%s, %s, %s, %s, %s, %s, %s, %s)", (ensa.current_subject, info_type, name, accuracy, level, valid, time.strftime('%Y-%m-%d %H:%M:%S'), note))
@@ -207,13 +213,12 @@ class Database():
 
 
     def get_information(self, info_type=None, no_composite_parts=False):
-        if not ensa.current_subject:
-            log.err('First select a subject with `ss <codename>`.')
+        if not self.subject_ok():
             return None
         if info_type is None:
             info_type = Database.INFORMATION_ALL
         result = []
-
+        """
         if info_type in [Database.INFORMATION_ALL, Database.INFORMATION_TEXT]:
             if no_composite_parts:
                 q = "SELECT i.*, v.value FROM Information i INNER JOIN Text v ON i.information_id = v.information_id WHERE i.subject_id = %s AND v.information_id NOT IN (SELECT part_id FROM Composite) ORDER BY i.name"
@@ -228,7 +233,23 @@ class Database():
         
         if info_type in [Database.INFORMATION_ALL, Database.INFORMATION_COMPOSITE]:
             result += self.query("SELECT i.*, v.part_id FROM Information i INNER JOIN Composite v ON i.information_id = v.information_id WHERE i.subject_id = %s ORDER BY i.name", (ensa.current_subject,))
-        
+        """ 
+        if no_composite_parts:
+            infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE I.subject_id = %s AND I.information_id NOT IN (SELECT part_id FROM Composite) ORDER BY information_id", (ensa.current_subject,))
+        else:
+            infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE I.subject_id = %s ORDER BY information_id", (ensa.current_subject,))
+        infos = []
+        for info in infos_nodata:
+            if info[3] in [Database.INFORMATION_ALL, Database.INFORMATION_TEXT]:
+                value = self.query("SELECT value FROM Text WHERE information_id = %s", (info[0],))[0][0]
+            elif info[3] in [Database.INFORMATION_ALL, Database.INFORMATION_BINARY]:
+                value = b'[binary]'
+            elif info[3] in [Database.INFORMATION_ALL, Database.INFORMATION_COMPOSITE]:
+                value = b'{composite}'
+            else:
+                value = 'ERROR'
+            infos.append(tuple(list(info)+[value]))
+        return infos
         
         """if info_type in [Database.INFORMATION_ALL, Database.INFORMATION_RELATIONSHIP]:
             result += self.query("SELECT i.*, v.subject_id FROM Information i INNER JOIN Relationship v ON i.information_id = v.information_id WHERE i.subject_id = %s ORDER BY i.name", (ensa.current_subject,))"""
@@ -239,8 +260,7 @@ class Database():
 # Location methods
 ###########################################
     def create_location(self, name, lat, lon, accuracy=0, valid=True, note=None):
-        if not ensa.current_ring:
-            log.err('First select a ring with `rs <name>`.')
+        if not self.ring_ok():
             return None
         try:
             gps = 'POINT(%f %f)' % (lat, lon) if lat and lon else 'NULL'
@@ -255,8 +275,7 @@ class Database():
 # Time methods
 ###########################################
     def create_time(self, date, time, accuracy=0, valid=True, note=None):
-        if not ensa.current_ring:
-            log.err('First select a ring with `rs <name>`.')
+        if not self.ring_ok():
             return None
         try:
             datetime.datetime.strptime(date, '%Y-%m-%d')
@@ -282,8 +301,7 @@ class Database():
 # Association methods
 ###########################################
     def create_association(self, level=None, accuracy=0, valid=True, note=None):
-        if not ensa.current_ring:
-            log.err('First select a ring with `rs <name>`.')
+        if not self.ring_ok():
             return None
         try:
             self.query("INSERT INTO Association(ring_id, level, accuracy, valid, note) VALUES(%s, %s, %s, %s, %s)", (ensa.current_ring, level, accuracy, valid, note))
@@ -294,8 +312,7 @@ class Database():
             return None
 
     def associate_information(self, association_id, information_ids):
-        if not ensa.current_ring:
-            log.err('First select a ring with `rs <name>`.')
+        if not self.ring_ok():
             return None
         try:
             ring_id = self.query("SELECT ring_id FROM Association WHERE association_id = %s", (association_id,))[0][0]
@@ -305,13 +322,82 @@ class Database():
             log.err('Current ring has no such asssociation.')
             return None
         try:
-            self.query("INSERT INTO AI(association_id, information_id) SELECT %s, information_id FROM Information WHERE information_id IN (SELECT "+ information_ids +") AND subject_id IN (SELECT subject_id FROM Subject WHERE ring_id = %s)", (association_id, ensa.current_ring))
+            self.query("INSERT INTO AI(association_id, information_id) SELECT %s, information_id FROM Information WHERE information_id IN ("+ information_ids +") AND subject_id IN (SELECT subject_id FROM Subject WHERE ring_id = %s)", (association_id, ensa.current_ring))
             return tuple([(association_id, i) for i in information_ids])
         except:
             log.err('Failed to associate information.')
             return None
 
-        
+    def associate_location(self, association_id, location_ids):
+        if not self.ring_ok():
+            return None
+        try:
+            ring_id = self.query("SELECT ring_id FROM Association WHERE association_id = %s", (association_id,))[0][0]
+            if ring_id != ensa.current_ring:
+                raise AttributeError
+        except:
+            log.err('Current ring has no such asssociation.')
+            return None
+        try:
+            self.query("INSERT INTO AL(association_id, location_id) SELECT %s, location_id FROM Location WHERE location_id IN ("+ location_ids +") AND ring_id = %s", (association_id, ensa.current_ring))
+            return tuple([(association_id, l) for l in location_ids])
+        except:
+            traceback.print_exc()
+            log.err('Failed to associate location.')
+            return None
+
+
+    def associate_time(self, association_id, time_ids):
+        if not self.ring_ok():
+            return None
+        try:
+            ring_id = self.query("SELECT ring_id FROM Association WHERE association_id = %s", (association_id,))[0][0]
+            if ring_id != ensa.current_ring:
+                raise AttributeError
+        except:
+            log.err('Current ring has no such asssociation.')
+            return None
+        try:
+            self.query("INSERT INTO AT(association_id, time_id) SELECT %s, time_id FROM Time WHERE time_id IN ("+ time_ids +") AND ring_id = %s", (association_id, ensa.current_ring))
+            return tuple([(association_id, t) for t in time_ids])
+        except:
+            traceback.print_exc()
+            log.err('Failed to associate time.')
+            return None
+
+
+    def get_associations_by_ids(self, association_ids):
+        if not self.ring_ok():
+            return None
+        # get associations
+        associations = self.query("SELECT association_id, ring_id, level, accuracy, valid, note FROM Association WHERE association_id IN("+association_ids+")")
+        result = []
+        for assoc in associations:
+            # in current ring?
+            if assoc[1] != ensa.current_ring:
+                continue
+            # TODO is ring check needed for ITL entries?
+            # get info entries (+ subject)
+            infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE information_id IN (SELECT information_id FROM AI WHERE association_id = %s) ORDER BY information_id", (assoc[0],))
+            infos = []
+            for info in infos_nodata:
+                if info[3] == Database.INFORMATION_TEXT:
+                    value = self.query("SELECT value FROM Text WHERE information_id = %s", (info[0],))[0][0]
+                elif info[3] == Database.INFORMATION_BINARY:
+                    value = '[binary]'
+                elif info[3] == Database.INFORMATION_COMPOSITE:
+                    value = '{composite}'
+                else:
+                    value = 'ERROR'
+                infos.append(tuple(list(info)+[value]))
+            # get time entries
+            times = self.query("SELECT Time.time_id, time, accuracy, valid, note FROM Time INNER JOIN AT ON Time.time_id = AT.time_id WHERE AT.association_id = %s", (assoc[0],))
+            # get location entries
+            locations = self.query("SELECT Location.location_id, name, ST_AsText(gps), accuracy, valid, note FROM Location INNER JOIN AL ON Location.location_id = AL.location_id WHERE AL.association_id = %s", (assoc[0],))
+
+            result.append((assoc, infos, times, locations))
+        return result
+
 # # #
 ensa.db = Database()
 # # #

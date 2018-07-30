@@ -7,6 +7,7 @@ import os, sys, re, traceback, tempfile, subprocess
 from source import ensa
 from source import lib
 from source import log
+from source.docs import doc
 #from source.protocols import protocols
 from source.lib import *
 from source.db import Database
@@ -16,10 +17,11 @@ Universal class for commands.
 """
 class Command():
 
-    def __init__(self, command, apropos, description, function):
+    def __init__(self, command, apropos, doc_tag, function):
         self.command = command
+        self.doc_tag = doc_tag
         self.apropos = apropos
-        self.description = description
+        self.description = doc.get(doc_tag) or ''
         self.function = function
 
     def run(self, *args):
@@ -43,17 +45,20 @@ def add_command(command):
 Function to run commands, apply filters etc.
 """
 def run_command(fullcommand):
+    modifier = ensa.config['interaction.command_modifier'][0]
     log.debug_command('  Fullcmd: \'%s\'' % (fullcommand))
-
-    # grep: pra~Cookie          # grep for match
-    #       pra~~(Cookie|Date)  # grep for regex
-    command, _, grep = fullcommand.partition('~')
-    grep_regex = False
-    if grep.startswith('~'):
-        grep = grep[1:]
-        grep_regex = True
-
-    # only help?
+    parts = list(filter(None, re.split('(~~|~|\%s)' % (modifier), fullcommand)))
+    command = parts[0]
+    phase = {'~': False, '~~': False, modifier: False}
+    
+    # test if it is documented
+    try:
+        if not ensa.commands[command.rstrip('?')].description.strip():
+            log.warn('The command has no documentation.')
+    except:
+        # command does not exist, but it will be dealt in a while
+        pass 
+    # help or command?
     if command.endswith('?'):
         lines = []
         for k, v in sorted(ensa.commands.items(), key=lambda x:x[0]):
@@ -72,17 +77,17 @@ def run_command(fullcommand):
                 command_colored = '%s%s %s%s%s' % (cmd, more, log.COLOR_BROWN, args, log.COLOR_NONE)
                 apropos_colored = '%s%s%s' % (log.COLOR_DARK_GREEN, v.apropos, log.COLOR_NONE)
                 lines.append('    %-*s %s' % (length, command_colored, apropos_colored))
-        # show description
-        for k, v in ensa.commands.items():
-            if k == command[:-1]:
-                lines.append('')
-                lines += ['    '+log.COLOR_DARK_GREEN+line+log.COLOR_NONE for line in v.description.splitlines()]
+        # show description if '??'
+        if command.endswith('??'):
+            for k, v in ensa.commands.items():
+                if k == command[:-2]:
+                    lines.append('')
+                    lines += ['    '+log.COLOR_DARK_GREEN+line+log.COLOR_NONE for line in v.description.splitlines()]
     else:
         try:
             command, *args = command.split(' ')
             log.debug_command('  Command: \'%s\'' % (command))
             log.debug_command('  Args:    %s' % (str(args)))
-            log.debug_command('  Grep:    %s (type: %s)' % (grep, 'regex' if grep_regex else 'normal'))
             # run command
             lines = ensa.commands[command].run(*args)
 
@@ -91,37 +96,96 @@ def run_command(fullcommand):
             log.err('See traceback:')
             traceback.print_exc()
             return
+
     # Lines can be:
     #     a list of strings:
     #         every line matching grep expression or starting with '{grepignore}' will be printed
     #     a list of lists:
     #         every line of inner list matching grep expression or starting with '{grepignore}' will be printed if there is at least one grep matching line WITHOUT '{grepignore}'
     #         Reason: prsh~Set-Cookie will print all Set-Cookie lines along with RRIDs, RRIDs without match are ignored
+    result_lines = []
     nocolor = lambda line: re.sub('\033\\[[0-9]+m', '', str(line))
-    try:
-        grepped = []
-        for line in lines:
-            if type(line) == str:
-                # add lines if starts with {grepignore} or matches grep 
-                if str(line).startswith('{grepignore}'):
-                    grepped.append(line[12:])
-                elif not grep_regex and grep in nocolor(line):
-                    grepped.append(line)
-                elif grep_regex and re.search(grep, nocolor(line.strip())):
-                    grepped.append(line)
-            elif type(line) == list:
-                # pick groups if at least one line starts with {grepignore} or matches grep
-                sublines = [l for l in line if str(l).startswith('{grepignore}') or (not grep_regex and grep in nocolor(l)) or (grep_regex and re.search(grep, nocolor(l.strip())))]
-                if len([x for x in sublines if not str(x).startswith('{grepignore}') and len(x.strip())>0])>0:
-                    grepped += [x[12:] if x.startswith('{grepignore}') else x for x in sublines]
-                
-    except Exception as e:
-        log.err('Cannot convert result into string:')
-        log.err('See traceback:')
-        traceback.print_exc()
-        return
-    log.tprint('\n'.join(grepped))
+    
+    # go through all command parts and modify those lines
+    for part in parts[1:]:
+        tmp_lines = []
+        # special character? set phase
+        if part in phase.keys():
+            # another phase active? bad command...
+            if any(phase.values()):
+                log.err('Invalid command.')
+                return
+            # no phase? set it
+            phase[part] = True
+            continue
+        # no phase and no special character? bad command...
+        elif not any(phase.values()):
+            log.err('Invalid command (bad regex)!')
+            return
+        
 
+        # deal with phases
+        elif phase['~']:
+            # normal grep
+            log.debug_command('  grep \'%s\'' % part)
+            phase['~'] = False
+            for line in lines:
+                if type(line) == str:
+                    if str(line).startswith('{grepignore}') or part in nocolor(line):
+                        tmp_lines.append(line)
+                elif type(line) == list:
+                    # pick groups if at least one line starts with {grepignore} or matches grep
+                    sublines = [l for l in line if str(l).startswith('{grepignore}') or part in nocolor(l)]
+                    if [x for x in sublines if not str(x).startswith('{grepignore}') and x.strip()]:
+                        tmp_lines.append(sublines)
+        elif phase['~~']:
+            # regex grep
+            log.debug_command('  regex_grep \'%s\'' % part)
+            phase['~~'] = False
+            for line in lines:
+                if type(line) == str:
+                    if str(line).startswith('{grepignore}') or re.search(part, nocolor(line.strip())):
+                        tmp_lines.append(line)
+                elif type(line) == list:
+                    # pick groups if at least one line starts with {grepignore} or matches grep
+                    sublines = [l for l in line if str(l).startswith('{grepignore}') or re.search(part, nocolor(l.strip()))]
+                    if [x for x in sublines if not str(x).startswith('{grepignore}') and x.strip()]:
+                        tmp_lines.append(sublines)
+        elif phase[modifier]: # TODO line intervals and more features
+            # modifying
+            log.debug_command('  modification \'%s\'' % part)
+            phase[modifier] = False
+            # less? 
+            if part.endswith('L'):
+                less_lines = []
+                for line in lines:
+                    if type(line) == str:
+                        less_lines.append(nocolor(re.sub('^\\{grepignore\\}', '', line)))
+                    elif type(line) == list:
+                        for subline in line:
+                            less_lines.append(nocolor(re.sub('^\\{grepignore\\}', '', subline)))
+                with tempfile.NamedTemporaryFile() as f:
+                    f.write('\n'.join(less_lines).encode())
+                    f.flush()
+                    subprocess.call(['less', f.name])
+                return
+
+        # use parsed lines for more parsing
+        lines = tmp_lines
+
+    # any phase remained? that's wrong
+    if any(phase.values()):
+        log.err('Invalid command.')
+        return
+    
+    for line in lines:
+        if type(line) == str:
+            log.tprint(re.sub('^\\{grepignore\\}', '', line))
+        elif type(line) == bytes:
+            log.tprint(re.sub('^\\{grepignore\\}', '', line.decode()))
+        elif type(line) == list:
+            for subline in line:
+                log.tprint(re.sub('^\\{grepignore\\}', '', subline))
 
 """
 Important command functions
@@ -141,6 +205,87 @@ def wizard(questions):
     for q in questions:
         log.question('%s ' % (q), new_line=False)
         yield input()
+
+
+"""
+Format functions
+"""
+
+def get_format_len_information(infos):
+    return (
+        max(len('%d' % i[0]) for i in infos),
+        max(len(i[4]) for i in infos),
+        max(len(i[-1]) for i in infos),
+    )
+
+def get_format_len_time(times):
+    return (
+        max(len('%d' % t[0]) for t in times),
+    )
+
+def get_format_len_location(locations):
+    return (
+        max(len('%d' % l[0]) for l in locations),
+    )
+
+def format_association(association_id, ring_id, level, accuracy, valid, note, use_modified=True):
+    return '%-d  %s (%sacc %d%s%s)' % (
+        #id_len,
+        association_id,
+        note.decode() if note else '',
+        'lvl %d, ' % level if level else '',
+        accuracy,
+        #', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
+        '',
+        ', invalid' if not valid else '',
+        )
+
+def format_information(information_id, subject_id, codename, info_type, name, level, accuracy, valid, modified, note, value, id_len, name_len, value_len, use_codename=True, use_modified=True):
+    return '%-*d  %s %*s: %-*s  (%sacc %d%s%s)  %s' % (
+        id_len,
+        information_id,
+        '<%s>' % codename.decode() if use_codename else '',
+        name_len,
+        name.decode(),
+        value_len,
+        value.decode(),
+        'lvl %d, ' % level if level else '',
+        accuracy,
+        ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
+        ', invalid' if not valid else '',
+        note.decode() if note else '',
+        )
+
+def format_location(location_id, name, gps, accuracy, valid, note, id_len, use_modified=True):
+    if gps:
+        lat, _, lon = gps.decode()[6:-1].partition(' ')
+        lat = lat+'N' if float(lat)>0 else lat[1:]+'S'
+        lon = lon+'E' if float(lon)>0 else lon[1:]+'W'
+        gps = '(%s %s)' % (lat, lon)
+    return '%-*d  %s %s (acc %d%s%s) %s' % (
+        id_len,
+        location_id,
+        name.decode(),
+        gps if gps else '',
+        accuracy,
+        #', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
+        '',
+        ', invalid' if not valid else '',
+        note.decode() if note else '',
+        )
+
+def format_time(time_id, time, accuracy, valid, note, id_len, use_modified=True):
+    return '%-*d  %s  (acc %d%s%s) %s' % (
+        id_len,
+        time_id,
+        time.strftime('%Y-%m-%d %H:%M:%S'),
+        accuracy,
+        #', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
+        '',
+        ', invalid' if not valid else '',
+        note.decode() if note else '',
+        )
+
 # # # # ## ## ### #### ###### ############################ ##### #### ### ## ## # # # #
 
 # # # # ## ## ### #### ###### ############################ ##### #### ### ## ## # # # #
@@ -152,7 +297,7 @@ def wizard(questions):
 help_description = """
 
 """
-add_command(Command('', '', help_description, lambda: []))
+add_command(Command('', '', 'help', lambda: []))
 
 """
 TEST COMMANDS
@@ -173,7 +318,7 @@ add_command(Command('prompt', 'gives python3 shell', '', prompt_function))
 """
 ASSOCIATION COMMANDS
 """
-add_command(Command('a', 'list associations for this ring', '', lambda *_: ['TODO']))
+add_command(Command('a', 'list associations for this ring', 'a', lambda *_: ['TODO']))
 
 def aai_function(*args):
     try:
@@ -190,7 +335,42 @@ def aai_function(*args):
         return []
     ensa.db.associate_information(association_id, information_ids)
     return []
-add_command(Command('aai <association_id> <information_ids>', 'associate information entries to an association', '', aai_function))
+add_command(Command('aai <association_id> <information_ids>', 'associate information entries to an association', 'aai', aai_function))
+
+def aal_function(*args):
+    try:
+        association_id = args[0]
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    try:
+        location_ids = ','.join(parse_sequence(','.join(args[1:])))
+        if not location_ids:
+            raise AttributeError
+    except:
+        log.err('Location ID must be specified.')
+        return []
+    ensa.db.associate_location(association_id, location_ids)
+    return []
+add_command(Command('aal <association_id> <location_ids>', 'associate location entries to an association', 'aal', aal_function))
+
+
+def aat_function(*args):
+    try:
+        association_id = args[0]
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    try:
+        time_ids = ','.join(parse_sequence(','.join(args[1:])))
+        if not time_ids:
+            raise AttributeError
+    except:
+        log.err('Time ID must be specified.')
+        return []
+    ensa.db.associate_time(association_id, time_ids)
+    return []
+add_command(Command('aat <association_id> <time_ids>', 'associate time entries to an association', 'aat', aat_function))
 
 def aaw_function(*_):
     if not ensa.current_ring:
@@ -207,11 +387,27 @@ def aaw_function(*_):
     valid = not positive(valid)
     association_id = ensa.db.create_association(level, accuracy, valid, note)
     return [str(association_id)]
-add_command(Command('aaw', 'use wizard to add new association to current ring', '', aaw_function))
+add_command(Command('aaw', 'use wizard to add new association to current ring', 'aaw', aaw_function))
 
 
-def aga
-
+def aga_function(*args):
+    ids = ','.join(parse_sequence(','.join(args)))
+    if not ids:
+        log.err('You must specify an Association ID.')
+        return []
+    for association, infos, times, locations in ensa.db.get_associations_by_ids(ids):
+        print('#A'+format_association(*association, use_modified=False))
+        info_lens = get_format_len_information(infos)
+        time_lens = get_format_len_time(times)
+        location_lens = get_format_len_location(locations)
+        for info in infos:
+            print('    #I'+format_information(*info, *info_lens, use_modified=False))
+        for time in times:
+            print('    #T'+format_time(*time, *time_lens, use_modified=False))
+        for location in locations:
+            print('    #L'+format_location(*location, *location_lens, use_modified=False))
+    return []
+add_command(Command('aga <association_ids>', 'show associations with specific ID', 'aga', aga_function))
 # by id
 # by notelike
 # by info
@@ -222,8 +418,8 @@ def aga
 INFORMATION COMMANDS
 """
 # TODO list standard names in help
-add_command(Command('i', 'print information overview for current subject', '', lambda *_: ['TODO']))
-add_command(Command('ia', 'add information to current subject', '', lambda *_: []))
+add_command(Command('i', 'print information overview for current subject', 'i', lambda *_: ['TODO']))
+add_command(Command('ia', 'add information to current subject', 'ia', lambda *_: []))
 
 def iac_function(*args):
     try:
@@ -238,7 +434,7 @@ def iac_function(*args):
         return []
     return []
     
-add_command(Command('iac <name> <information_ids>', 'add composite information to current subject', '', iac_function))
+add_command(Command('iac <name> <information_ids>', 'add composite information to current subject', 'iac', iac_function))
 
 
 def iat_function(*args):
@@ -253,7 +449,7 @@ def iat_function(*args):
         traceback.print_exc()
         return []
     return []
-add_command(Command('iat <name> <value>', 'add textual information to current subject', '', iat_function))
+add_command(Command('iat <name> <value>', 'add textual information to current subject', 'iat', iat_function))
 
 
 def iar_function(*args):
@@ -267,7 +463,7 @@ def iar_function(*args):
     return []
 
         
-add_command(Command('iar <name> <codename>', 'add relationship information towards <codename> to current subject', '', iar_function))
+add_command(Command('iar <name> <codename>', 'add relationship information towards <codename> to current subject', 'iar', iar_function))
 
 
 def id_function(*args):
@@ -278,10 +474,10 @@ def id_function(*args):
         return []
     ensa.db.delete_information(information_id)
     return []
-add_command(Command('id <information_id>', 'delete information of current subject', '', id_function))
+add_command(Command('id <information_id>', 'delete information of current subject', 'id', id_function))
 
 
-add_command(Command('ig', 'get information of current subject', '', lambda *_: ['TODO']))
+add_command(Command('ig', 'get information of current subject', 'ig', lambda *_: ['TODO']))
 
 """
 def igr_function(*_):
@@ -311,7 +507,7 @@ def igr_function(*_):
             note.decode() if note else '',
             ))
     return result
-add_command(Command('igr', 'get all relationship information for current subject', '', igr_function))
+add_command(Command('igr', 'get all relationship information for current subject', 'igr', igr_function))
 # TODO igrx - cross-reference
 """
 
@@ -320,10 +516,7 @@ def igt_function(*_, no_composite_parts=True):
     infos = ensa.db.get_information(Database.INFORMATION_TEXT, no_composite_parts)
     if not infos:
         return []
-    max_id_len = max(len('%d' % i[0]) for i in infos)
-    max_name_len = max(len(i[3]) for i in infos)
-    max_value_len = max(len(i[-1]) for i in infos)
-    for information_id, _, __, name, accuracy, valid, modified, note, level, value in infos:
+    """for information_id, _, __, name, accuracy, valid, modified, note, level, value in infos:
         result.append('#%-*d  %*s: %-*s  (%sacc %d, mod %s%s)  %s' % (
             max_id_len,
             information_id,
@@ -336,10 +529,12 @@ def igt_function(*_, no_composite_parts=True):
             modified.strftime('%Y-%m-%d %H:%M:%S'),
             ', invalid' if not valid else '',
             note.decode() if note else '',
-            ))
+            ))"""
+    info_lens = get_format_len_information(infos)
+    result = [format_information(*info, *info_lens) for info in infos]
     return result
-add_command(Command('igt', 'get all textual information for current subject', '', igt_function))
-add_command(Command('igtc', 'get all textual information (even composite parts) for current subject', '', lambda *args: igt_function(args, no_composite_parts=False)))
+add_command(Command('igt', 'get all textual information for current subject', 'igt', igt_function))
+add_command(Command('igtc', 'get all textual information (even composite parts) for current subject', 'igtc', lambda *args: igt_function(args, no_composite_parts=False)))
 
 
 def ime_function(*args):
@@ -361,12 +556,12 @@ def ime_function(*args):
     if changes != r.bytes():
         pass
 
-add_command(Command('ime <information_id>', 'modify information with editor', '', ime_function))
+add_command(Command('ime <information_id>', 'modify information with editor', 'ime', ime_function))
 
 """
 LOCATION COMMANDS
 """
-add_command(Command('l', 'list locations for this ring', '', lambda *_: ['TODO']))
+add_command(Command('l', 'list locations for this ring', 'l', lambda *_: ['TODO']))
 
 def law_function(*_):
     if not ensa.current_ring:
@@ -390,7 +585,7 @@ def law_function(*_):
     valid = not positive(valid)
     location_id = ensa.db.create_location(name, lat, lon, accuracy, valid, note)
     return [str(location_id)]
-add_command(Command('law', 'use wizard to add new location to current ring', '', law_function))
+add_command(Command('law', 'use wizard to add new location to current ring', 'law', law_function))
 
 """
 OPTIONS COMMANDS
@@ -402,7 +597,7 @@ Default configuration is located in source/ensa.py.
 User configuration can be specified in ensa.conf in Ensa root directory.
 Configuration can be changed on the fly using the `os` command.
 """
-add_command(Command('o', 'Ensa options (alias for `peo`)', o_description, o_function))
+add_command(Command('o', 'Ensa options (alias for `peo`)', 'o', o_function))
 
 # os
 def os_function(*args):
@@ -417,22 +612,20 @@ def os_function(*args):
         value = positive(value)
     ensa.config[key] = (typ(value), typ)
     return []
-os_description = """Active Ensa configuration can be changed using the `os` command. User-specific keys can also be defined.
-"""
-add_command(Command('os <key> <value>', 'change Ensa configuration', os_description, os_function))
+add_command(Command('os <key> <value>', 'change Ensa configuration', 'os', os_function))
 
 """
 PRINT COMMANDS
 """
-add_command(Command('p', 'print', '', lambda *_: []))
+add_command(Command('p', 'print', 'p', lambda *_: []))
 
 
 # pe 
-add_command(Command('pe', 'print ensa-related information', '', lambda *_: []))
+add_command(Command('pe', 'print ensa-related information', 'pe', lambda *_: []))
 
 
 # peo
-add_command(Command('peo', 'print ensa configuration', o_description, o_function))
+add_command(Command('peo', 'print ensa configuration', 'o', o_function))
 
 """
 Quit
@@ -448,7 +641,7 @@ RING COMMANDS
 def r_function(*_):
     result = ensa.db.get_rings() # TODO count subjects, show if encrypted, show notes, show if selected
     return ['  %s ' % (r[1].decode()) for r in result]
-add_command(Command('r', 'print rings', '', r_function))
+add_command(Command('r', 'print rings', 'r', r_function))
 
 def ra_function(*_):
     name, encrypted, note = wizard([
@@ -475,12 +668,12 @@ def ra_function(*_):
     if ensa.current_ring:
         log.info('Currently working with \'%s\' romg.' % name)
     return []
-add_command(Command('ca', 'add new ring', '', ra_function))
+add_command(Command('ra', 'add new ring', 'ra', ra_function))
 
 def rd_function(*_):
     log.err('TODO delete ring') # TODO
     return []
-add_command(Command('rd <ring>', 'delete ring', '', rd_function))
+add_command(Command('rd <ring>', 'delete ring', 'rd', rd_function))
 
 def rs_function(*args):
     try:
@@ -494,7 +687,7 @@ def rs_function(*args):
         log.err('Ring name must be specified.')
         traceback.print_exc()
     return []
-add_command(Command('rs <ring>', 'select a ring', '', rs_function))
+add_command(Command('rs <ring>', 'select a ring', 'rs', rs_function))
 
 """
 SUBJECT COMMANDS
@@ -502,7 +695,7 @@ SUBJECT COMMANDS
 def s_function(*_):
     subjects = ensa.db.get_subjects()
     return ['%10s (#%d)  %20s  %s' % (codename.decode(), subject_id, created.strftime('%Y-%m-%d %H:%M:%S'), note.decode() if note else '') for subject_id, codename, created, note in subjects]
-add_command(Command('s', 'list subjects in the current ring', '', s_function))
+add_command(Command('s', 'list subjects in the current ring', 's', s_function))
 
 def sa_function(*args): # simple subject creation, `saw` for wizard
     try:
@@ -515,7 +708,7 @@ def sa_function(*args): # simple subject creation, `saw` for wizard
         log.info('Currently working with \'%s\' subject.' % codename)
     return []
         
-add_command(Command('sa <codename>', 'add new subject in the current ring', '', sa_function))
+add_command(Command('sa <codename>', 'add new subject in the current ring', 'sa', sa_function))
 
 # TODO `saw`
 
@@ -531,13 +724,13 @@ def ss_function(*args):
         log.err('Subject codename must be specified.')
         traceback.print_exc()
     return []
-add_command(Command('ss <subject>', 'select a subject', '', ss_function))
+add_command(Command('ss <subject>', 'select a subject', 'ss', ss_function))
 
 
 """
 TIME COMMANDS
 """
-add_command(Command('t', 'list time entries for this ring', '', lambda *_: ['TODO']))
+add_command(Command('t', 'list time entries for this ring', 't', lambda *_: ['TODO']))
 
 def taw_function(*_):
     if not ensa.current_ring:
@@ -554,7 +747,7 @@ def taw_function(*_):
     valid = not positive(valid)
     time_id = ensa.db.create_time(date, time, accuracy, valid, note)
     return [str(time_id)]
-add_command(Command('taw', 'use wizard to add new time entry to current ring', '', taw_function))
+add_command(Command('taw', 'use wizard to add new time entry to current ring', 't', taw_function))
 
 
 

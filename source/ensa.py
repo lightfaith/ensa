@@ -24,7 +24,7 @@ config['debug.config'] = (False, bool)   # show debug info about configuration
 
 """ External commands """
 config['external.editor'] = ('vim %s', str) # path to editor
-
+config['interaction.command_modifier'] = ('$', str) # command modifier
 
 """
 Dictionary of all available commands (filled in source/commands.py)
