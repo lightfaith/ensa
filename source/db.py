@@ -94,10 +94,11 @@ class Database():
         try:
             self.query("INSERT INTO Subject(ring_id, codename, created, note) VALUES(%s, %s, %s, %s)", (ensa.current_ring, codename, time.strftime('%Y-%m-%d %H:%M:%S'), note))
             #subject_id = self.query("SELECT LAST_INSERT_ID()")[0][0]
-            subject_id = self.query("SELECT subject_id FROM Subject LIMIT 1")[0][0]
+            subject_id = self.query("SELECT subject_id FROM Subject ORDER BY subject_id DESC LIMIT 1")[0][0]
             if not subject_id:
                 log.err('Cannot retrieve the new subject ID.')
                 return None
+            ensa.current_subject = subject_id
             self.create_information(Database.INFORMATION_TEXT, 'codename', codename, accuracy=10, level=None, valid=True, note=None)
             return subject_id
         except:
@@ -144,7 +145,7 @@ class Database():
         try:
             self.query("INSERT INTO Information(subject_id, type, name, accuracy, level, valid, modified, note) VALUES(%s, %s, %s, %s, %s, %s, %s, %s)", (ensa.current_subject, info_type, name, accuracy, level, valid, time.strftime('%Y-%m-%d %H:%M:%S'), note))
             #information_id = self.query("SELECT LAST_INSERT_ID()")[0][0]
-            information_id = self.query("SELECT information_id from Information LIMIT 1")[0][0]
+            information_id = self.query("SELECT information_id from Information ORDER BY information_id DESC LIMIT 1")[0][0]
 
 
             if info_type == Database.INFORMATION_TEXT:
@@ -265,11 +266,17 @@ class Database():
         try:
             gps = 'POINT(%f %f)' % (lat, lon) if lat and lon else 'NULL'
             self.query("INSERT INTO Location(name, gps, accuracy, valid, ring_id, note) VALUES(%s, "+gps+", %s, %s, %s, %s)", (name, accuracy, valid, ensa.current_ring, note))
-            location_id = self.query("SELECT location_id from Location LIMIT 1")[0][0]
+            location_id = self.query("SELECT location_id from Location ORDER BY location_id DESC LIMIT 1")[0][0]
             return location_id
         except:
             traceback.print_exc()
             return None
+    
+    
+    def get_locations(self):
+        if not self.ring_ok():
+            return None
+        return self.query("SELECT location_id, name, ST_AsText(gps), accuracy, valid, note FROM Location WHERE ring_id = %s", (ensa.current_ring,))
 
 ###########################################
 # Time methods
@@ -291,11 +298,18 @@ class Database():
         dt = '%s %s' % (date, time)
         try:
             self.query("INSERT INTO Time(time, accuracy, valid, ring_id, note) VALUES(%s, %s, %s, %s, %s)", (dt, accuracy, valid, ensa.current_ring, note))
-            time_id = self.query("SELECT time_id from Time LIMIT 1")[0][0]
+            time_id = self.query("SELECT time_id from Time ORDER BY time_id DESC LIMIT 1")[0][0]
             return time_id # TODO wrong value
         except:
             traceback.print_exc()
             return None
+
+    def get_times(self):
+        if not self.ring_ok():
+            return None
+        return self.query("SELECT time_id, DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'), accuracy, valid, note FROM Time WHERE ring_id = %s", (ensa.current_ring,))
+        #return self.query("SELECT time_id, , accuracy, valid, note FROM Time WHERE time_id IN (8)")
+
 
 ###########################################
 # Association methods
@@ -305,11 +319,33 @@ class Database():
             return None
         try:
             self.query("INSERT INTO Association(ring_id, level, accuracy, valid, note) VALUES(%s, %s, %s, %s, %s)", (ensa.current_ring, level, accuracy, valid, note))
-            association_id = self.query("SELECT association_id from Association LIMIT 1")[0][0]
+            association_id = self.query("SELECT association_id from Association ORDER BY association_id DESC LIMIT 1")[0][0]
             return association_id
         except:
             traceback.print_exc()
             return None
+
+    def associate_association(self, association_id, association_ids):
+        if not self.ring_ok():
+            return None
+        try:
+            ring_id = self.query("SELECT DISTINCT ring_id FROM Association WHERE association_id = %s OR association_id IN ("+association_ids+")", (association_id,))
+            if len(ring_id) != 1:
+                raise AttributeError
+            ring_id = ring_id[0][0]
+            if ring_id != ensa.current_ring:
+                raise AttributeError
+        except:
+            log.err('All associations must belong to current ring.')
+            return None
+        try:
+            self.query("INSERT INTO AA(association_id_1, association_id_2) SELECT %s, association_id FROM Association WHERE association_id IN ("+ association_ids +") AND ring_id = %s", (association_id, ensa.current_ring))
+            return tuple([(association_id, a) for a in association_ids.split(',')])
+        except:
+            traceback.print_exc()
+            log.err('Failed to associate association.')
+            return None
+
 
     def associate_information(self, association_id, information_ids):
         if not self.ring_ok():
@@ -328,6 +364,7 @@ class Database():
             log.err('Failed to associate information.')
             return None
 
+
     def associate_location(self, association_id, location_ids):
         if not self.ring_ok():
             return None
@@ -344,6 +381,25 @@ class Database():
         except:
             traceback.print_exc()
             log.err('Failed to associate location.')
+            return None
+    
+    
+    def associate_subject(self, association_id, codenames):
+        if not self.ring_ok():
+            return None
+        try:
+            ring_id = self.query("SELECT ring_id FROM Association WHERE association_id = %s", (association_id,))[0][0]
+            if ring_id != ensa.current_ring:
+                raise AttributeError
+        except:
+            log.err('Current ring has no such asssociation.')
+            return None
+        try:
+            self.query("INSERT INTO AI(association_id, information_id) SELECT %s, I.information_id FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE I.name = 'codename' AND S.codename IN ("+ codenames +") AND S.ring_id = %s", (association_id, ensa.current_ring))
+            return tuple([(association_id, codename) for codename in codenames.split(',')])
+        except:
+            traceback.print_exc()
+            log.err('Failed to associate subject.')
             return None
 
 
@@ -364,6 +420,12 @@ class Database():
             traceback.print_exc()
             log.err('Failed to associate time.')
             return None
+
+    def get_associations(self):
+        if not self.ring_ok():
+            return None
+        # get associations
+        return self.query("SELECT association_id, ring_id, level, accuracy, valid, note FROM Association WHERE ring_id = %s", (ensa.current_ring,))
 
 
     def get_associations_by_ids(self, association_ids):
@@ -391,11 +453,13 @@ class Database():
                     value = 'ERROR'
                 infos.append(tuple(list(info)+[value]))
             # get time entries
-            times = self.query("SELECT Time.time_id, time, accuracy, valid, note FROM Time INNER JOIN AT ON Time.time_id = AT.time_id WHERE AT.association_id = %s", (assoc[0],))
+            times = self.query("SELECT Time.time_id, DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'), accuracy, valid, note FROM Time INNER JOIN AT ON Time.time_id = AT.time_id WHERE AT.association_id = %s", (assoc[0],)) or []
             # get location entries
-            locations = self.query("SELECT Location.location_id, name, ST_AsText(gps), accuracy, valid, note FROM Location INNER JOIN AL ON Location.location_id = AL.location_id WHERE AL.association_id = %s", (assoc[0],))
+            locations = self.query("SELECT Location.location_id, name, ST_AsText(gps), accuracy, valid, note FROM Location INNER JOIN AL ON Location.location_id = AL.location_id WHERE AL.association_id = %s", (assoc[0],)) or []
+            # get associated associations
+            associations = self.query("SELECT association_id, ring_id, level, accuracy, valid, note FROM Association WHERE association_id IN(SELECT association_id_2 FROM AA WHERE association_id_1 = %s)", (assoc[0],)) or []
 
-            result.append((assoc, infos, times, locations))
+            result.append((assoc, infos, times, locations, associations))
         return result
 
 # # #

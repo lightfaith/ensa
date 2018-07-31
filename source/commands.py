@@ -62,7 +62,7 @@ def run_command(fullcommand):
     if command.endswith('?'):
         lines = []
         for k, v in sorted(ensa.commands.items(), key=lambda x:x[0]):
-            length = 40
+            length = 50
             if k == '': # empty command - just print long description
                 continue
             
@@ -213,19 +213,19 @@ Format functions
 
 def get_format_len_information(infos):
     return (
-        max(len('%d' % i[0]) for i in infos),
-        max(len(i[4]) for i in infos),
-        max(len(i[-1]) for i in infos),
+        max([0]+[len('%d' % i[0]) for i in infos]),
+        max([0]+[len(i[4]) for i in infos]),
+        max([0]+[len(i[-1]) for i in infos]),
     )
 
 def get_format_len_time(times):
     return (
-        max(len('%d' % t[0]) for t in times),
+        max([0]+[len('%d' % t[0]) for t in times]),
     )
 
 def get_format_len_location(locations):
     return (
-        max(len('%d' % l[0]) for l in locations),
+        max([0]+[len('%d' % l[0]) for l in locations]),
     )
 
 def format_association(association_id, ring_id, level, accuracy, valid, note, use_modified=True):
@@ -241,7 +241,7 @@ def format_association(association_id, ring_id, level, accuracy, valid, note, us
         )
 
 def format_information(information_id, subject_id, codename, info_type, name, level, accuracy, valid, modified, note, value, id_len, name_len, value_len, use_codename=True, use_modified=True):
-    return '%-*d  %s %*s: %-*s  (%sacc %d%s%s)  %s' % (
+    return '%-*d  %s  %*s: %-*s  (%sacc %d%s%s)  %s' % (
         id_len,
         information_id,
         '<%s>' % codename.decode() if use_codename else '',
@@ -278,7 +278,8 @@ def format_time(time_id, time, accuracy, valid, note, id_len, use_modified=True)
     return '%-*d  %s  (acc %d%s%s) %s' % (
         id_len,
         time_id,
-        time.strftime('%Y-%m-%d %H:%M:%S'),
+        #time.strftime('%Y-%m-%d %H:%M:%S'),
+        time.decode() if time else '',
         accuracy,
         #', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
         '',
@@ -318,7 +319,29 @@ add_command(Command('prompt', 'gives python3 shell', '', prompt_function))
 """
 ASSOCIATION COMMANDS
 """
-add_command(Command('a', 'list associations for this ring', 'a', lambda *_: ['TODO']))
+def a_function(*_):
+    associations = ensa.db.get_associations()
+    for association in associations:
+        yield format_association(*association, use_modified=False)
+add_command(Command('a', 'list associations for this ring', 'a', a_function))
+add_command(Command('aa', 'association creation', 'aa', lambda *_: []))
+
+def aaa_function(*args):
+    try:
+        association_id = args[0]
+    except:
+        log.err('Main association ID must be specified.')
+        return []
+    try:
+        association_ids = ','.join(parse_sequence(','.join(args[1:])))
+        if not association_ids:
+            raise AttributeError
+    except:
+        log.err('Inferior association ID must be specified.')
+        return []
+    ensa.db.associate_association(association_id, association_ids)
+    return []
+add_command(Command('aaa <association_id> <association_ids>', 'associate associations to an association', 'aaa', aaa_function))
 
 def aai_function(*args):
     try:
@@ -355,6 +378,24 @@ def aal_function(*args):
 add_command(Command('aal <association_id> <location_ids>', 'associate location entries to an association', 'aal', aal_function))
 
 
+def aas_function(*args):
+    try:
+        association_id = args[0]
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    try:
+        codenames = ','.join(['\'%s\'' % codename for codename in args[1:]])
+        if not codenames:
+            raise AttributeError
+    except:
+        log.err('Subject codename must be specified.')
+        return []
+    ensa.db.associate_subject(association_id, codenames)
+    return []
+add_command(Command('aas <association_id> <codename>', 'associate subject to an association', 'aas', aas_function))
+
+
 def aat_function(*args):
     try:
         association_id = args[0]
@@ -376,17 +417,21 @@ def aaw_function(*_):
     if not ensa.current_ring:
         log.err('First select a ring with `rs <name>`.')
         return []
-    note, level, accuracy, valid = wizard([
+    note, level, accuracy, valid, confirm = wizard([
             'Description:',
             'Optional level of importance:',
             'Accuracy of this entry (default 0):',
             'Should the entry be marked as invalid?',
+            '... Use provided information to create new association?',
         ])
+    if negative(confirm):
+        return []
     level = int(level) if level.isdigit() else None
     accuracy = int(accuracy) if accuracy.isdigit() else 0
     valid = not positive(valid)
     association_id = ensa.db.create_association(level, accuracy, valid, note)
-    return [str(association_id)]
+    log.info('Created new association with id #%d' % association_id)
+    return []
 add_command(Command('aaw', 'use wizard to add new association to current ring', 'aaw', aaw_function))
 
 
@@ -395,7 +440,11 @@ def aga_function(*args):
     if not ids:
         log.err('You must specify an Association ID.')
         return []
-    for association, infos, times, locations in ensa.db.get_associations_by_ids(ids):
+    # TODO nested array result
+    data = ensa.db.get_associations_by_ids(ids)
+    if not data:
+        return []
+    for association, infos, times, locations, associations in data:
         print('#A'+format_association(*association, use_modified=False))
         info_lens = get_format_len_information(infos)
         time_lens = get_format_len_time(times)
@@ -406,6 +455,8 @@ def aga_function(*args):
             print('    #T'+format_time(*time, *time_lens, use_modified=False))
         for location in locations:
             print('    #L'+format_location(*location, *location_lens, use_modified=False))
+        for a in associations:
+            print('    #A'+format_association(*a, use_modified=False))
     return []
 add_command(Command('aga <association_ids>', 'show associations with specific ID', 'aga', aga_function))
 # by id
@@ -516,22 +567,8 @@ def igt_function(*_, no_composite_parts=True):
     infos = ensa.db.get_information(Database.INFORMATION_TEXT, no_composite_parts)
     if not infos:
         return []
-    """for information_id, _, __, name, accuracy, valid, modified, note, level, value in infos:
-        result.append('#%-*d  %*s: %-*s  (%sacc %d, mod %s%s)  %s' % (
-            max_id_len,
-            information_id,
-            max_name_len,
-            name.decode(),
-            max_value_len,
-            value.decode(),
-            'lvl %d, ' % level if level else '',
-            accuracy,
-            modified.strftime('%Y-%m-%d %H:%M:%S'),
-            ', invalid' if not valid else '',
-            note.decode() if note else '',
-            ))"""
     info_lens = get_format_len_information(infos)
-    result = [format_information(*info, *info_lens) for info in infos]
+    result = [format_information(*info, *info_lens, use_codename=False) for info in infos]
     return result
 add_command(Command('igt', 'get all textual information for current subject', 'igt', igt_function))
 add_command(Command('igtc', 'get all textual information (even composite parts) for current subject', 'igtc', lambda *args: igt_function(args, no_composite_parts=False)))
@@ -561,20 +598,29 @@ add_command(Command('ime <information_id>', 'modify information with editor', 'i
 """
 LOCATION COMMANDS
 """
-add_command(Command('l', 'list locations for this ring', 'l', lambda *_: ['TODO']))
+def l_function(*_):
+    locations = ensa.db.get_locations()
+    location_lens = get_format_len_location(locations)
+    for location in locations:
+        yield format_location(*location, *location_lens, use_modified=False)    
+add_command(Command('l', 'list locations for current ring', 'l', l_function))
+add_command(Command('la', 'add new location for current ring', 'la', lambda *_: ['TODO']))
 
 def law_function(*_):
     if not ensa.current_ring:
         log.err('First select a ring with `rs <name>`.')
         return []
-    name, lat, lon, accuracy, valid, note = wizard([
+    name, lat, lon, accuracy, valid, note, confirm = wizard([
             'Name of the place:',
             'Latitude (e.g. 50.079795):',
             'Longitude (e.g. 14.429710):',
             'Accuracy of this entry (default 0):',
             'Should the entry be marked as invalid?',
             'Optional comment:',
+            '... Use provided information to create new location?',
         ])
+    if negative(confirm):
+        return []
     try:
         lat = float(lat)
         lon = float(lon)
@@ -584,7 +630,8 @@ def law_function(*_):
     accuracy = int(accuracy) if accuracy.isdigit() else 0
     valid = not positive(valid)
     location_id = ensa.db.create_location(name, lat, lon, accuracy, valid, note)
-    return [str(location_id)]
+    log.info('Created new location with id #%d' % location_id)
+    return []
 add_command(Command('law', 'use wizard to add new location to current ring', 'law', law_function))
 
 """
@@ -644,11 +691,14 @@ def r_function(*_):
 add_command(Command('r', 'print rings', 'r', r_function))
 
 def ra_function(*_):
-    name, encrypted, note = wizard([
+    name, encrypted, note, confirm = wizard([
             'Name of the ring (e.g. Work):',
             'Should the ring be encrypted (default: no)?',
             'Optional comment:',
+            '... Use provided information to create new ring?',
         ])
+    if negative(confirm):
+        return []
     if not name:
         log.err('Unique name must be specified.')
         return []
@@ -703,8 +753,9 @@ def sa_function(*args): # simple subject creation, `saw` for wizard
     except:
         log.err('You must specify codename.')
         return []
-    ensa.current_subject = ensa.db.create_subject(codename)
+    ensa.db.create_subject(codename)
     if ensa.current_subject:
+        log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring).decode(), codename), symbol=']')
         log.info('Currently working with \'%s\' subject.' % codename)
     return []
         
@@ -730,23 +781,33 @@ add_command(Command('ss <subject>', 'select a subject', 'ss', ss_function))
 """
 TIME COMMANDS
 """
-add_command(Command('t', 'list time entries for this ring', 't', lambda *_: ['TODO']))
+def t_function(*_):
+    times = ensa.db.get_times()
+    time_lens = get_format_len_time(times)
+    for time in times:
+        yield format_time(*time, *time_lens, use_modified=False)    
+add_command(Command('t', 'list time entries for current ring', 't', t_function))
+add_command(Command('la', 'add new location for current ring', 'la', lambda *_: ['TODO']))
 
 def taw_function(*_):
     if not ensa.current_ring:
         log.err('First select a ring with `rs <name>`.')
         return []
-    date, time, accuracy, valid, note = wizard([
+    date, time, accuracy, valid, note, confirm = wizard([
             'Date (YYYY-mm-dd):',
             'Time (HH:MM:SS):',
             'Accuracy of this entry (default 0):',
             'Should the entry be marked as invalid?',
             'Optional comment:',
+            '... Use provided information to create new time?',
         ])
+    if negative(confirm):
+        return []
     accuracy = int(accuracy) if accuracy.isdigit() else 0
     valid = not positive(valid)
     time_id = ensa.db.create_time(date, time, accuracy, valid, note)
-    return [str(time_id)]
+    log.info('Created new time entry with id #%d' % time_id)
+    return []
 add_command(Command('taw', 'use wizard to add new time entry to current ring', 't', taw_function))
 
 
