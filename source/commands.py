@@ -228,15 +228,14 @@ def get_format_len_location(locations):
         max([0]+[len('%d' % l[0]) for l in locations]),
     )
 
-def format_association(association_id, ring_id, level, accuracy, valid, note, use_modified=True):
+def format_association(association_id, ring_id, level, accuracy, valid, modified, note, use_modified=True):
     return '%-d  %s (%sacc %d%s%s)' % (
         #id_len,
         association_id,
         note.decode() if note else '',
         'lvl %d, ' % level if level else '',
         accuracy,
-        #', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
-        '',
+        ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
         ', invalid' if not valid else '',
         )
 
@@ -256,7 +255,7 @@ def format_information(information_id, subject_id, codename, info_type, name, le
         note.decode() if note else '',
         )
 
-def format_location(location_id, name, gps, accuracy, valid, note, id_len, use_modified=True):
+def format_location(location_id, name, gps, accuracy, valid, modified, note, id_len, use_modified=True):
     if gps:
         lat, _, lon = gps.decode()[6:-1].partition(' ')
         lat = lat+'N' if float(lat)>0 else lat[1:]+'S'
@@ -268,21 +267,19 @@ def format_location(location_id, name, gps, accuracy, valid, note, id_len, use_m
         name.decode(),
         gps if gps else '',
         accuracy,
-        #', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
-        '',
+        ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
         ', invalid' if not valid else '',
         note.decode() if note else '',
         )
 
-def format_time(time_id, time, accuracy, valid, note, id_len, use_modified=True):
+def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modified=True):
     return '%-*d  %s  (acc %d%s%s) %s' % (
         id_len,
         time_id,
         #time.strftime('%Y-%m-%d %H:%M:%S'),
         time.decode() if time else '',
         accuracy,
-        #', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
-        '',
+        ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
         ', invalid' if not valid else '',
         note.decode() if note else '',
         )
@@ -322,7 +319,7 @@ ASSOCIATION COMMANDS
 def a_function(*_):
     associations = ensa.db.get_associations()
     for association in associations:
-        yield format_association(*association, use_modified=False)
+        yield format_association(*association, use_modified=True)
 add_command(Command('a', 'list associations for this ring', 'a', a_function))
 add_command(Command('aa', 'association creation', 'aa', lambda *_: []))
 
@@ -455,7 +452,7 @@ def aga_function(*args):
     if not data:
         return []
     for association, infos, times, locations, associations in data:
-        print('#A'+format_association(*association, use_modified=False))
+        print('#A'+format_association(*association, use_modified=True))
         info_lens = get_format_len_information(infos)
         time_lens = get_format_len_time(times)
         location_lens = get_format_len_location(locations)
@@ -614,7 +611,7 @@ def l_function(*_):
         return []
     location_lens = get_format_len_location(locations)
     for location in locations:
-        yield format_location(*location, *location_lens, use_modified=False)    
+        yield format_location(*location, *location_lens, use_modified=True) 
 add_command(Command('l', 'list locations for current ring', 'l', l_function))
 add_command(Command('la', 'add new location for current ring', 'la', lambda *_: ['TODO']))
 
@@ -804,7 +801,7 @@ def t_function(*_):
         return []
     time_lens = get_format_len_time(times)
     for time in times:
-        yield format_time(*time, *time_lens, use_modified=False)    
+        yield format_time(*time, *time_lens, use_modified=True) 
 add_command(Command('t', 'list time entries for current ring', 't', t_function))
 add_command(Command('la', 'add new location for current ring', 'la', lambda *_: ['TODO']))
 
