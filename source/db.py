@@ -136,8 +136,6 @@ class Database():
     def information_cleanup(self, *args):
         if not args or 'composites' in args:
             self.query("DELETE FROM Information WHERE type = %s AND information_id NOT IN (SELECT information_id FROM Composite)", (Database.INFORMATION_COMPOSITE,))
-        #if not args or 'relationships' in args:
-        #    self.query("DELETE FROM Information WHERE type = %s AND information_id NOT IN (SELECT information_id FROM Relationship)", (Database.INFORMATION_RELATIONSHIP,))
 
     def create_information(self, info_type, name, value, accuracy=0, level=None, valid=True, note=None):
         if not self.subject_ok():
@@ -197,44 +195,16 @@ class Database():
             traceback.print_exc()
             log.err('That information does not belong to current subject.')
             return 
-        # delete actual data
-        if info_type == Database.INFORMATION_TEXT:
-            self.query("DELETE FROM Text WHERE information_id = %s", (information_id,))
-        #elif info_type == Database.INFORMATION_BINARY:
-        #    self.query("DELETE FROM Bin WHERE information_id = %s", (information_id,))
-        elif info_type == Database.INFORMATION_COMPOSITE:
-            self.query("DELETE FROM Composite WHERE information_id = %s OR part_id = %s", (information_id, information_id))
-        #elif info_type == Database.INFORMATION_RELATIONSHIP:
-        #    self.query("DELETE FROM Relationship WHERE information_id = %s", (information_id,))
-        # TODO delete tag links
-        # TODO delete references
-        # delete information metadata
         self.query("DELETE FROM Information WHERE information_id = %s", (information_id,))
         log.info('Information deleted.')
 
 
     def get_information(self, info_type=None, no_composite_parts=False):
         if not self.subject_ok():
-            return None
+            return []
         if info_type is None:
             info_type = Database.INFORMATION_ALL
         result = []
-        """
-        if info_type in [Database.INFORMATION_ALL, Database.INFORMATION_TEXT]:
-            if no_composite_parts:
-                q = "SELECT i.*, v.value FROM Information i INNER JOIN Text v ON i.information_id = v.information_id WHERE i.subject_id = %s AND v.information_id NOT IN (SELECT part_id FROM Composite) ORDER BY i.name"
-            else:
-                q = "SELECT i.*, v.value FROM Information i INNER JOIN Text v ON i.information_id = v.information_id WHERE i.subject_id = %s ORDER BY i.name"
-            result += self.query(q, (ensa.current_subject,))
-        
-        
-        if info_type in [Database.INFORMATION_ALL, Database.INFORMATION_BINARY]:
-            result += self.query("SELECT *, '[binary]' FROM Information WHERE subject_id = %s ORDER BY name", (ensa.current_subject,))
-        
-        
-        if info_type in [Database.INFORMATION_ALL, Database.INFORMATION_COMPOSITE]:
-            result += self.query("SELECT i.*, v.part_id FROM Information i INNER JOIN Composite v ON i.information_id = v.information_id WHERE i.subject_id = %s ORDER BY i.name", (ensa.current_subject,))
-        """ 
         if no_composite_parts:
             infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE I.subject_id = %s AND I.information_id NOT IN (SELECT part_id FROM Composite) ORDER BY information_id", (ensa.current_subject,))
         else:
@@ -275,7 +245,7 @@ class Database():
     
     def get_locations(self):
         if not self.ring_ok():
-            return None
+            return []
         return self.query("SELECT location_id, name, ST_AsText(gps), accuracy, valid, note FROM Location WHERE ring_id = %s", (ensa.current_ring,))
 
 ###########################################
@@ -306,7 +276,7 @@ class Database():
 
     def get_times(self):
         if not self.ring_ok():
-            return None
+            return []
         return self.query("SELECT time_id, DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'), accuracy, valid, note FROM Time WHERE ring_id = %s", (ensa.current_ring,))
         #return self.query("SELECT time_id, , accuracy, valid, note FROM Time WHERE time_id IN (8)")
 
@@ -423,14 +393,14 @@ class Database():
 
     def get_associations(self):
         if not self.ring_ok():
-            return None
+            return []
         # get associations
         return self.query("SELECT association_id, ring_id, level, accuracy, valid, note FROM Association WHERE ring_id = %s", (ensa.current_ring,))
 
 
     def get_associations_by_ids(self, association_ids):
         if not self.ring_ok():
-            return None
+            return []
         # get associations
         associations = self.query("SELECT association_id, ring_id, level, accuracy, valid, note FROM Association WHERE association_id IN("+association_ids+")")
         result = []

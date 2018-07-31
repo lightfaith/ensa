@@ -435,6 +435,16 @@ def aaw_function(*_):
 add_command(Command('aaw', 'use wizard to add new association to current ring', 'aaw', aaw_function))
 
 
+def ad_function(*args):
+    try:
+        association_id = args[0]
+        ensa.db.delete_association(association_id)
+    except:
+        log.err('Association ID must be specified.')
+        return []
+add_command(Command('ad <association_id>', 'delete whole association', 'ad', ad_function))
+
+
 def aga_function(*args):
     ids = ','.join(parse_sequence(','.join(args)))
     if not ids:
@@ -600,6 +610,8 @@ LOCATION COMMANDS
 """
 def l_function(*_):
     locations = ensa.db.get_locations()
+    if not locations:
+        return []
     location_lens = get_format_len_location(locations)
     for location in locations:
         yield format_location(*location, *location_lens, use_modified=False)    
@@ -727,6 +739,11 @@ add_command(Command('rd <ring>', 'delete ring', 'rd', rd_function))
 
 def rs_function(*args):
     try:
+        if not args:
+            ensa.current_ring = None
+            log.info('Currently working outside rings.')
+            log.set_prompt()
+            return []
         name = args[0]
         ensa.current_ring = ensa.db.select_ring(name)
         if ensa.current_ring:
@@ -783,6 +800,8 @@ TIME COMMANDS
 """
 def t_function(*_):
     times = ensa.db.get_times()
+    if not times:
+        return []
     time_lens = get_format_len_time(times)
     for time in times:
         yield format_time(*time, *time_lens, use_modified=False)    
