@@ -178,7 +178,7 @@ def run_command(fullcommand):
         log.err('Invalid command.')
         return
     
-    for line in lines:
+    for line in (lines or []):
         if type(line) == str:
             log.tprint(re.sub('^\\{grepignore\\}', '', line))
         elif type(line) == bytes:
@@ -435,11 +435,77 @@ add_command(Command('aaw', 'use wizard to add new association to current ring', 
 def ad_function(*args):
     try:
         association_id = args[0]
-        ensa.db.delete_association(association_id)
+        ensa.db.delete_associations(association_id)
     except:
         log.err('Association ID must be specified.')
         return []
+    return []
 add_command(Command('ad <association_id>', 'delete whole association', 'ad', ad_function))
+
+
+def ada_function(*args):
+    try:
+        association_id = args[0]
+    except:
+        log.err('Main association ID must be specified.')
+        return []
+    try:
+        ids = ','.join(parse_sequence(','.join(args[1:])))
+    except:
+        log.err('Inferior association ID must be specified.')
+        return []
+    ensa.db.dissociate_associations(association_id, ids)
+    return []
+add_command(Command('ada <association_id> <association_ids>', 'remove associations from an association', 'ada', ada_function))
+
+
+def adi_function(*args):
+    try:
+        association_id = args[0]
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    try:
+        ids = ','.join(parse_sequence(','.join(args[1:])))
+    except:
+        log.err('Information ID must be specified.')
+        return []
+    ensa.db.dissociate_informations(association_id, ids)
+    return []
+add_command(Command('adi <association_id> <information_ids>', 'remove information entries from an association', 'adi', adi_function))
+
+
+def adl_function(*args):
+    try:
+        association_id = args[0]
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    try:
+        ids = ','.join(parse_sequence(','.join(args[1:])))
+    except:
+        log.err('Location ID must be specified.')
+        return []
+    ensa.db.dissociate_locations(association_id, ids)
+    return []
+add_command(Command('adl <association_id> <location_ids>', 'remove locations from an association', 'adl', adl_function))
+
+
+def adt_function(*args):
+    try:
+        association_id = args[0]
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    try:
+        ids = ','.join(parse_sequence(','.join(args[1:])))
+    except:
+        log.err('Time ID must be specified.')
+        return []
+    ensa.db.dissociate_times(association_id, ids)
+    return []
+add_command(Command('adt <association_id> <time_ids>', 'remove times from an association', 'adt', adt_function))
+
 
 
 def aga_function(*args):
@@ -643,6 +709,16 @@ def law_function(*_):
     return []
 add_command(Command('law', 'use wizard to add new location to current ring', 'law', law_function))
 
+def ld_function(*args):
+    try:
+        location_ids = ','.join(parse_sequence(','.join(args)))
+        ensa.db.delete_locations(location_ids)
+    except:
+        traceback.print_exc()
+        log.err('Correct location ID from this ring must be provided.')
+    return []
+add_command(Command('ld <location_id>', 'delete location entry from current ring', 'ld', ld_function))
+
 """
 OPTIONS COMMANDS
 """
@@ -729,8 +805,22 @@ def ra_function(*_):
     return []
 add_command(Command('ra', 'add new ring', 'ra', ra_function))
 
-def rd_function(*_):
-    log.err('TODO delete ring') # TODO
+def rd_function(*args):
+    if not args:
+        log.err('Ring name must be specified.')
+    try:
+        ring_id = ensa.db.select_ring(args[0])
+        if not ring_id:
+            raise AttributeError
+        if ensa.current_ring == ring_id:
+            ensa.current_ring = None
+            ensa.current_subject = None
+            log.set_prompt()
+        ensa.db.delete_ring(ring_id)
+    except:
+        traceback.print_exc()
+        log.err('No ring with that name exists.')
+        return []
     return []
 add_command(Command('rd <ring>', 'delete ring', 'rd', rd_function))
 
@@ -777,6 +867,24 @@ add_command(Command('sa <codename>', 'add new subject in the current ring', 'sa'
 
 # TODO `saw`
 
+def sd_function(*args):
+    if not args:
+        log.err('Subject name must be specified.')
+    try:
+        subject_id = ensa.db.select_subject(args[0])
+        if not subject_id:
+            raise AttributeError
+        if ensa.current_subject == subject_id:
+            ensa.current_subject = None
+            log.set_prompt(key=ensa.db.get_ring_name(ensa.current_ring).decode(), symbol=')')
+        ensa.db.delete_subject(subject_id)
+    except:
+        traceback.print_exc()
+        log.err('No ring with that name exists.')
+        return []
+    return []
+    
+add_command(Command('sd <codename>', 'delete subject from the current ring', 'sd', sd_function))
 
 def ss_function(*args):
     try:
@@ -825,6 +933,16 @@ def taw_function(*_):
     log.info('Created new time entry with id #%d' % time_id)
     return []
 add_command(Command('taw', 'use wizard to add new time entry to current ring', 't', taw_function))
+
+def td_function(*args):
+    try:
+        time_ids = ','.join(parse_sequence(','.join(args)))
+        ensa.db.delete_times(time_ids)
+    except:
+        traceback.print_exc()
+        log.err('Correct time ID from this ring must be provided.')
+    return []
+add_command(Command('td <time_id>', 'delete time entry from current ring', 'td', td_function))
 
 
 

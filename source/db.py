@@ -85,6 +85,9 @@ class Database():
         log.err('There is no such ring.')
         return None
 
+    def delete_ring(self, ring_id):
+        self.query("DELETE FROM Ring WHERE ring_id = %s", (ring_id,))
+
 ###########################################
 # Subject methods
 ###########################################
@@ -129,7 +132,10 @@ class Database():
         log.err('There is no such subject in this ring.')
         return None
 
-        
+    def delete_subject(self, subject_id):
+        if not self.ring_ok():
+            return None
+        self.query("DELETE FROM Subject WHERE subject_id = %s AND ring_id = %s", (subject_id,ensa.current_ring))
 ###########################################
 # Information methods
 ###########################################
@@ -248,6 +254,12 @@ class Database():
             return []
         return self.query("SELECT location_id, name, ST_AsText(gps), accuracy, valid, modified, note FROM Location WHERE ring_id = %s", (ensa.current_ring,))
 
+
+    def delete_locations(self, location_ids):
+        if not self.ring_ok():
+            return []
+        self.query("DELETE FROM Location WHERE location_id IN ("+location_ids+") AND ring_id = %s", (ensa.current_ring,))
+
 ###########################################
 # Time methods
 ###########################################
@@ -280,7 +292,10 @@ class Database():
         return self.query("SELECT time_id, DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'), accuracy, valid, modified, note FROM Time WHERE ring_id = %s", (ensa.current_ring,))
         #return self.query("SELECT time_id, , accuracy, valid, note FROM Time WHERE time_id IN (8)")
 
-
+    def delete_times(self, time_ids):
+        if not self.ring_ok():
+            return []
+        self.query("DELETE FROM Time WHERE time_id IN ("+time_ids+") AND ring_id = %s", (ensa.current_ring,))
 ###########################################
 # Association methods
 ###########################################
@@ -309,7 +324,12 @@ class Database():
             log.err('All associations must belong to current ring.')
             return None
         try:
+            count_before = self.query("SELECT COUNT(*) FROM AA")[0][0]
             self.query("INSERT INTO AA(association_id_1, association_id_2) SELECT %s, association_id FROM Association WHERE association_id IN ("+ association_ids +") AND ring_id = %s", (association_id, ensa.current_ring))
+            count_after = self.query("SELECT COUNT(*) FROM AA")[0][0]
+            if count_before == count_after:
+                log.err('Association must belong to current ring.')
+                return None
             self.query("UPDATE Association SET modified = %s WHERE association_id = %s", (time.strftime('%Y-%m-%d %H:%M:%S'), association_id))
             return tuple([(association_id, a) for a in association_ids.split(',')])
         except:
@@ -329,7 +349,12 @@ class Database():
             log.err('Current ring has no such asssociation.')
             return None
         try:
+            count_before = self.query("SELECT COUNT(*) FROM AI")[0][0]
             self.query("INSERT INTO AI(association_id, information_id) SELECT %s, information_id FROM Information WHERE information_id IN ("+ information_ids +") AND subject_id IN (SELECT subject_id FROM Subject WHERE ring_id = %s)", (association_id, ensa.current_ring))
+            count_after = self.query("SELECT COUNT(*) FROM AI")[0][0]
+            if count_before == count_after:
+                log.err('Information must belong to current ring.')
+                return None
             self.query("UPDATE Association SET modified = %s WHERE association_id = %s", (time.strftime('%Y-%m-%d %H:%M:%S'), association_id))
             return tuple([(association_id, i) for i in information_ids])
         except:
@@ -348,7 +373,12 @@ class Database():
             log.err('Current ring has no such asssociation.')
             return None
         try:
+            count_before = self.query("SELECT COUNT(*) FROM AL")[0][0]
             self.query("INSERT INTO AL(association_id, location_id) SELECT %s, location_id FROM Location WHERE location_id IN ("+ location_ids +") AND ring_id = %s", (association_id, ensa.current_ring))
+            count_after = self.query("SELECT COUNT(*) FROM AL")[0][0]
+            if count_before == count_after:
+                log.err('Location must belong to current ring.')
+                return None
             self.query("UPDATE Association SET modified = %s WHERE association_id = %s", (time.strftime('%Y-%m-%d %H:%M:%S'), association_id))
             return tuple([(association_id, l) for l in location_ids])
         except:
@@ -368,7 +398,12 @@ class Database():
             log.err('Current ring has no such asssociation.')
             return None
         try:
+            count_before = self.query("SELECT COUNT(*) FROM AI")[0][0]
             self.query("INSERT INTO AI(association_id, information_id) SELECT %s, I.information_id FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE I.name = 'codename' AND S.codename IN ("+ codenames +") AND S.ring_id = %s", (association_id, ensa.current_ring))
+            count_after = self.query("SELECT COUNT(*) FROM AI")[0][0]
+            if count_before == count_after:
+                log.err('Subject must belong to current ring.')
+                return None
             self.query("UPDATE Association SET modified = %s WHERE association_id = %s", (time.strftime('%Y-%m-%d %H:%M:%S'), association_id))
             return tuple([(association_id, codename) for codename in codenames.split(',')])
         except:
@@ -388,7 +423,12 @@ class Database():
             log.err('Current ring has no such asssociation.')
             return None
         try:
+            count_before = self.query("SELECT COUNT(*) FROM AT")[0][0]
             self.query("INSERT INTO AT(association_id, time_id) SELECT %s, time_id FROM Time WHERE time_id IN ("+ time_ids +") AND ring_id = %s", (association_id, ensa.current_ring))
+            count_after = self.query("SELECT COUNT(*) FROM AT")[0][0]
+            if count_before == count_after:
+                log.err('Time must belong to current ring.')
+                return None
             self.query("UPDATE Association SET modified = %s WHERE association_id = %s", (time.strftime('%Y-%m-%d %H:%M:%S'), association_id))
             return tuple([(association_id, t) for t in time_ids])
         except:
@@ -437,6 +477,39 @@ class Database():
             result.append((assoc, infos, times, locations, associations))
         return result
 
+
+    def delete_associations(self, association_ids):
+        if not self.ring_ok():
+            return []
+        self.query("DELETE FROM Association WHERE association_id IN ("+association_ids+") AND ring_id = %s", (ensa.current_ring,))
+
+
+    def dissociate_associations(self, association_id, association_ids):
+        if not self.ring_ok():
+            return []
+        self.query("DELETE FROM AA WHERE association_id_1 IN (SELECT association_id FROM Association WHERE association_id = %s AND ring_id = %s) AND association_id_2 IN ("+association_ids+")", (association_id, ensa.current_ring,))
+        self.query("UPDATE Association SET modified = %s WHERE association_id = %s AND ring_id = %s", (time.strftime('%Y-%m-%d %H:%M:%S'), association_id, ensa.current_ring))
+
+    
+    def dissociate_informations(self, association_id, information_ids):
+        if not self.ring_ok():
+            return []
+        self.query("DELETE FROM AI WHERE association_id IN (SELECT association_id FROM Association WHERE association_id = %s AND ring_id = %s) AND information_id IN ("+information_ids+")", (association_id, ensa.current_ring,))
+        self.query("UPDATE Association SET modified = %s WHERE association_id = %s AND ring_id = %s", (time.strftime('%Y-%m-%d %H:%M:%S'), association_id, ensa.current_ring))
+     
+    
+    def dissociate_locations(self, association_id, location_ids):
+        if not self.ring_ok():
+            return []
+        self.query("DELETE FROM AL WHERE association_id IN (SELECT association_id FROM Association WHERE association_id = %s AND ring_id = %s) AND location_id IN ("+location_ids+")", (association_id, ensa.current_ring,))
+        self.query("UPDATE Association SET modified = %s WHERE association_id = %s AND ring_id = %s", (time.strftime('%Y-%m-%d %H:%M:%S'), association_id, ensa.current_ring))
+    
+    def dissociate_times(self, association_id, time_ids):
+        if not self.ring_ok():
+            return []
+        self.query("DELETE FROM AT WHERE association_id IN (SELECT association_id FROM Association WHERE association_id = %s AND ring_id = %s) AND time_id IN ("+time_ids+")", (association_id, ensa.current_ring,))
+        self.query("UPDATE Association SET modified = %s WHERE association_id = %s AND ring_id = %s", (time.strftime('%Y-%m-%d %H:%M:%S'), association_id, ensa.current_ring))
+         
 # # #
 ensa.db = Database()
 # # #
