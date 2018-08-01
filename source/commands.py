@@ -615,6 +615,7 @@ add_command(Command('igt', 'get all textual information for current subject', 'i
 add_command(Command('igtc', 'get all textual information (even composite parts) for current subject', 'igtc', lambda *args: igt_function(args, no_composite_parts=False)))
 
 
+add_command(Command('im', 'modify information', 'im', lambda *args: []))
 def ime_function(*args):
     try:
         information_id = args[0]
@@ -677,12 +678,15 @@ def ime_function(*args):
             elif k == 'note':
                 mapped[k] = v if v else None
             # TODO binary, (composite)
-            elif k == 'subject_id':
-                subject_id = ensa.db.select_subject(v)
+            elif k == 'subject':
                 if v:
-                    mapped[k] = v
+                    subject_id = ensa.db.select_subject(v)
+                    if subject_id:
+                        mapped['subject_id'] = subject_id
+                    else:
+                        log.err('No such subject exists in current ring.')
                 else:
-                    log.err('No such subject exists in current ring.')
+                    log.err('Subject must be specified.')
     if change_occured:
         # update DB
         del mapped[None]
