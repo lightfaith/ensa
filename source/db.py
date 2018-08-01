@@ -172,19 +172,6 @@ class Database():
                 # clean composites without parts
                 self.information_cleanup('composites')
 
-
-            """elif info_type == Database.INFORMATION_RELATIONSHIP:
-                # TODO try suggest reverse relationship
-                try:
-                    peer_id = self.select_subject(value)
-                    if not peer_id:
-                        raise AttributeError
-                    self.query("INSERT INTO Relationship(information_id, subject_id) VALUES(%s, %s)", (information_id, peer_id))
-                except:
-                    log.err("No such peer exists in current ring.")
-                # clean relationships without subjects
-                self.information_cleanup('relationships')"""
-
             return information_id
         except:
             traceback.print_exc()
@@ -205,7 +192,7 @@ class Database():
         log.info('Information deleted.')
 
 
-    def get_information(self, info_type=None, no_composite_parts=False):
+    def get_informations(self, info_type=None, no_composite_parts=False):
         if not self.subject_ok():
             return []
         if info_type is None:
@@ -227,11 +214,41 @@ class Database():
                 value = 'ERROR'
             infos.append(tuple(list(info)+[value]))
         return infos
-        
-        """if info_type in [Database.INFORMATION_ALL, Database.INFORMATION_RELATIONSHIP]:
-            result += self.query("SELECT i.*, v.subject_id FROM Information i INNER JOIN Relationship v ON i.information_id = v.information_id WHERE i.subject_id = %s ORDER BY i.name", (ensa.current_subject,))"""
-        return result
+    
+    def get_information(self, information_id):
+        try:
+            info = self.query("SELECT I.information_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE I.subject_id = %s AND I.information_id = %s", (ensa.current_subject, information_id))[0]
+        except:
+            log.err('There is no such information.')
+            traceback.print_exc()
+            return []
 
+        if info[2] in [Database.INFORMATION_ALL, Database.INFORMATION_TEXT]:
+            value = self.query("SELECT value FROM Text WHERE information_id = %s", (info[0],))[0][0]
+        elif info[2] in [Database.INFORMATION_ALL, Database.INFORMATION_BINARY]:
+            value = b'[binary]'
+        elif info[2] in [Database.INFORMATION_ALL, Database.INFORMATION_COMPOSITE]:
+            value = b' '.join(row[0] for row in self.query("SELECT part_id FROM Composite WHERE information_id = %s", (information_id,)))
+        else:
+            value = b'ERROR'
+        return tuple(list(info)+[value])
+      
+
+    def update_information(self, **kwargs):
+        if not self.subject_ok():
+            return []
+        try:
+            self.query("UPDATE Information SET modified = %s, subject_id = %s, name = %s, level = %s, accuracy = %s, valid = %s, note = %s WHERE information_id = %s AND subject_id = %s", tuple([time.strftime('%Y-%m-%d %H:%M:%S')] + [kwargs[x] for x in [
+                'subject_id', 'name', 'level', 'accuracy', 
+                'valid', 'note', 'information_id'
+            ]] + [ensa.current_subject]))
+            if 'value' in kwargs.keys():
+                self.query("UPDATE Text SET value = %s WHERE information_id = %s AND information_id IN(SELECT information_id FROM Information WHERE subject_id = %s)", (kwargs['value'], kwargs['information_id'], ensa.current_subject))
+            #elif 'path' in kwargs.keys():# TODO binary
+            #elif 'compounds' in kwargs.keys(): # TODO composite without edit support?
+        except: 
+            traceback.print_exc()
+            log.err("Information update failed.")
 
 ###########################################
 # Location methods

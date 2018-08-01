@@ -240,7 +240,7 @@ def format_association(association_id, ring_id, level, accuracy, valid, modified
         )
 
 def format_information(information_id, subject_id, codename, info_type, name, level, accuracy, valid, modified, note, value, id_len, name_len, value_len, use_codename=True, use_modified=True):
-    return '%-*d  %s  %*s: %-*s  (%sacc %d%s%s)  %s' % (
+    return '%-*d  %s  %*s: %-*s  (%sacc %2d%s%s)  %s' % (
         id_len,
         information_id,
         '<%s>' % codename.decode() if use_codename else '',
@@ -252,7 +252,7 @@ def format_information(information_id, subject_id, codename, info_type, name, le
         accuracy,
         ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
         ', invalid' if not valid else '',
-        note.decode() if note else '',
+        ('# '+note.decode()) if note else '',
         )
 
 def format_location(location_id, name, gps, accuracy, valid, modified, note, id_len, use_modified=True):
@@ -603,41 +603,9 @@ add_command(Command('id <information_id>', 'delete information of current subjec
 
 add_command(Command('ig', 'get information of current subject', 'ig', lambda *_: ['TODO']))
 
-"""
-def igr_function(*_):
-    result = []
-    infos = ensa.db.get_information(Database.INFORMATION_RELATIONSHIP)
-    if not infos:
-        return []
-
-    peers = [] # TODO do this in SELECT
-    for peer_id in [i[-1] for i in infos]:
-        peers.append('%s (#%d)' % (ensa.db.get_subject_codename(peer_id).decode(), peer_id))
-    max_id_len = max(len('%d' % i[0]) for i in infos)
-    max_name_len = max(len(i[3]) for i in infos)
-    max_value_len = max(len(peer) for peer in peers)
-    for (information_id, _, __, name, accuracy, valid, modified, note, level, ___), peer in zip(infos, peers):
-        result.append('#%-*d  %*s: %-*s  (lvl %d, acc %d, mod %s%s)  %s' % (
-            max_id_len,
-            information_id,
-            max_name_len,
-            name.decode(),
-            max_value_len,
-            peer,
-            level,
-            accuracy,
-            modified.strftime('%Y-%m-%d %H:%M:%S'),
-            ', invalid' if not valid else '',
-            note.decode() if note else '',
-            ))
-    return result
-add_command(Command('igr', 'get all relationship information for current subject', 'igr', igr_function))
-# TODO igrx - cross-reference
-"""
-
 def igt_function(*_, no_composite_parts=True):
     result = []
-    infos = ensa.db.get_information(Database.INFORMATION_TEXT, no_composite_parts)
+    infos = ensa.db.get_informations(Database.INFORMATION_TEXT, no_composite_parts)
     if not infos:
         return []
     info_lens = get_format_len_information(infos)
@@ -653,18 +621,80 @@ def ime_function(*args):
     except:
         log.err('ID of information must be specified.')
         return []
-    # TODO prepare data
+    # get values
+    data = ensa.db.get_information(information_id)
+    if not data:
+        return []
+    # add labels
+    if data[2] == ensa.db.INFORMATION_TEXT:
+        value_column = 'value'
+    elif data[2] == ensa.db.INFORMATION_BINARY:
+        value_column = 'path'
+    #elif data[2] == ensa.db.INFORMATION_COMPOSITE: # TODO composite without edit support?
+    #    value_column = 'compounds'
+    else:
+        value_column = 'ERROR'
+    mapped = dict(zip([None, 'subject', None, 'name', 'level', 'accuracy', 'valid', 'note', value_column], [(x.decode() if type(x)==bytearray else x) if x else '' for x in data]))
+    #print(mapped)
+    # write into file
     with tempfile.NamedTemporaryFile() as f:
-        f.write(r.bytes())
+        for k in sorted(filter(None, mapped.keys())):
+            f.write(('%s: %s\n' % (k, mapped[k])).encode())
         f.flush()
         subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
         f.seek(0)
-        # read back
-        changes = f.read()
-
-    # TODO parse changes
-    if changes != r.bytes():
-        pass
+        # retrieve changes
+        changes = f.read().decode()
+    change_occured = False
+    for line in changes.splitlines():
+        k, _, v = line.partition(': ')
+        if k not in mapped.keys(): # ingore unknown keys
+            continue
+        v = type(mapped[k])(v)
+        if mapped[k] != v:
+            #print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
+            change_occured = True
+            # check validity and save valid changes
+            if k == 'accuracy':
+                if type(v) == int or v.isdigit():
+                    mapped[k] = int(v)
+                else:
+                    log.err('Accuracy must be a number.')
+            elif k == 'valid':
+                mapped[k] = positive(v)
+            elif k == 'level':
+                if type(v) == int or v.isdigit():
+                    mapped[k] = int(v)
+                elif v == '':
+                    mapped[k] = None
+                else:
+                    log.err('Level must be empty or a number.')
+            elif k in ['name', 'value']:
+                if v:
+                    mapped[k] = v
+                else:
+                    log.err('%s must be defined.' % (k.title()))
+            elif k == 'note':
+                mapped[k] = v if v else None
+            # TODO binary, (composite)
+            elif k == 'subject_id':
+                subject_id = ensa.db.select_subject(v)
+                if v:
+                    mapped[k] = v
+                else:
+                    log.err('No such subject exists in current ring.')
+    if change_occured:
+        # update DB
+        del mapped[None]
+        mapped['information_id'] = information_id
+        if 'subject_id' not in mapped.keys():
+            mapped['subject_id'] = ensa.current_subject
+        #print(mapped)
+        ensa.db.update_information(**mapped)
+        log.info('Information %s successfully changed.' % information_id)
+    else:
+        log.info('No change has been done.')
+    return []
 
 add_command(Command('ime <information_id>', 'modify information with editor', 'ime', ime_function))
 
