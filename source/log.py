@@ -6,7 +6,7 @@ Print and logging stuff is here.
 import threading
 from source.lib import positive
 from source.ensa import config
-
+import traceback
 
 """
 Colors
@@ -120,36 +120,17 @@ def debug_config(string=''):
     if positive(config['debug.config'][0]):
         show_marked('cnf.', COLOR_DARK_GREY, COLOR_DARK_GREY+str(string)+COLOR_NONE)
 
-def debug_mapping(string=''):
-    if positive(config['debug.mapping'][0]):
-        show_marked('map.', COLOR_DARK_GREY, COLOR_DARK_GREY+str(string)+COLOR_NONE)
+def debug_error(string=''):
+    if positive(config['debug.errors'][0]):
+        err('See traceback:')
+        traceback.print_exc()
 
-def debug_parsing(string=''):
-    if positive(config['debug.parsing'][0]):
-        show_marked('prs.', COLOR_DARK_GREY, COLOR_DARK_GREY+str(string)+COLOR_NONE)
+def debug_query(string=''):
+    if positive(config['debug.query'][0]):
+        show_marked('qry.', COLOR_DARK_GREY, COLOR_DARK_GREY+str(string)+COLOR_NONE)
 
-def debug_socket(string=''):
-    if positive(config['debug.socket'][0]):
-        show_marked('sck.', COLOR_DARK_GREY, COLOR_DARK_GREY+str(string)+COLOR_NONE)
-
-def debug_chunks(string=''):
-    if positive(config['debug.chunks'][0]):
-        show_marked('cnk.', COLOR_DARK_GREY, COLOR_DARK_GREY+str(string)+COLOR_NONE)
-
-def debug_tampering(string=''):
-    if positive(config['debug.tampering'][0]):
-        show_marked('tpr.', COLOR_DARK_GREY, COLOR_DARK_GREY+str(string)+COLOR_NONE)
-
-def debug_analysis(string=''):
-    if positive(config['debug.analysis'][0]):
-        show_marked('anl.', COLOR_DARK_GREY, COLOR_DARK_GREY+str(string)+COLOR_NONE)
-
-def debug_protocol(string=''):
-    if positive(config['debug.protocol'][0]):
-        show_marked('prt.', COLOR_DARK_GREY, COLOR_DARK_GREY+str(string)+COLOR_NONE)
-
-def debug_flow(string=''):
-    if positive(config['debug.flow'][0]):
-        show_marked('flw.', COLOR_DARK_GREY, COLOR_DARK_GREY+str(string)+COLOR_NONE)
+#def debug_flow(string=''):
+#    if positive(config['debug.flow'][0]):
+#        show_marked('flw.', COLOR_DARK_GREY, COLOR_DARK_GREY+str(string)+COLOR_NONE)
 
 

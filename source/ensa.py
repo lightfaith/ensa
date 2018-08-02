@@ -20,7 +20,9 @@ config['db.password'] = ('', str)       # MySQL password
 """ debug settings """
 config['debug.command'] = (False, bool)  # show debug info about used commands
 config['debug.config'] = (False, bool)   # show debug info about configuration 
+config['debug.errors'] = (False, bool)   # show python tracebacks
 #config['debug.flow'] = (True, bool)     # show debug info about program flow`
+config['debug.query'] = (False, bool)    # show debug info about database queries
 
 """ External commands """
 config['external.editor'] = ('vim %s', str) # path to editor

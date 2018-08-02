@@ -35,7 +35,7 @@ class Database():
     
     def query(self, command, parameters=None):
         # TODO lock (because of last insert id)
-        #print(command)
+        log.debug_query(command)
         try:
             self.cur.execute(command, parameters or tuple())
         except mysql.connector.errors.OperationalError:
@@ -257,7 +257,8 @@ class Database():
         if not self.ring_ok():
             return None
         try:
-            gps = 'POINT(%f %f)' % (lat, lon) if lat and lon else 'NULL'
+            gps = 'POINT(%f, %f)' % (lat, lon) if lat and lon else 'NULL'
+            print(gps)
             self.query("INSERT INTO Location(name, gps, accuracy, valid, ring_id, modified, note) VALUES(%s, "+gps+", %s, %s, %s, %s, %s)", (name, accuracy, valid, ensa.current_ring, time.strftime('%Y-%m-%d %H:%M:%S'), note))
             location_id = self.query("SELECT location_id from Location ORDER BY location_id DESC LIMIT 1")[0][0]
             return location_id
@@ -276,6 +277,30 @@ class Database():
         if not self.ring_ok():
             return []
         self.query("DELETE FROM Location WHERE location_id IN ("+location_ids+") AND ring_id = %s", (ensa.current_ring,))
+    
+
+    def get_location(self, location_id):
+        if not self.ring_ok():
+            return []
+        try:
+            info = self.query("SELECT location_id, name, ST_AsText(gps), accuracy, valid, note FROM Location WHERE location_id = %s AND ring_id = %s", (location_id, ensa.current_ring,))[0]
+        except:
+            log.err('There is no such location.')
+            traceback.print_exc()
+            return []
+        return info
+    
+
+    def update_location(self, **kwargs):
+        if not self.ring_ok():
+            return []
+        try:
+            gps = 'POINT(%f, %f)' % (kwargs['lat'], kwargs['lon']) if kwargs.get('lat') and kwargs.get('lon') else 'NULL'
+            self.query("UPDATE Location SET modified = %s, name = %s, gps = "+gps+", accuracy = %s, valid = %s, note = %s WHERE location_id = %s AND ring_id = %s", tuple([time.strftime('%Y-%m-%d %H:%M:%S')] + [kwargs[x] for x in [
+                'name', 'accuracy', 'valid', 'note', 'location_id']] + [ensa.current_ring]))
+        except: 
+            traceback.print_exc()
+            log.err("Location update failed.")
 
 ###########################################
 # Time methods
@@ -313,6 +338,30 @@ class Database():
         if not self.ring_ok():
             return []
         self.query("DELETE FROM Time WHERE time_id IN ("+time_ids+") AND ring_id = %s", (ensa.current_ring,))
+    
+
+    def get_time(self, time_id):
+        if not self.ring_ok():
+            return []
+        try:
+            info = self.query("SELECT time_id, DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'), accuracy, valid, note FROM Time WHERE time_id = %s AND ring_id = %s", (time_id, ensa.current_ring,))[0]
+        except:
+            log.err('There is no such time entry.')
+            traceback.print_exc()
+            return []
+        return info
+    
+
+    def update_time(self, **kwargs):
+        if not self.ring_ok():
+            return []
+        try:
+            self.query("UPDATE Time SET modified = %s, time = %s, accuracy = %s, valid = %s, note = %s WHERE time_id = %s AND ring_id = %s", tuple([time.strftime('%Y-%m-%d %H:%M:%S')] + [kwargs[x] for x in [
+                'datetime', 'accuracy', 'valid', 'note', 'time_id']] + [ensa.current_ring]))
+        except: 
+            traceback.print_exc()
+            log.err("Time update failed.")
+
 ###########################################
 # Association methods
 ###########################################

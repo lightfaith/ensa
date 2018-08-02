@@ -11,6 +11,7 @@ from source.docs import doc
 #from source.protocols import protocols
 from source.lib import *
 from source.db import Database
+from datetime import datetime
 
 """
 Universal class for commands.
@@ -93,8 +94,7 @@ def run_command(fullcommand):
 
         except Exception as e:
             log.err('Cannot execute command \''+command+'\': '+str(e)+'.')
-            log.err('See traceback:')
-            traceback.print_exc()
+            log.debug_error()
             return
 
     # Lines can be:
@@ -269,7 +269,7 @@ def format_location(location_id, name, gps, accuracy, valid, modified, note, id_
         accuracy,
         ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
         ', invalid' if not valid else '',
-        note.decode() if note else '',
+        ('# '+note.decode()) if note else '',
         )
 
 def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modified=True):
@@ -281,7 +281,7 @@ def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modi
         accuracy,
         ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
         ', invalid' if not valid else '',
-        note.decode() if note else '',
+        ('# '+note.decode()) if note else '',
         )
 
 # # # # ## ## ### #### ###### ############################ ##### #### ### ## ## # # # #
@@ -427,7 +427,8 @@ def aaw_function(*_):
     accuracy = int(accuracy) if accuracy.isdigit() else 0
     valid = not positive(valid)
     association_id = ensa.db.create_association(level, accuracy, valid, note)
-    log.info('Created new association with id #%d' % association_id)
+    if association_id:
+        log.info('Created new association with id #%d' % association_id)
     return []
 add_command(Command('aaw', 'use wizard to add new association to current ring', 'aaw', aaw_function))
 
@@ -554,7 +555,7 @@ def iac_function(*args):
             return []
         ensa.db.create_information(Database.INFORMATION_COMPOSITE, name, parts)
     except:
-        traceback.print_exc()
+        log.debug_error()
         return []
     return []
     
@@ -570,7 +571,7 @@ def iat_function(*args):
             return []
         ensa.db.create_information(Database.INFORMATION_TEXT, name, value)
     except:
-        traceback.print_exc()
+        log.debug_error()
         return []
     return []
 add_command(Command('iat <name> <value>', 'add textual information to current subject', 'iat', iat_function))
@@ -582,7 +583,7 @@ def iar_function(*args):
         codename = args[1]
         ensa.db.create_information(Database.INFORMATION_RELATIONSHIP, name, codename)
     except:
-        traceback.print_exc()
+        log.debug_error()
         return []
     return []
 
@@ -616,6 +617,7 @@ add_command(Command('igtc', 'get all textual information (even composite parts) 
 
 
 add_command(Command('im', 'modify information', 'im', lambda *args: []))
+
 def ime_function(*args):
     try:
         information_id = args[0]
@@ -651,7 +653,7 @@ def ime_function(*args):
         k, _, v = line.partition(': ')
         if k not in mapped.keys(): # ingore unknown keys
             continue
-        v = type(mapped[k])(v)
+        v = type(mapped[k])(v.strip())
         if mapped[k] != v:
             #print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
             change_occured = True
@@ -661,6 +663,8 @@ def ime_function(*args):
                     mapped[k] = int(v)
                 else:
                     log.err('Accuracy must be a number.')
+                    change_occured = False
+                    break
             elif k == 'valid':
                 mapped[k] = positive(v)
             elif k == 'level':
@@ -670,11 +674,15 @@ def ime_function(*args):
                     mapped[k] = None
                 else:
                     log.err('Level must be empty or a number.')
+                    change_occured = False
+                    break
             elif k in ['name', 'value']:
                 if v:
                     mapped[k] = v
                 else:
                     log.err('%s must be defined.' % (k.title()))
+                    change_occured = False
+                    break
             elif k == 'note':
                 mapped[k] = v if v else None
             # TODO binary, (composite)
@@ -685,8 +693,12 @@ def ime_function(*args):
                         mapped['subject_id'] = subject_id
                     else:
                         log.err('No such subject exists in current ring.')
+                        change_occured = False
+                        break
                 else:
                     log.err('Subject must be specified.')
+                    change_occured = False
+                    break
     if change_occured:
         # update DB
         del mapped[None]
@@ -699,7 +711,6 @@ def ime_function(*args):
     else:
         log.info('No change has been done.')
     return []
-
 add_command(Command('ime <information_id>', 'modify information with editor', 'ime', ime_function))
 
 """
@@ -721,8 +732,8 @@ def law_function(*_):
         return []
     name, lat, lon, accuracy, valid, note, confirm = wizard([
             'Name of the place:',
-            'Latitude (e.g. 50.079795):',
-            'Longitude (e.g. 14.429710):',
+            'Latitude (e.g. -50.079795):',
+            'Longitude (e.g. -14.429710):',
             'Accuracy of this entry (default 0):',
             'Should the entry be marked as invalid?',
             'Optional comment:',
@@ -739,7 +750,10 @@ def law_function(*_):
     accuracy = int(accuracy) if accuracy.isdigit() else 0
     valid = not positive(valid)
     location_id = ensa.db.create_location(name, lat, lon, accuracy, valid, note)
-    log.info('Created new location with id #%d' % location_id)
+    if location_id:
+        log.info('Created new location with id #%d' % location_id)
+    else:
+        log.err('Adding new location failed.')
     return []
 add_command(Command('law', 'use wizard to add new location to current ring', 'law', law_function))
 
@@ -748,10 +762,93 @@ def ld_function(*args):
         location_ids = ','.join(parse_sequence(','.join(args)))
         ensa.db.delete_locations(location_ids)
     except:
-        traceback.print_exc()
+        log.debug_error()
         log.err('Correct location ID from this ring must be provided.')
     return []
 add_command(Command('ld <location_id>', 'delete location entry from current ring', 'ld', ld_function))
+
+
+add_command(Command('lm', 'modify location', 'lm', lambda *args: []))
+
+def lme_function(*args):
+    try:
+        location_id = args[0]
+    except:
+        log.err('Location ID must be specified.')
+        return []
+    # get values
+    data = ensa.db.get_location(location_id)
+    if not data:
+        return []
+    #print(data)
+    lat, _, lon = data[2].decode().partition('(')[2].partition(' ') if data[2] else (None, None, None)
+    if lon:
+        lon = lon[:-1]
+    data = data[:2]+(lat,lon)+data[3:]
+    # add labels
+    mapped = dict(zip([None, 'name', 'lat', 'lon', 'accuracy', 'valid', 'note'], [(x.decode() if type(x)==bytearray else x) if x else '' for x in data]))
+    #print(mapped)
+    # write into file
+    with tempfile.NamedTemporaryFile() as f:
+        for k in sorted(filter(None, mapped.keys())):
+            f.write(('%s: %s\n' % (k, mapped[k])).encode())
+        f.flush()
+        subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
+        f.seek(0)
+        # retrieve changes
+        changes = f.read().decode()
+    change_occured = False
+    for line in changes.splitlines():
+        k, _, v = line.partition(': ')
+        if k not in mapped.keys(): # ingore unknown keys
+            continue
+        v = type(mapped[k])(v.strip())
+        if mapped[k] != v:
+            #print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
+            change_occured = True
+            # check validity and save valid changes
+            if k == 'accuracy':
+                if type(v) == int or v.isdigit():
+                    mapped[k] = int(v)
+                else:
+                    log.err('Accuracy must be a number.')
+                    change_occured = False
+                    break
+            elif k == 'valid':
+                mapped[k] = positive(v)
+            elif k == 'name':
+                if v:
+                    mapped[k] = v
+                else:
+                    log.err('%s must be defined.' % (k.title()))
+                    change_occured = False
+                    break
+            elif k in ['lat', 'lon']:
+                try:
+                    v = float(v)
+                    mapped[k] = v
+                except:
+                    log.err('Latitude and longitude must be numbers.')
+                    change_occured = False
+                    break
+            elif k == 'note':
+                mapped[k] = v if v else None
+    if change_occured:
+        # update DB
+        del mapped[None]
+        if type(mapped['lat']) == str:
+            mapped['lat'] = float(mapped['lat'])
+        if type(mapped['lon']) == str:
+            mapped['lon'] = float(mapped['lon'])
+        mapped['location_id'] = location_id
+        print(mapped)
+        ensa.db.update_location(**mapped)
+        log.info('Location %s successfully changed.' % location_id)
+    else:
+        log.info('No change has been done.')
+    return []
+add_command(Command('lme <location_id>', 'modify location with editor', 'lme', lme_function))
+
 
 """
 OPTIONS COMMANDS
@@ -852,7 +949,7 @@ def rd_function(*args):
             log.set_prompt()
         ensa.db.delete_ring(ring_id)
     except:
-        traceback.print_exc()
+        log.debug_error()
         log.err('No ring with that name exists.')
         return []
     return []
@@ -873,7 +970,7 @@ def rs_function(*args):
             log.set_prompt(key=name, symbol=')')
     except:
         log.err('Ring name must be specified.')
-        traceback.print_exc()
+        log.debug_error()
     return []
 add_command(Command('rs <ring>', 'select a ring', 'rs', rs_function))
 
@@ -913,7 +1010,7 @@ def sd_function(*args):
             log.set_prompt(key=ensa.db.get_ring_name(ensa.current_ring).decode(), symbol=')')
         ensa.db.delete_subject(subject_id)
     except:
-        traceback.print_exc()
+        log.debug_error()
         log.err('No ring with that name exists.')
         return []
     return []
@@ -929,7 +1026,7 @@ def ss_function(*args):
             log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring).decode(), codename), symbol=']')
     except:
         log.err('Subject codename must be specified.')
-        traceback.print_exc()
+        log.debug_error()
     return []
 add_command(Command('ss <subject>', 'select a subject', 'ss', ss_function))
 
@@ -964,7 +1061,8 @@ def taw_function(*_):
     accuracy = int(accuracy) if accuracy.isdigit() else 0
     valid = not positive(valid)
     time_id = ensa.db.create_time(date, time, accuracy, valid, note)
-    log.info('Created new time entry with id #%d' % time_id)
+    if time_id:
+        log.info('Created new time entry with id #%d' % time_id)
     return []
 add_command(Command('taw', 'use wizard to add new time entry to current ring', 't', taw_function))
 
@@ -973,10 +1071,104 @@ def td_function(*args):
         time_ids = ','.join(parse_sequence(','.join(args)))
         ensa.db.delete_times(time_ids)
     except:
-        traceback.print_exc()
+        log.debug_error()
         log.err('Correct time ID from this ring must be provided.')
     return []
 add_command(Command('td <time_id>', 'delete time entry from current ring', 'td', td_function))
+
+
+add_command(Command('tm', 'modify time', 'tm', lambda *args: []))
+
+def tme_function(*args):
+    try:
+        time_id = args[0]
+    except:
+        log.err('Time ID must be specified.')
+        return []
+    # get values
+    data = ensa.db.get_time(time_id)
+    if not data:
+        return []
+    d, _, t = data[1].decode().partition(' ')
+    data = data[:1]+(d,t)+data[2:]
+    # add labels
+    mapped = dict(zip([None, 'date', 'time', 'accuracy', 'valid', 'note'], [(x.decode() if type(x)==bytearray else x) if x else '' for x in data]))
+    #print(mapped)
+    # write into file
+    with tempfile.NamedTemporaryFile() as f:
+        for k in sorted(filter(None, mapped.keys())):
+            f.write(('%s: %s\n' % (k, mapped[k])).encode())
+        f.flush()
+        subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
+        f.seek(0)
+        # retrieve changes
+        changes = f.read().decode()
+    change_occured = False
+    for line in changes.splitlines():
+        k, _, v = line.partition(': ')
+        if k not in mapped.keys(): # ingore unknown keys
+            continue
+        v = type(mapped[k])(v.strip())
+        if mapped[k] != v:
+            #print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
+            change_occured = True
+            # check validity and save valid changes
+            if k == 'accuracy':
+                if type(v) == int or v.isdigit():
+                    mapped[k] = int(v)
+                else:
+                    log.err('Accuracy must be a number.')
+                    change_occured = False
+                    break
+            elif k == 'valid':
+                mapped[k] = positive(v)
+            elif k == 'name':
+                if v:
+                    mapped[k] = v
+                else:
+                    log.err('%s must be defined.' % (k.title()))
+                    change_occured = False
+                    break
+            elif k == 'date':
+                if not v:
+                    mapped[k] = '0000-00-00'
+                else:
+                    try:
+                        _ = datetime.strptime(v, '%Y-%m-%d')
+                        mapped[k] = v
+                    except:
+                        log.err('Date must be of YYYY-mm-dd format.')
+                        log.debug_error()
+                        change_occured = False
+                        break
+            elif k == 'time':
+                if not v:
+                    mapped[k] = '00:00:00'
+                else:
+                    try:
+                        _ = datetime.strptime(v, '%H:%M:%S')
+                        mapped[k] = v
+                    except:
+                        log.err('Time must be of HH:MM:SS format.')
+                        log.debug_error()
+                        change_occured = False
+                        break
+            elif k == 'note':
+                mapped[k] = v if v else None
+    if change_occured:
+        # update DB
+        del mapped[None]
+        mapped['time_id'] = time_id
+        mapped['datetime'] = '%s %s' % (mapped['date'], mapped['time'])
+        del mapped['date']
+        del mapped['time']
+        #print(mapped)
+        ensa.db.update_time(**mapped)
+        log.info('Time entry %s successfully changed.' % time_id)
+    else:
+        log.info('No change has been done.')
+    return []
+add_command(Command('tme <time_id>', 'modify time entry with editor', 'tme', tme_function))
 
 
 
