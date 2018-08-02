@@ -87,6 +87,7 @@ def run_command(fullcommand):
     else:
         try:
             command, *args = command.split(' ')
+            args = tuple(filter(None, args))
             log.debug_command('  Command: \'%s\'' % (command))
             log.debug_command('  Args:    %s' % (str(args)))
             # run command
@@ -607,6 +608,70 @@ def ame_function(*args):
     return []
 add_command(Command('ame <association_id>', 'modify association with editor', 'ame', ame_function))
 
+def ama_function(*args):
+    try:
+        association_ids = ','.join(parse_sequence(args[0]))
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    try:
+        value = int(args[1])
+    except:
+        log.err('Value must be a number.')
+        return []
+    ensa.db.update_association_metadata(association_ids, accuracy=value)
+    log.info('Accuracy updated.')
+    return []
+add_command(Command('ama <association_ids> <value>', 'modify association accuracy', 'ama', ama_function))
+
+def aml_function(*args):
+    try:
+        association_ids = ','.join(parse_sequence(args[0]))
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    try:
+        value = int(args[1])
+    except:
+        value = None
+    ensa.db.update_association_metadata(association_ids, level=value)
+    log.info('Level updated.')
+    return []
+add_command(Command('aml <association_ids> [<value>]', 'modify association level', 'aml', aml_function))
+
+def amd_function(*args):
+    try:
+        association_ids = ','.join(parse_sequence(args[0]))
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    try:
+        value = ' '.join(args[1:])
+    except:
+        log.err('Value must be defined.')
+        return []
+    ensa.db.update_association_metadata(association_ids, note=value)
+    log.info('Note updated.')
+    return []
+add_command(Command('amd <association_id> <value>', 'modify association description', 'amd', amd_function))
+
+
+def amv_function(*args):
+    try:
+        association_ids = ','.join(parse_sequence(args[0]))
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    try:
+        value = '1' if positive(args[1]) else '0'
+    except:
+        log.err('Value must be defined.')
+        return []
+    ensa.db.update_association_metadata(association_ids, valid=value)
+    log.info('Validity updated.')
+    return []
+add_command(Command('amv <association_ids> <value>', 'modify association validity', 'amv', amv_function))
+
 """
 INFORMATION COMMANDS
 """
@@ -781,6 +846,69 @@ def ime_function(*args):
     return []
 add_command(Command('ime <information_id>', 'modify information with editor', 'ime', ime_function))
 
+def ima_function(*args):
+    try:
+        information_ids = ','.join(parse_sequence(args[0]))
+    except:
+        log.err('Information ID must be specified.')
+        return []
+    try:
+        value = int(args[1])
+    except:
+        log.err('Value must be a number.')
+        return []
+    ensa.db.update_information_metadata(information_ids, accuracy=value)
+    log.info('Accuracy updated.')
+    return []
+add_command(Command('ima <information_ids> <value>', 'modify information accuracy', 'ima', ima_function))
+
+def iml_function(*args):
+    try:
+        information_ids = ','.join(parse_sequence(args[0]))
+    except:
+        log.err('Information ID must be specified.')
+        return []
+    try:
+        value = int(args[1])
+    except:
+        value = None
+    ensa.db.update_information_metadata(information_ids, level=value)
+    log.info('Level updated.')
+    return []
+add_command(Command('iml <information_ids> [<value>]', 'modify information level', 'iml', iml_function))
+
+def imn_function(*args):
+    try:
+        information_ids = ','.join(parse_sequence(args[0]))
+    except:
+        log.err('Information ID must be specified.')
+        return []
+    try:
+        value = ' '.join(args[1:])
+    except:
+        log.err('Value must be defined.')
+        return []
+    ensa.db.update_information_metadata(information_ids, note=value)
+    log.info('Note updated.')
+    return []
+add_command(Command('imn <information_id> <value>', 'modify information note', 'imn', imn_function))
+
+
+def imv_function(*args):
+    try:
+        information_ids = ','.join(parse_sequence(args[0]))
+    except:
+        log.err('Information ID must be specified.')
+        return []
+    try:
+        value = '1' if positive(args[1]) else '0'
+    except:
+        log.err('Value must be defined.')
+        return []
+    ensa.db.update_information_metadata(information_ids, valid=value)
+    log.info('Validity updated.')
+    return []
+add_command(Command('imv <information_ids> <value>', 'modify information validity', 'imv', imv_function))
 """
 LOCATION COMMANDS
 """
@@ -904,10 +1032,10 @@ def lme_function(*args):
     if change_occured:
         # update DB
         del mapped[None]
-        if type(mapped['lat']) == str:
-            mapped['lat'] = float(mapped['lat'])
-        if type(mapped['lon']) == str:
-            mapped['lon'] = float(mapped['lon'])
+        if type(mapped['lat']) == float:
+            mapped['lat'] = str(mapped['lat'])
+        if type(mapped['lon']) == float:
+            mapped['lon'] = str(mapped['lon'])
         mapped['location_id'] = location_id
         print(mapped)
         ensa.db.update_location(**mapped)
@@ -916,6 +1044,57 @@ def lme_function(*args):
         log.info('No change has been done.')
     return []
 add_command(Command('lme <location_id>', 'modify location with editor', 'lme', lme_function))
+
+
+def lma_function(*args):
+    try:
+        location_ids = ','.join(parse_sequence(args[0]))
+    except:
+        log.err('Location ID must be specified.')
+        return []
+    try:
+        value = int(args[1])
+    except:
+        log.err('Value must be a number.')
+        return []
+    ensa.db.update_location_metadata(location_ids, accuracy=value)
+    log.info('Accuracy updated.')
+    return []
+add_command(Command('lma <location_ids> <value>', 'modify location accuracy', 'lma', lma_function))
+
+def lmn_function(*args):
+    try:
+        location_ids = ','.join(parse_sequence(args[0]))
+    except:
+        log.err('Location ID must be specified.')
+        return []
+    try:
+        value = ' '.join(args[1:])
+    except:
+        log.err('Value must be defined.')
+        return []
+    ensa.db.update_location_metadata(location_ids, note=value)
+    log.info('Note updated.')
+    return []
+add_command(Command('lmn <location_ids> <value>', 'modify location note', 'lmn', lmn_function))
+
+
+def lmv_function(*args):
+    try:
+        location_ids = ','.join(parse_sequence(args[0]))
+    except:
+        log.err('Location ID must be specified.')
+        return []
+    try:
+        value = '1' if positive(args[1]) else '0'
+    except:
+        log.err('Value must be defined.')
+        return []
+    ensa.db.update_location_metadata(location_ids, valid=value)
+    log.info('Validity updated.')
+    return []
+add_command(Command('lmv <location_ids> <value>', 'modify location validity', 'lmv', lmv_function))
+
 
 
 """
@@ -1238,6 +1417,55 @@ def tme_function(*args):
     return []
 add_command(Command('tme <time_id>', 'modify time entry with editor', 'tme', tme_function))
 
+
+def tma_function(*args):
+    try:
+        time_ids = ','.join(parse_sequence(args[0]))
+    except:
+        log.err('Time ID must be specified.')
+        return []
+    try:
+        value = int(args[1])
+    except:
+        log.err('Value must be a number.')
+        return []
+    ensa.db.update_time_metadata(time_ids, accuracy=value)
+    log.info('Accuracy updated.')
+    return []
+add_command(Command('tma <location_ids> <value>', 'modify time accuracy', 'tma', tma_function))
+
+def tmn_function(*args):
+    try:
+        time_ids = ','.join(parse_sequence(args[0]))
+    except:
+        log.err('Time ID must be specified.')
+        return []
+    try:
+        value = ' '.join(args[1:])
+    except:
+        log.err('Value must be defined.')
+        return []
+    ensa.db.update_time_metadata(time_ids, note=value)
+    log.info('Note updated.')
+    return []
+add_command(Command('tmn <time_ids> <value>', 'modify time note', 'tmn', tmn_function))
+
+
+def tmv_function(*args):
+    try:
+        time_ids = ','.join(parse_sequence(args[0]))
+    except:
+        log.err('Time ID must be specified.')
+        return []
+    try:
+        value = '1' if positive(args[1]) else '0'
+    except:
+        log.err('Value must be defined.')
+        return []
+    ensa.db.update_time_metadata(time_ids, valid=value)
+    log.info('Validity updated.')
+    return []
+add_command(Command('tmv <time_ids> <value>', 'modify time validity', 'tmv', tmv_function))
 
 
 

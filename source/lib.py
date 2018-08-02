@@ -8,6 +8,8 @@ from source import db
 from source import log
 
 def positive(x):
+    if type(x) in [bytes, bytearray]:
+        x = x.decode()
     if type(x) == str:
         x = x.lower()
     if x in ['yes', 'y', '+', '1', 1, 'true', 't', True]:
@@ -15,6 +17,8 @@ def positive(x):
     return False
 
 def negative(x):
+    if type(x) in [bytes, bytearray]:
+        x = x.decode()
     if type(x) == str:
         x = x.lower()
     if x in ['no', 'n', '-', '0', 0, 'false', 'f', False]:

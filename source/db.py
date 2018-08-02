@@ -249,6 +249,22 @@ class Database():
         except: 
             log.debug_error()
             log.err("Information update failed.")
+    
+    
+    def update_information_metadata(self, information_ids, accuracy=None, level=None, valid=None, note=None): 
+        if not self.subject_ok():
+            return []
+        if accuracy:
+            self.query("UPDATE Information SET modified = %s, accuracy = %s WHERE subject_id = %s AND information_id IN ("+information_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), accuracy, ensa.current_subject))
+        elif valid:
+            self.query("UPDATE Information SET modified = %s, valid = %s WHERE subject_id = %s AND information_id IN ("+information_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), valid, ensa.current_subject))
+        elif note:
+            self.query("UPDATE Information SET modified = %s, note = %s WHERE subject_id = %s AND information_id IN ("+information_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), note, ensa.current_subject))
+        else: # only level remains
+            self.query("UPDATE Information SET modified = %s, level = %s WHERE subject_id = %s AND information_id IN ("+information_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), level, ensa.current_subject))
+            
+
+
 
 ###########################################
 # Location methods
@@ -295,35 +311,46 @@ class Database():
         if not self.ring_ok():
             return []
         try:
-            gps = 'POINT(%f, %f)' % (kwargs['lat'], kwargs['lon']) if kwargs.get('lat') and kwargs.get('lon') else 'NULL'
+            print(kwargs)
+            gps = 'POINT(%s, %s)' % (kwargs['lat'], kwargs['lon']) if kwargs.get('lat') and kwargs.get('lon') else 'NULL'
             self.query("UPDATE Location SET modified = %s, name = %s, gps = "+gps+", accuracy = %s, valid = %s, note = %s WHERE location_id = %s AND ring_id = %s", tuple([time.strftime('%Y-%m-%d %H:%M:%S')] + [kwargs[x] for x in [
                 'name', 'accuracy', 'valid', 'note', 'location_id']] + [ensa.current_ring]))
         except: 
             log.debug_error()
             log.err("Location update failed.")
 
+    def update_location_metadata(self, location_ids, accuracy=None, valid=None, note=None):
+        if not self.ring_ok():
+            return []
+        if accuracy:
+            self.query("UPDATE Location SET modified = %s, accuracy = %s WHERE ring_id = %s AND location_id IN ("+location_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), accuracy, ensa.current_ring))
+        elif valid:
+            self.query("UPDATE Location SET modified = %s, valid = %s WHERE ring_id = %s AND location_id IN ("+location_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), valid, ensa.current_ring))
+        elif note:
+            self.query("UPDATE Location SET modified = %s, note = %s WHERE ring_id = %s AND location_id IN ("+location_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), note, ensa.current_ring))
+            
 ###########################################
 # Time methods
 ###########################################
-    def create_time(self, date, time, accuracy=0, valid=True, note=None):
+    def create_time(self, d, t, accuracy=0, valid=True, note=None):
         if not self.ring_ok():
             return None
         try:
-            datetime.datetime.strptime(date, '%Y-%m-%d')
+            datetime.datetime.strptime(d, '%Y-%m-%d')
         except:
-            date = '0000-00-00'
+            d = '0000-00-00'
         try:
-            datetime.datetime.strptime(time, '%H:%M:%S')
+            datetime.datetime.strptime(t, '%H:%M:%S')
         except:
             try:
-                datetime.datetime.strptime(time, '%H:%M')
+                datetime.datetime.strptime(t, '%H:%M')
             except:
-                time = '00:00:00'
-        dt = '%s %s' % (date, time)
+                t = '00:00:00'
+        dt = '%s %s' % (d, t)
         try:
             self.query("INSERT INTO Time(time, accuracy, valid, ring_id, modified, note) VALUES(%s, %s, %s, %s, %s, %s)", (dt, accuracy, valid, ensa.current_ring, time.strftime('%Y-%m-%d %H:%M:%S'), note))
             time_id = self.query("SELECT time_id from Time ORDER BY time_id DESC LIMIT 1")[0][0]
-            return time_id # TODO wrong value
+            return time_id
         except:
             log.debug_error()
             return None
@@ -361,6 +388,16 @@ class Database():
         except: 
             log.debug_error()
             log.err("Time update failed.")
+    
+    def update_time_metadata(self, time_ids, accuracy=None, valid=None, note=None):
+        if not self.ring_ok():
+            return []
+        if accuracy:
+            self.query("UPDATE Time SET modified = %s, accuracy = %s WHERE ring_id = %s AND time_id IN ("+time_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), accuracy, ensa.current_ring))
+        elif valid:
+            self.query("UPDATE Time SET modified = %s, valid = %s WHERE ring_id = %s AND time_id IN ("+time_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), valid, ensa.current_ring))
+        elif note:
+            self.query("UPDATE Time SET modified = %s, note = %s WHERE ring_id = %s AND time_id IN ("+time_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), note, ensa.current_ring))
 
 ###########################################
 # Association methods
@@ -598,6 +635,23 @@ class Database():
         except: 
             log.debug_error()
             log.err("Association update failed.")
+    
+    
+    def update_association_metadata(self, association_ids, accuracy=None, level=None, valid=None, note=None): 
+        if not self.ring_ok():
+            return []
+        if accuracy:
+            self.query("UPDATE Association SET modified = %s, accuracy = %s WHERE ring_id = %s AND association_id IN ("+association_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), accuracy, ensa.current_ring))
+        elif valid:
+            self.query("UPDATE Association SET modified = %s, valid = %s WHERE ring_id = %s AND association_id IN ("+association_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), valid, ensa.current_ring))
+        elif note:
+            self.query("UPDATE Association SET modified = %s, note = %s WHERE ring_id = %s AND association_id IN ("+association_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), note, ensa.current_ring))
+        else: # only level remains
+            self.query("UPDATE Association SET modified = %s, level = %s WHERE ring_id = %s AND association_id IN ("+association_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), level, ensa.current_ring))
+            
+
+
+
 # # #
 ensa.db = Database()
 # # #
