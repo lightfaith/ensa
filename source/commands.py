@@ -1096,6 +1096,69 @@ def lmv_function(*args):
 add_command(Command('lmv <location_ids> <value>', 'modify location validity', 'lmv', lmv_function))
 
 
+def lmaw_function(*args):
+    try:
+        location_ids = [x for x in parse_sequence(args[0])]
+        locations = [x for x in ensa.db.get_locations() if str(x[0]) in location_ids]
+        location_lens = get_format_len_location(locations)
+    except:
+        log.err('Location ID must be specified.')
+        return []
+    for location_id, location in zip(location_ids, locations):
+        log.info(format_location(*location, *location_lens, use_modified=True))
+        while True:
+            value, = wizard(['   Accuracy for this entry:'])
+            try:
+                value = int(value)
+                break
+            except:
+                log.err('Accuracy must be a number.')
+        old = location[3]
+        if old != value:
+            ensa.db.update_location_metadata(location_id, accuracy=value)
+    return []
+add_command(Command('lmaw <location_ids>', 'use wizard to modify location accuracy', 'lmaw', lmaw_function))
+
+
+def lmnw_function(*args):
+    try:
+        location_ids = [x for x in parse_sequence(args[0])]
+        locations = [x for x in ensa.db.get_locations() if str(x[0]) in location_ids]
+        location_lens = get_format_len_location(locations)
+    except:
+        log.err('Location ID must be specified.')
+        return []
+    for location_id, location in zip(location_ids, locations):
+        log.info(format_location(*location, *location_lens, use_modified=True))
+        value, = wizard(['   Note for this entry:'])
+        if not value:
+            value = None
+        old = location[5]
+        if old != value:
+            ensa.db.update_location_metadata(location_id, note=value)
+    return []
+add_command(Command('lmnw <location_ids>', 'use wizard to modify location note', 'lmnw', lmnw_function))
+
+
+def lmvw_function(*args):
+    try:
+        location_ids = [x for x in parse_sequence(args[0])]
+        locations = [x for x in ensa.db.get_locations() if str(x[0]) in location_ids]
+        location_lens = get_format_len_location(locations)
+    except:
+        log.err('Location ID must be specified.')
+        return []
+    for location_id, location in zip(location_ids, locations):
+        log.info(format_location(*location, *location_lens, use_modified=True))
+        value, = wizard(['   Should this entry be valid?'])
+        value = positive(value)
+        old = positive(location[4])
+        if value ^ old:
+            ensa.db.update_location_metadata(location_id, valid=value)
+    return []
+add_command(Command('lmvw <location_ids>', 'use wizard to modify location validity', 'lmvw', lmvw_function))
+
+
 
 """
 OPTIONS COMMANDS

@@ -12,7 +12,7 @@ def positive(x):
         x = x.decode()
     if type(x) == str:
         x = x.lower()
-    if x in ['yes', 'y', '+', '1', 1, 'true', 't', True]:
+    if x in ['yes', 'y', '+', '1', 1, 'true', 't', 1, True]:
         return True
     return False
 
@@ -21,7 +21,7 @@ def negative(x):
         x = x.decode()
     if type(x) == str:
         x = x.lower()
-    if x in ['no', 'n', '-', '0', 0, 'false', 'f', False]:
+    if x in ['no', 'n', '-', '0', 0, 'false', 'f', 0, False]:
         return True
     return False
 

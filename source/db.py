@@ -256,7 +256,7 @@ class Database():
             return []
         if accuracy:
             self.query("UPDATE Information SET modified = %s, accuracy = %s WHERE subject_id = %s AND information_id IN ("+information_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), accuracy, ensa.current_subject))
-        elif valid:
+        elif valid is not None:
             self.query("UPDATE Information SET modified = %s, valid = %s WHERE subject_id = %s AND information_id IN ("+information_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), valid, ensa.current_subject))
         elif note:
             self.query("UPDATE Information SET modified = %s, note = %s WHERE subject_id = %s AND information_id IN ("+information_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), note, ensa.current_subject))
@@ -324,7 +324,7 @@ class Database():
             return []
         if accuracy:
             self.query("UPDATE Location SET modified = %s, accuracy = %s WHERE ring_id = %s AND location_id IN ("+location_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), accuracy, ensa.current_ring))
-        elif valid:
+        elif valid is not None:
             self.query("UPDATE Location SET modified = %s, valid = %s WHERE ring_id = %s AND location_id IN ("+location_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), valid, ensa.current_ring))
         elif note:
             self.query("UPDATE Location SET modified = %s, note = %s WHERE ring_id = %s AND location_id IN ("+location_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), note, ensa.current_ring))
@@ -394,7 +394,7 @@ class Database():
             return []
         if accuracy:
             self.query("UPDATE Time SET modified = %s, accuracy = %s WHERE ring_id = %s AND time_id IN ("+time_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), accuracy, ensa.current_ring))
-        elif valid:
+        elif valid is not None:
             self.query("UPDATE Time SET modified = %s, valid = %s WHERE ring_id = %s AND time_id IN ("+time_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), valid, ensa.current_ring))
         elif note:
             self.query("UPDATE Time SET modified = %s, note = %s WHERE ring_id = %s AND time_id IN ("+time_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), note, ensa.current_ring))
@@ -642,7 +642,7 @@ class Database():
             return []
         if accuracy:
             self.query("UPDATE Association SET modified = %s, accuracy = %s WHERE ring_id = %s AND association_id IN ("+association_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), accuracy, ensa.current_ring))
-        elif valid:
+        elif valid is not None:
             self.query("UPDATE Association SET modified = %s, valid = %s WHERE ring_id = %s AND association_id IN ("+association_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), valid, ensa.current_ring))
         elif note:
             self.query("UPDATE Association SET modified = %s, note = %s WHERE ring_id = %s AND association_id IN ("+association_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), note, ensa.current_ring))
