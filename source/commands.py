@@ -539,6 +539,74 @@ add_command(Command('aga <association_ids>', 'show associations with specific ID
 # by time
 # by place
 
+add_command(Command('am', 'modify association', 'im', lambda *args: []))
+
+def ame_function(*args):
+    try:
+        association_id = args[0]
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    # get values
+    data = ensa.db.get_association(association_id)
+    if not data:
+        return []
+    mapped = dict(zip([None, 'level', 'accuracy', 'valid', 'note'], [(x.decode() if type(x)==bytearray else x) if x else '' for x in data]))
+    #print(mapped)
+    # write into file
+    with tempfile.NamedTemporaryFile() as f:
+        for k in sorted(filter(None, mapped.keys())):
+            f.write(('%s: %s\n' % (k, mapped[k])).encode())
+        f.flush()
+        subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
+        f.seek(0)
+        # retrieve changes
+        changes = f.read().decode()
+    change_occured = False
+    for line in changes.splitlines():
+        k, _, v = line.partition(': ')
+        if k not in mapped.keys(): # ingore unknown keys
+            continue
+        try:
+            v = type(mapped[k])(v.strip())
+        except:
+            pass
+        if mapped[k] != v:
+            #print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
+            change_occured = True
+            # check validity and save valid changes
+            if k == 'accuracy':
+                if type(v) == int or v.isdigit():
+                    mapped[k] = int(v)
+                else:
+                    log.err('Accuracy must be a number.')
+                    change_occured = False
+                    break
+            elif k == 'valid':
+                mapped[k] = positive(v)
+            elif k == 'level':
+                if type(v) == int or v.isdigit():
+                    mapped[k] = int(v)
+                elif v == '':
+                    mapped[k] = None
+                else:
+                    log.err('Level must be empty or a number.')
+                    change_occured = False
+                    break
+            elif k == 'note':
+                mapped[k] = v if v else None
+    if change_occured:
+        # update DB
+        del mapped[None]
+        mapped['association_id'] = association_id
+        #print(mapped)
+        ensa.db.update_association(**mapped)
+        log.info('Association %s successfully changed.' % association_id)
+    else:
+        log.info('No change has been done.')
+    return []
+add_command(Command('ame <association_id>', 'modify association with editor', 'ame', ame_function))
+
 """
 INFORMATION COMMANDS
 """

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import time, datetime, traceback
+import time, datetime
 import mysql.connector
 from source import log
 from source import ensa
@@ -68,7 +68,7 @@ class Database():
             self.query("INSERT INTO Ring(name, password, note) VALUES(%s, %s, %s)", (name, password, note))
             return True
         except:
-            traceback.print_exc()
+            log.debug_error()
             return False
 
     def select_ring(self, name):
@@ -105,7 +105,7 @@ class Database():
             self.create_information(Database.INFORMATION_TEXT, 'codename', codename, accuracy=10, level=None, valid=True, note=None)
             return subject_id
         except:
-            traceback.print_exc()
+            log.debug_error()
             return None
 
     def get_subjects(self, sort='codename'):
@@ -174,7 +174,7 @@ class Database():
 
             return information_id
         except:
-            traceback.print_exc()
+            log.debug_error()
             return None
     
 
@@ -185,7 +185,7 @@ class Database():
             if subject_id != ensa.current_subject:
                 raise AttributeError    
         except:
-            traceback.print_exc()
+            log.debug_error()
             log.err('That information does not belong to current subject.')
             return 
         self.query("DELETE FROM Information WHERE information_id = %s", (information_id,))
@@ -220,7 +220,7 @@ class Database():
             info = self.query("SELECT I.information_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE I.subject_id = %s AND I.information_id = %s", (ensa.current_subject, information_id))[0]
         except:
             log.err('There is no such information.')
-            traceback.print_exc()
+            log.debug_error()
             return []
 
         if info[2] in [Database.INFORMATION_ALL, Database.INFORMATION_TEXT]:
@@ -247,7 +247,7 @@ class Database():
             #elif 'path' in kwargs.keys():# TODO binary
             #elif 'compounds' in kwargs.keys(): # TODO composite without edit support?
         except: 
-            traceback.print_exc()
+            log.debug_error()
             log.err("Information update failed.")
 
 ###########################################
@@ -263,7 +263,7 @@ class Database():
             location_id = self.query("SELECT location_id from Location ORDER BY location_id DESC LIMIT 1")[0][0]
             return location_id
         except:
-            traceback.print_exc()
+            log.debug_error()
             return None
     
     
@@ -286,7 +286,7 @@ class Database():
             info = self.query("SELECT location_id, name, ST_AsText(gps), accuracy, valid, note FROM Location WHERE location_id = %s AND ring_id = %s", (location_id, ensa.current_ring,))[0]
         except:
             log.err('There is no such location.')
-            traceback.print_exc()
+            log.debug_error()
             return []
         return info
     
@@ -299,7 +299,7 @@ class Database():
             self.query("UPDATE Location SET modified = %s, name = %s, gps = "+gps+", accuracy = %s, valid = %s, note = %s WHERE location_id = %s AND ring_id = %s", tuple([time.strftime('%Y-%m-%d %H:%M:%S')] + [kwargs[x] for x in [
                 'name', 'accuracy', 'valid', 'note', 'location_id']] + [ensa.current_ring]))
         except: 
-            traceback.print_exc()
+            log.debug_error()
             log.err("Location update failed.")
 
 ###########################################
@@ -325,7 +325,7 @@ class Database():
             time_id = self.query("SELECT time_id from Time ORDER BY time_id DESC LIMIT 1")[0][0]
             return time_id # TODO wrong value
         except:
-            traceback.print_exc()
+            log.debug_error()
             return None
 
     def get_times(self):
@@ -347,7 +347,7 @@ class Database():
             info = self.query("SELECT time_id, DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'), accuracy, valid, note FROM Time WHERE time_id = %s AND ring_id = %s", (time_id, ensa.current_ring,))[0]
         except:
             log.err('There is no such time entry.')
-            traceback.print_exc()
+            log.debug_error()
             return []
         return info
     
@@ -359,7 +359,7 @@ class Database():
             self.query("UPDATE Time SET modified = %s, time = %s, accuracy = %s, valid = %s, note = %s WHERE time_id = %s AND ring_id = %s", tuple([time.strftime('%Y-%m-%d %H:%M:%S')] + [kwargs[x] for x in [
                 'datetime', 'accuracy', 'valid', 'note', 'time_id']] + [ensa.current_ring]))
         except: 
-            traceback.print_exc()
+            log.debug_error()
             log.err("Time update failed.")
 
 ###########################################
@@ -373,7 +373,7 @@ class Database():
             association_id = self.query("SELECT association_id from Association ORDER BY association_id DESC LIMIT 1")[0][0]
             return association_id
         except:
-            traceback.print_exc()
+            log.debug_error()
             return None
 
     def associate_association(self, association_id, association_ids):
@@ -399,7 +399,7 @@ class Database():
             self.query("UPDATE Association SET modified = %s WHERE association_id = %s", (time.strftime('%Y-%m-%d %H:%M:%S'), association_id))
             return tuple([(association_id, a) for a in association_ids.split(',')])
         except:
-            traceback.print_exc()
+            log.debug_error()
             log.err('Failed to associate association.')
             return None
 
@@ -448,7 +448,7 @@ class Database():
             self.query("UPDATE Association SET modified = %s WHERE association_id = %s", (time.strftime('%Y-%m-%d %H:%M:%S'), association_id))
             return tuple([(association_id, l) for l in location_ids])
         except:
-            traceback.print_exc()
+            log.debug_error()
             log.err('Failed to associate location.')
             return None
     
@@ -473,7 +473,7 @@ class Database():
             self.query("UPDATE Association SET modified = %s WHERE association_id = %s", (time.strftime('%Y-%m-%d %H:%M:%S'), association_id))
             return tuple([(association_id, codename) for codename in codenames.split(',')])
         except:
-            traceback.print_exc()
+            log.debug_error()
             log.err('Failed to associate subject.')
             return None
 
@@ -498,7 +498,7 @@ class Database():
             self.query("UPDATE Association SET modified = %s WHERE association_id = %s", (time.strftime('%Y-%m-%d %H:%M:%S'), association_id))
             return tuple([(association_id, t) for t in time_ids])
         except:
-            traceback.print_exc()
+            log.debug_error()
             log.err('Failed to associate time.')
             return None
 
@@ -575,7 +575,29 @@ class Database():
             return []
         self.query("DELETE FROM AT WHERE association_id IN (SELECT association_id FROM Association WHERE association_id = %s AND ring_id = %s) AND time_id IN ("+time_ids+")", (association_id, ensa.current_ring,))
         self.query("UPDATE Association SET modified = %s WHERE association_id = %s AND ring_id = %s", (time.strftime('%Y-%m-%d %H:%M:%S'), association_id, ensa.current_ring))
-         
+
+
+    def get_association(self, association_id):
+        if not self.ring_ok():
+            return []
+        try:
+            info = self.query("SELECT association_id, level, accuracy, valid, note FROM Association WHERE association_id = %s AND ring_id = %s", (association_id, ensa.current_ring,))[0]
+        except:
+            log.err('There is no such association.')
+            log.debug_error()
+            return []
+        return info
+    
+
+    def update_association(self, **kwargs):
+        if not self.ring_ok():
+            return []
+        try:
+            self.query("UPDATE Association SET modified = %s, level = %s, accuracy = %s, valid = %s, note = %s WHERE association_id = %s AND ring_id = %s", tuple([time.strftime('%Y-%m-%d %H:%M:%S')] + [kwargs[x] for x in [
+                'level', 'accuracy', 'valid', 'note', 'association_id']] + [ensa.current_ring]))
+        except: 
+            log.debug_error()
+            log.err("Association update failed.")
 # # #
 ensa.db = Database()
 # # #
