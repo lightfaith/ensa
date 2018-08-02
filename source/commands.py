@@ -672,6 +672,111 @@ def amv_function(*args):
     return []
 add_command(Command('amv <association_ids> <value>', 'modify association validity', 'amv', amv_function))
 
+
+def amaw_function(*args):
+    try:
+        association_ids = [x for x in parse_sequence(args[0])]
+        associations = [x for x in ensa.db.get_associations() if str(x[0]) in association_ids]
+        association_ids = [str(x[0]) for x in associations]
+        #association_lens = get_format_len_association(associations)
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    for association_id, association in zip(association_ids, associations):
+        #log.info(format_association(*association, *association_lens, use_modified=True))
+        log.info(format_association(*association, use_modified=True))
+        while True:
+            value, = wizard(['   Accuracy for this entry:'])
+            try:
+                value = int(value)
+                break
+            except:
+                log.err('Accuracy must be a number.')
+        old = association[3]
+        if old != value:
+            ensa.db.update_association_metadata(association_id, accuracy=value)
+    return []
+add_command(Command('amaw <association_ids>', 'use wizard to modify association accuracy', 'amaw', amaw_function))
+
+
+def amlw_function(*args):
+    try:
+        association_ids = [x for x in parse_sequence(args[0])]
+        associations = [x for x in ensa.db.get_associations() if str(x[0]) in association_ids]
+        association_ids = [str(x[0]) for x in associations]
+        #association_lens = get_format_len_association(associations)
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    for association_id, association in zip(association_ids, associations):
+        #log.info(format_association(*association, *association_lens, use_modified=True))
+        log.info(format_association(*association, use_modified=True))
+        while True:
+            value, = wizard(['   Level for this entry:'])
+            if not value:
+                value = None
+                break
+            else:
+                try:
+                    value = int(value)
+                    break
+                except:
+                    log.err('Level must be a number or empty.')
+
+        old = association[2]
+        if old != value:
+            ensa.db.update_association_metadata(association_id, level=value)
+    return []
+add_command(Command('amlw <association_ids>', 'use wizard to modify association level', 'amlw', amlw_function))
+
+
+def amdw_function(*args):
+    try:
+        association_ids = [x for x in parse_sequence(args[0])]
+        associations = [x for x in ensa.db.get_associations() if str(x[0]) in association_ids]
+        association_ids = [str(x[0]) for x in associations]
+        #association_lens = get_format_len_association(associations)
+    except:
+        log.err('Association ID must be specified.')
+        return []
+    for association_id, association in zip(association_ids, associations):
+        #log.info(format_association(*association, *association_lens, use_modified=True))
+        log.info(format_association(*association, use_modified=True))
+        value, = wizard(['   Note for this entry:'])
+        if not value:
+            value = None
+        old = association[6]
+        if old != value:
+            ensa.db.update_association_metadata(association_id, note=value)
+    return []
+add_command(Command('amdw <association_ids>', 'use wizard to modify association description', 'amdw', amdw_function))
+
+
+def amvw_function(*args):
+    try:
+        association_ids = [x for x in parse_sequence(args[0])]
+        associations = [x for x in ensa.db.get_associations() if str(x[0]) in association_ids]
+        association_ids = [str(x[0]) for x in associations]
+        #association_lens = get_format_len_association(associations) # TODO
+    except:
+        log.debug_error()
+        log.err('Association ID must be specified.')
+        return []
+    for association_id, association in zip(association_ids, associations):
+        #log.info(format_association(*association, *association_lens, use_modified=True))
+        log.info(format_association(*association, use_modified=True))
+        value, = wizard(['   Should this entry be valid?'])
+        value = positive(value)
+        old = positive(association[4])
+        print(old, value)
+        if value ^ old:
+            print('changing')
+            ensa.db.update_association_metadata(association_id, valid=value)
+    return []
+add_command(Command('amvw <association_ids>', 'use wizard to modify association validity', 'amvw', amvw_function))
+
+
+
 """
 INFORMATION COMMANDS
 """
@@ -1100,6 +1205,7 @@ def lmaw_function(*args):
     try:
         location_ids = [x for x in parse_sequence(args[0])]
         locations = [x for x in ensa.db.get_locations() if str(x[0]) in location_ids]
+        location_ids = [str(x[0]) for x in locations]
         location_lens = get_format_len_location(locations)
     except:
         log.err('Location ID must be specified.')
@@ -1124,6 +1230,7 @@ def lmnw_function(*args):
     try:
         location_ids = [x for x in parse_sequence(args[0])]
         locations = [x for x in ensa.db.get_locations() if str(x[0]) in location_ids]
+        location_ids = [str(x[0]) for x in locations]
         location_lens = get_format_len_location(locations)
     except:
         log.err('Location ID must be specified.')
@@ -1144,6 +1251,7 @@ def lmvw_function(*args):
     try:
         location_ids = [x for x in parse_sequence(args[0])]
         locations = [x for x in ensa.db.get_locations() if str(x[0]) in location_ids]
+        location_ids = [str(x[0]) for x in locations]
         location_lens = get_format_len_location(locations)
     except:
         log.err('Location ID must be specified.')
@@ -1531,6 +1639,70 @@ def tmv_function(*args):
 add_command(Command('tmv <time_ids> <value>', 'modify time validity', 'tmv', tmv_function))
 
 
+def tmaw_function(*args):
+    try:
+        time_ids = [x for x in parse_sequence(args[0])]
+        times = [x for x in ensa.db.get_times() if str(x[0]) in time_ids]
+        time_ids = [str(x[0]) for x in times]
+        time_lens = get_format_len_time(times)
+    except:
+        log.err('Time ID must be specified.')
+        return []
+    for time_id, time in zip(time_ids, times):
+        log.info(format_time(*time, *time_lens, use_modified=True))
+        while True:
+            value, = wizard(['   Accuracy for this entry:'])
+            try:
+                value = int(value)
+                break
+            except:
+                log.err('Accuracy must be a number.')
+        old = time[2]
+        if old != value:
+            ensa.db.update_time_metadata(time_id, accuracy=value)
+    return []
+add_command(Command('tmaw <time_ids>', 'use wizard to modify time accuracy', 'tmaw', tmaw_function))
+
+
+def tmnw_function(*args):
+    try:
+        time_ids = [x for x in parse_sequence(args[0])]
+        times = [x for x in ensa.db.get_times() if str(x[0]) in time_ids]
+        time_ids = [str(x[0]) for x in times]
+        time_lens = get_format_len_time(times)
+    except:
+        log.err('Time ID must be specified.')
+        return []
+    for time_id, time in zip(time_ids, times):
+        log.info(format_time(*time, *time_lens, use_modified=True))
+        value, = wizard(['   Note for this entry:'])
+        if not value:
+            value = None
+        old = time[4]
+        if old != value:
+            ensa.db.update_time_metadata(time_id, note=value)
+    return []
+add_command(Command('tmnw <time_ids>', 'use wizard to modify time note', 'tmnw', tmnw_function))
+
+
+def tmvw_function(*args):
+    try:
+        time_ids = [x for x in parse_sequence(args[0])]
+        times = [x for x in ensa.db.get_times() if str(x[0]) in time_ids]
+        time_ids = [str(x[0]) for x in times]
+        time_lens = get_format_len_time(times)
+    except:
+        log.err('Time ID must be specified.')
+        return []
+    for time_id, time in zip(time_ids, times):
+        log.info(format_time(*time, *time_lens, use_modified=True))
+        value, = wizard(['   Should this entry be valid?'])
+        value = positive(value)
+        old = positive(time[3])
+        if value ^ old:
+            ensa.db.update_time_metadata(time_id, valid=value)
+    return []
+add_command(Command('tmvw <time_ids>', 'use wizard to modify time validity', 'tmvw', tmvw_function))
 
 
 
