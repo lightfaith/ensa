@@ -230,7 +230,16 @@ def get_format_len_location(locations):
     )
 
 def format_association(association_id, ring_id, level, accuracy, valid, modified, note, use_modified=True):
-    return '%-d  %s (%sacc %d%s%s)' % (
+    color = log.COLOR_NONE
+    if not valid:
+        color = log.COLOR_DARK_RED
+    else:
+        if accuracy >= 0.75*ensa.config['interaction.max_accuracy'][0]:
+            color = log.COLOR_GREEN
+        elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'][0]:
+            color = log.COLOR_BROWN
+    return '%s%-d  %s (%sacc %d%s%s)%s' % (
+        color,
         #id_len,
         association_id,
         note.decode() if note else '',
@@ -238,10 +247,20 @@ def format_association(association_id, ring_id, level, accuracy, valid, modified
         accuracy,
         ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
         ', invalid' if not valid else '',
+        log.COLOR_NONE,
         )
 
 def format_information(information_id, subject_id, codename, info_type, name, level, accuracy, valid, modified, note, value, id_len, name_len, value_len, use_codename=True, use_modified=True):
-    return '%-*d  %s  %*s: %-*s  (%sacc %2d%s%s)  %s' % (
+    color = log.COLOR_NONE
+    if not valid:
+        color = log.COLOR_DARK_RED
+    else:
+        if accuracy >= 0.75*ensa.config['interaction.max_accuracy'][0]:
+            color = log.COLOR_GREEN
+        elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'][0]:
+            color = log.COLOR_BROWN
+    return '%s%-*d  %s  %*s: %-*s  (%sacc %2d%s%s)  %s%s' % (
+        color,
         id_len,
         information_id,
         '<%s>' % codename.decode() if use_codename else '',
@@ -254,6 +273,7 @@ def format_information(information_id, subject_id, codename, info_type, name, le
         ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
         ', invalid' if not valid else '',
         ('# '+note.decode()) if note else '',
+        log.COLOR_NONE,
         )
 
 def format_location(location_id, name, gps, accuracy, valid, modified, note, id_len, use_modified=True):
@@ -262,7 +282,16 @@ def format_location(location_id, name, gps, accuracy, valid, modified, note, id_
         lat = lat+'N' if float(lat)>0 else lat[1:]+'S'
         lon = lon+'E' if float(lon)>0 else lon[1:]+'W'
         gps = '(%s %s)' % (lat, lon)
-    return '%-*d  %s %s (acc %d%s%s) %s' % (
+    color = log.COLOR_NONE
+    if not valid:
+        color = log.COLOR_DARK_RED
+    else:
+        if accuracy >= 0.75*ensa.config['interaction.max_accuracy'][0]:
+            color = log.COLOR_GREEN
+        elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'][0]:
+            color = log.COLOR_BROWN
+    return '%s%-*d  %s %s (acc %d%s%s) %s%s' % (
+        color,
         id_len,
         location_id,
         name.decode(),
@@ -271,10 +300,20 @@ def format_location(location_id, name, gps, accuracy, valid, modified, note, id_
         ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
         ', invalid' if not valid else '',
         ('# '+note.decode()) if note else '',
+        log.COLOR_NONE,
         )
 
 def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modified=True):
-    return '%-*d  %s  (acc %d%s%s) %s' % (
+    color = log.COLOR_NONE
+    if not valid:
+        color = log.COLOR_DARK_RED
+    else:
+        if accuracy >= 0.75*ensa.config['interaction.max_accuracy'][0]:
+            color = log.COLOR_GREEN
+        elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'][0]:
+            color = log.COLOR_BROWN
+    return '%s%-*d  %s  (acc %d%s%s) %s%s' % (
+        color,
         id_len,
         time_id,
         #time.strftime('%Y-%m-%d %H:%M:%S'),
@@ -283,6 +322,7 @@ def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modi
         ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
         ', invalid' if not valid else '',
         ('# '+note.decode()) if note else '',
+        log.COLOR_NONE,
         )
 
 # # # # ## ## ### #### ###### ############################ ##### #### ### ## ## # # # #
@@ -815,19 +855,23 @@ def iat_function(*args):
 add_command(Command('iat <name> <value>', 'add textual information to current subject', 'iat', iat_function))
 
 
-def iar_function(*args):
+def iak_function(*args):
+    if not ensa.current_subject:
+        log.err('You must choose a subject with `ss` command.')
     try:
-        name = args[0].lower()
-        codename = args[1]
-        ensa.db.create_information(Database.INFORMATION_RELATIONSHIP, name, codename)
+        information_ids = ','.join(parse_sequence(args[0]))
     except:
-        log.debug_error()
+        log.err('Information ID must be specified.')
         return []
+    keywords = args[1:]
+    if not keywords:
+        log.err('A keyword must be specified.')
+        return []
+    for keyword in keywords:
+        ensa.db.add_keyword(information_ids, keyword)
     return []
-
-        
-add_command(Command('iar <name> <codename>', 'add relationship information towards <codename> to current subject', 'iar', iar_function))
-
+add_command(Command('iak <information_ids> <keywords>', 'add keywords to information', 'iak', iak_function))
+    
 
 def id_function(*args):
     try:
@@ -840,7 +884,18 @@ def id_function(*args):
 add_command(Command('id <information_id>', 'delete information of current subject', 'id', id_function))
 
 
-add_command(Command('ig', 'get information of current subject', 'ig', lambda *_: ['TODO']))
+def idk_function(*args):
+    try:
+        information_id = args[0]
+    except:
+        log.err('Information ID must be specified.')
+    try:
+        keywords = ','.join(['\'%s\'' % x for x in args[1:]])
+    except:
+        keywords = None
+    ensa.db.delete_keywords(information_id, keywords)
+add_command(Command('idk <information_id> [<keyword>]', 'delete keywords from information', 'idk', idk_function))
+    
 
 def igt_function(*_, no_composite_parts=True):
     result = []
@@ -852,6 +907,33 @@ def igt_function(*_, no_composite_parts=True):
     return result
 add_command(Command('igt', 'get all textual information for current subject', 'igt', igt_function))
 add_command(Command('igtc', 'get all textual information (even composite parts) for current subject', 'igtc', lambda *args: igt_function(args, no_composite_parts=False)))
+
+def igk_all_function(*args):
+    keywords = ','.join(['\'%s\'' % x for x in args])
+    if not keywords:
+        log.err('Keyword must be specified.')
+        return []
+    infos = ensa.db.get_informations_for_keywords_and(keywords)
+    if not infos:
+        return []
+    info_lens = get_format_len_information(infos)
+    result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
+    return result
+add_command(Command('igk= <keyword>', 'get information having all keywords', 'igk=', igk_all_function))
+
+
+def igk_or_function(*args):
+    keywords = ','.join(['\'%s\'' % x for x in args])
+    if not keywords:
+        log.err('Keyword must be specified.')
+        return []
+    infos = ensa.db.get_informations_for_keywords_or(keywords)
+    if not infos:
+        return []
+    info_lens = get_format_len_information(infos)
+    result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
+    return result
+add_command(Command('igk <keyword>', 'get information having any of keywords', 'igk', igk_or_function))
 
 
 add_command(Command('im', 'modify information', 'im', lambda *args: []))
@@ -1014,6 +1096,115 @@ def imv_function(*args):
     log.info('Validity updated.')
     return []
 add_command(Command('imv <information_ids> <value>', 'modify information validity', 'imv', imv_function))
+
+
+def imaw_function(*args):
+    try:
+        information_ids = [x for x in parse_sequence(args[0])]
+        informations = [x for x in ensa.db.get_informations() if str(x[0]) in information_ids]
+        information_ids = [str(x[0]) for x in informations]
+        information_lens = get_format_len_information(informations)
+    except:
+        log.err('Information ID must be specified.')
+        return []
+    for information_id, information in zip(information_ids, informations):
+        log.info(format_information(*information, *information_lens, use_modified=True))
+        while True:
+            value, = wizard(['   Accuracy for this entry:'])
+            try:
+                value = int(value)
+                break
+            except:
+                log.err('Accuracy must be a number.')
+        old = information[6]
+        if old != value:
+            ensa.db.update_information_metadata(information_id, accuracy=value)
+    return []
+add_command(Command('imaw <information_ids>', 'use wizard to modify information accuracy', 'imaw', imaw_function))
+
+
+def imlw_function(*args):
+    try:
+        information_ids = [x for x in parse_sequence(args[0])]
+        informations = [x for x in ensa.db.get_informations() if str(x[0]) in information_ids]
+        information_ids = [str(x[0]) for x in informations]
+        information_lens = get_format_len_information(informations)
+    except:
+        log.err('Information ID must be specified.')
+        return []
+    for information_id, information in zip(information_ids, informations):
+        log.info(format_information(*information, *information_lens, use_modified=True))
+        while True:
+            value, = wizard(['   Level for this entry:'])
+            if not value:
+                value = None
+                break
+            else:
+                try:
+                    value = int(value)
+                    break
+                except:
+                    log.err('Level must be a number or empty.')
+
+        old = information[5]
+        if old != value:
+            ensa.db.update_information_metadata(information_id, level=value)
+    return []
+add_command(Command('imlw <information_ids>', 'use wizard to modify information level', 'imlw', imlw_function))
+
+
+def imnw_function(*args):
+    try:
+        information_ids = [x for x in parse_sequence(args[0])]
+        informations = [x for x in ensa.db.get_informations() if str(x[0]) in information_ids]
+        information_ids = [str(x[0]) for x in informations]
+        information_lens = get_format_len_information(informations)
+    except:
+        log.err('Information ID must be specified.')
+        return []
+    for information_id, information in zip(information_ids, informations):
+        log.info(format_information(*information, *information_lens, use_modified=True))
+        value, = wizard(['   Note for this entry:'])
+        if not value:
+            value = None
+        old = information[9]
+        if old != value:
+            ensa.db.update_information_metadata(information_id, note=value)
+    return []
+add_command(Command('imnw <information_ids>', 'use wizard to modify informatio note', 'imnw', imnw_function))
+
+
+def imvw_function(*args):
+    try:
+        information_ids = [x for x in parse_sequence(args[0])]
+        informations = [x for x in ensa.db.get_informations() if str(x[0]) in information_ids]
+        information_ids = [str(x[0]) for x in informations]
+        information_lens = get_format_len_information(informations) # TODO
+    except:
+        log.debug_error()
+        log.err('Information ID must be specified.')
+        return []
+    for information_id, information in zip(information_ids, informations):
+        log.info(format_information(*information, *information_lens, use_modified=True))
+        value, = wizard(['   Should this entry be valid?'])
+        value = positive(value)
+        old = positive(information[7])
+        print(old, value)
+        if value ^ old:
+            print('changing')
+            ensa.db.update_information_metadata(information_id, valid=value)
+    return []
+add_command(Command('imvw <information_ids>', 'use wizard to modify information validity', 'imvw', imvw_function))
+
+"""
+KEYWORD COMMANDS
+"""
+# other keyword methods are under Information
+def k_function(*args):
+    return [x[0].decode() for x in ensa.db.get_keywords()]
+add_command(Command('k', 'list keywords in current ring/subject', 'k', k_function))
+
+
 """
 LOCATION COMMANDS
 """
@@ -1436,6 +1627,11 @@ def sd_function(*args):
 add_command(Command('sd <codename>', 'delete subject from the current ring', 'sd', sd_function))
 
 def ss_function(*args):
+    if not args:
+        ensa.current_subject = None
+        log.info('Currently working outside subject.')
+        log.set_prompt(key=ensa.db.get_ring_name(ensa.current_ring).decode(), symbol=')')
+        return []
     try:
         codename = args[0]
         ensa.current_subject = ensa.db.select_subject(codename)

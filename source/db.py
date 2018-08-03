@@ -142,6 +142,8 @@ class Database():
     def information_cleanup(self, *args):
         if not args or 'composites' in args:
             self.query("DELETE FROM Information WHERE type = %s AND information_id NOT IN (SELECT information_id FROM Composite)", (Database.INFORMATION_COMPOSITE,))
+        if not args or 'keywords' in args:
+            self.query("DELETE FROM Keyword WHERE keyword_id NOT IN (SELECT keyword_id FROM IK)")
 
     def create_information(self, info_type, name, value, accuracy=0, level=None, valid=True, note=None):
         if not self.subject_ok():
@@ -649,9 +651,96 @@ class Database():
         else: # only level remains
             self.query("UPDATE Association SET modified = %s, level = %s WHERE ring_id = %s AND association_id IN ("+association_ids+")", (time.strftime('%Y-%m-%d %H:%M:%S'), level, ensa.current_ring))
             
+###########################################
+# Keyword methods
+###########################################
+    def get_keyword_id(self, keyword):
+        try:
+            keyword_id = self.query("SELECT keyword_id FROM Keyword WHERE keyword = %s", (keyword,))[0][0]
+        except:
+            self.query("INSERT INTO Keyword(keyword) VALUES(%s)", (keyword,))
+            keyword_id = self.query("SELECT keyword_id FROM Keyword ORDER BY keyword_id DESC LIMIT 1")[0][0]
+        return keyword_id
 
+
+    def add_keyword(self, information_ids, keyword):
+        if not self.subject_ok():
+            return []
+        keyword_id = self.get_keyword_id(keyword)
+        self.query("INSERT INTO IK(information_id, keyword_id) SELECT information_id, %s FROM Information WHERE subject_id = %s AND information_id IN ("+information_ids+")", (keyword_id, ensa.current_subject))
+
+
+    def delete_keywords(self, information_ids, keywords):
+        if not self.subject_ok():
+            return []
+        if keywords:
+            keyword_ids = ','.join([str(x[0]) for x in self.query("SELECT keyword_id FROM Keyword WHERE keyword IN ("+keywords+")")])
+            self.query("DELETE FROM IK WHERE keyword_id IN ("+keyword_ids+") AND information_id IN (SELECT information_id FROM Information WHERE information_id IN("+information_ids+") AND subject_id = %s)", (ensa.current_subject,))
+        else: # delete all keywords
+            self.query("DELETE FROM IK WHERE information_id IN (SELECT information_id FROM Information WHERE information_id IN("+information_ids+") AND subject_id = %s)", (ensa.current_subject,))
+        self.information_cleanup('keywords')
+            
+    def get_keywords(self):
+        if not self.ring_ok():
+            return []
+        if ensa.current_subject:
+            result = self.query("SELECT DISTINCT K.keyword FROM Keyword K INNER JOIN IK ON K.keyword_id = IK.keyword_id INNER JOIN Information I ON IK.information_id = I.information_id WHERE I.subject_id = %s ORDER BY K.keyword", (ensa.current_subject,))
+        else:
+            result = self.query("SELECT DISTINCT K.keyword FROM Keyword K INNER JOIN IK ON K.keyword_id = IK.keyword_id INNER JOIN Information I ON IK.information_id = I.information_id INNER JOIN Subject S ON I.subject_id = S.subject_id WHERE S.ring_id = %s ORDER BY K.keyword", (ensa.current_ring,))
+        return result
+
+    def get_keywords_for_informations(self, information_ids):
+        if not self.subject_ok():
+            return []
+        result = self.query("SELECT IK.information_id, k.keyword FROM IK INNER JOIN Keyword ON IK.keyword_id = Keyword.keyword_id WHERE IK.information_id IN (SELECT information_id FROM Information WHERE information_id IN ("+information_ids+") AND subject_id = %s)", (ensa.current_subject,))
+        return result
+   
+
+    def get_informations_for_keywords_or(self, keywords):
+        if not self.ring_ok():
+            return []
+        if ensa.current_subject:
+            infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Information I INNER JOIN Subject S ON I.subject_id = S.subject_id WHERE I.subject_id = %s AND I.information_id IN (SELECT IK.information_id FROM IK INNER JOIN Keyword K ON IK.keyword_id = K.keyword_id WHERE K.keyword IN ("+keywords+"))", (ensa.current_subject,))
+        else:
+            infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Information I INNER JOIN Subject S ON I.subject_id = S.subject_id WHERE S.ring_id = %s AND I.information_id IN (SELECT IK.information_id FROM IK INNER JOIN Keyword K ON IK.keyword_id = K.keyword_id WHERE K.keyword IN ("+keywords+"))", (ensa.current_ring,))
+        infos = []
+        for info in infos_nodata:
+            if info[3] in [Database.INFORMATION_ALL, Database.INFORMATION_TEXT]:
+                value = self.query("SELECT value FROM Text WHERE information_id = %s", (info[0],))[0][0]
+            elif info[3] in [Database.INFORMATION_ALL, Database.INFORMATION_BINARY]:
+                value = b'[binary]'
+            elif info[3] in [Database.INFORMATION_ALL, Database.INFORMATION_COMPOSITE]:
+                value = b'{composite}'
+            else:
+                value = 'ERROR'
+            infos.append(tuple(list(info)+[value]))
+        return infos
+
+
+    def get_informations_for_keywords_and(self, keywords):
+        if not self.ring_ok():
+            return []
+        if ensa.current_subject:
+            infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Information I INNER JOIN Subject S ON I.subject_id = S.subject_id WHERE I.subject_id = %s AND I.information_id IN(SELECT information_id FROM IK WHERE keyword_id IN(SELECT keyword_id FROM Keyword WHERE keyword IN ("+keywords+")) GROUP BY information_id HAVING COUNT(keyword_id) = %s)", (ensa.current_subject, keywords.count(',')+1))
+        else:
+            infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Information I INNER JOIN Subject S ON I.subject_id = S.subject_id WHERE S.ring_id = %s AND I.information_id IN(SELECT information_id FROM IK WHERE keyword_id IN(SELECT keyword_id FROM Keyword WHERE keyword IN ("+keywords+")) GROUP BY information_id HAVING COUNT(keyword_id) = %s)", (ensa.current_ring, keywords.count(',')+1))
+
+        infos = []
+        for info in infos_nodata:
+            if info[3] in [Database.INFORMATION_ALL, Database.INFORMATION_TEXT]:
+                value = self.query("SELECT value FROM Text WHERE information_id = %s", (info[0],))[0][0]
+            elif info[3] in [Database.INFORMATION_ALL, Database.INFORMATION_BINARY]:
+                value = b'[binary]'
+            elif info[3] in [Database.INFORMATION_ALL, Database.INFORMATION_COMPOSITE]:
+                value = b'{composite}'
+            else:
+                value = 'ERROR'
+            infos.append(tuple(list(info)+[value]))
+        return infos
 
 
 # # #
 ensa.db = Database()
 # # #
+
+
