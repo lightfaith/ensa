@@ -103,7 +103,6 @@ def run_command(fullcommand):
     #         every line matching grep expression or starting with '{grepignore}' will be printed
     #     a list of lists:
     #         every line of inner list matching grep expression or starting with '{grepignore}' will be printed if there is at least one grep matching line WITHOUT '{grepignore}'
-    #         Reason: prsh~Set-Cookie will print all Set-Cookie lines along with RRIDs, RRIDs without match are ignored
     result_lines = []
     nocolor = lambda line: re.sub('\033\\[[0-9]+m', '', str(line))
     
@@ -137,7 +136,7 @@ def run_command(fullcommand):
                 elif type(line) == list:
                     # pick groups if at least one line starts with {grepignore} or matches grep
                     sublines = [l for l in line if str(l).startswith('{grepignore}') or part in nocolor(l)]
-                    if [x for x in sublines if not str(x).startswith('{grepignore}') and x.strip()]:
+                    if [x for x in sublines if (not str(x).startswith('{grepignore}') or part in nocolor(x)) and x.strip()]:
                         tmp_lines.append(sublines)
         elif phase['~~']:
             # regex grep
@@ -150,7 +149,7 @@ def run_command(fullcommand):
                 elif type(line) == list:
                     # pick groups if at least one line starts with {grepignore} or matches grep
                     sublines = [l for l in line if str(l).startswith('{grepignore}') or re.search(part, nocolor(l.strip()))]
-                    if [x for x in sublines if not str(x).startswith('{grepignore}') and x.strip()]:
+                    if [x for x in sublines if (not str(x).startswith('{grepignore}') or part in nocolor(x)) and x.strip()]:
                         tmp_lines.append(sublines)
         elif phase[modifier]: # TODO line intervals and more features
             # modifying
@@ -564,35 +563,52 @@ add_command(Command('adt <association_id> <time_ids>', 'remove times from an ass
 
 
 
-def aga_function(*args):
-    ids = ','.join(parse_sequence(','.join(args)))
+def ag_function(*args, data_function=lambda *_: [], id_type=0, prepend_times=False):
+
+    if id_type == 0: # ID sequence, parse it
+        ids = ','.join(parse_sequence(','.join(args)))
+    elif id_type == 1: # list of words, join it with ',' 
+        ids = ','.join('\'%s\'' % arg for arg in args)
+    else: # string, join it with ' '
+        ids = ' '.join(args)
+        
     if not ids:
-        log.err('You must specify an Association ID.')
+        log.err('Identifier must be specified.')
         return []
-    # TODO nested array result
-    data = ensa.db.get_associations_by_ids(ids)
+    result = []
+    #data = ensa.db.get_associations_by_ids(ids)
+    data = data_function(ids)
     if not data:
         return []
     for association, infos, times, locations, associations in data:
-        print('#A'+format_association(*association, use_modified=True))
+        aresult = []
+        if prepend_times:
+            aresult.append('')
+            for time in times:
+                aresult.append(time[1].decode())
+            aresult.append('-------------------')
+
+        aresult.append('{grepignore}#A'+format_association(*association, use_modified=True))
         info_lens = get_format_len_information(infos)
         time_lens = get_format_len_time(times)
         location_lens = get_format_len_location(locations)
         for info in infos:
-            print('    #I'+format_information(*info, *info_lens, use_modified=False))
+            aresult.append('    #I'+format_information(*info, *info_lens, use_modified=False))
         for time in times:
-            print('    #T'+format_time(*time, *time_lens, use_modified=False))
+            aresult.append('    #T'+format_time(*time, *time_lens, use_modified=False))
         for location in locations:
-            print('    #L'+format_location(*location, *location_lens, use_modified=False))
+            aresult.append('    #L'+format_location(*location, *location_lens, use_modified=False))
         for a in associations:
-            print('    #A'+format_association(*a, use_modified=False))
-    return []
-add_command(Command('aga <association_ids>', 'show associations with specific ID', 'aga', aga_function))
-# by id
-# by notelike
-# by info
-# by time
-# by place
+            aresult.append('    #A'+format_association(*a, use_modified=False))
+        result.append(aresult)
+    return result
+add_command(Command('aga <association_ids>', 'show associations with specific ID', 'aga', lambda *args: ag_function(*args, data_function=lambda ids: ensa.db.get_associations_by_ids(ids), prepend_times=False)))
+add_command(Command('agl <location_ids>', 'show associations with specific location', 'aga', lambda *args: ag_function(*args, data_function=lambda ids: ensa.db.get_associations_by_location(ids), prepend_times=False)))
+add_command(Command('agt <time_ids>', 'show associations with specific time entry', 'agt', lambda *args: ag_function(*args, data_function=lambda ids: ensa.db.get_associations_by_time(ids), prepend_times=False)))
+add_command(Command('agi <information_ids>', 'show associations with specific information', 'agi', lambda *args: ag_function(*args, data_function=lambda ids: ensa.db.get_associations_by_information(ids), prepend_times=False)))
+add_command(Command('ags <codenames>', 'show associations for specific subject', 'ags', lambda *args: ag_function(*args, data_function=lambda codenames: ensa.db.get_associations_by_subject(codenames), id_type=1, prepend_times=False)))
+add_command(Command('agn <string>', 'show associations matching description', 'agn', lambda *args: ag_function(*args, data_function=lambda string: ensa.db.get_associations_by_note(string), id_type=2, prepend_times=False)))
+#add_command(Command('aga <association_ids>', 'show associations with specific ID', 'aga', aga_function))
 
 add_command(Command('am', 'modify association', 'im', lambda *args: []))
 
@@ -1651,7 +1667,7 @@ def s_function(*_):
     return ['%10s (#%d)  %20s  %s' % (codename.decode(), subject_id, created.strftime('%Y-%m-%d %H:%M:%S'), note.decode() if note else '') for subject_id, codename, created, note in subjects]
 add_command(Command('s', 'list subjects in the current ring', 's', s_function))
 
-def sa_function(*args): # simple subject creation, `saw` for wizard
+def sa_function(*args):
     try:
         codename = args[0]
     except:
@@ -1703,9 +1719,11 @@ def sawp_function(*_):
     if not i['sex'] in ('', 'male', 'female'):
         log.err('Sex must be either male or female.')
 
+    information_ids = []
     for name, value in i.items():
         if value:
-            ensa.db.create_information(Database.INFORMATION_TEXT, name, value)
+            information_ids.append(ensa.db.create_information(Database.INFORMATION_TEXT, name, value))
+    ensa.db.add_keyword(','.join(str(x) for x in filter(None, information_ids)), 'general')
     
     # address
     log.newline()
@@ -1873,6 +1891,26 @@ def td_function(*args):
         log.err('Correct time ID from this ring must be provided.')
     return []
 add_command(Command('td <time_id>', 'delete time entry from current ring', 'td', td_function))
+
+
+
+add_command(Command('tl', 'timelines', 'tl', lambda *_: []))
+def tli_function(*args):
+    pass
+add_command(Command('tli <information_ids>', 'show timelines for given informations', 'tli', tli_function))
+def tll_function(*args):
+    pass
+add_command(Command('tll <location_ids>', 'show timelines for given locations', 'tll', tll_function))
+def tls_function(*args):
+    pass
+add_command(Command('tls <codename>', 'show timelines for given subjects', 'tls', tls_function))
+def tlt_function(*args):
+    pass
+add_command(Command('tlt <from> [<to>]', 'show timelines from-to specified dates', 'tlt', tlt_function))
+
+
+
+
 
 
 add_command(Command('tm', 'modify time', 'tm', lambda *args: []))

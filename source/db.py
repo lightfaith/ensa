@@ -562,10 +562,35 @@ class Database():
 
 
     def get_associations_by_ids(self, association_ids):
+        query = "SELECT association_id, ring_id, level, accuracy, valid, modified, note FROM Association WHERE association_id IN("+association_ids+")"
+        return self.get_associations_by_X(query)
+
+    def get_associations_by_note(self, string):
+        query = "SELECT association_id, ring_id, level, accuracy, valid, modified, note FROM Association WHERE note LIKE '%"+string+"%'"
+        return self.get_associations_by_X(query)
+
+    def get_associations_by_location(self, location_ids):
+        query = "SELECT A.association_id, ring_id, level, accuracy, valid, modified, note FROM Association A INNER JOIN AL ON A.association_id = AL.association_id WHERE location_id IN("+location_ids+")"
+        return self.get_associations_by_X(query)
+
+    def get_associations_by_time(self, time_ids):
+        query = "SELECT A.association_id, ring_id, level, accuracy, valid, modified, note FROM Association A INNER JOIN AT ON A.association_id = AT.association_id WHERE time_id IN("+time_ids+")"
+        return self.get_associations_by_X(query)
+    
+    def get_associations_by_information(self, information_ids):
+        query = "SELECT A.association_id, ring_id, level, accuracy, valid, modified, note FROM Association A INNER JOIN AI ON A.association_id = AI.association_id WHERE information_id IN("+information_ids+")"
+        return self.get_associations_by_X(query)
+    
+    def get_associations_by_subject(self, codenames):
+        query = "SELECT A.association_id, A.ring_id, A.level, A.accuracy, A.valid, A.modified, A.note FROM Association A INNER JOIN AI ON A.association_id = AI.association_id INNER JOIN Information I ON AI.information_id = I.information_id INNER JOIN Subject S ON I.subject_id = S.subject_id WHERE S.codename IN("+codenames+")"
+        return self.get_associations_by_X(query)
+
+    def get_associations_by_X(self, query):
         if not self.ring_ok():
             return []
         # get associations
-        associations = self.query("SELECT association_id, ring_id, level, accuracy, valid, modified, note FROM Association WHERE association_id IN("+association_ids+")")
+        associations = self.query(query)
+
         result = []
         for assoc in associations:
             # in current ring?
