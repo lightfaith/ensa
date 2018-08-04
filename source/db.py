@@ -212,9 +212,9 @@ class Database():
                 infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE I.subject_id = %s ORDER BY I.name", (ensa.current_subject,))
         else:
             if no_composite_parts:
-                infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE I.information_id NOT IN (SELECT part_id FROM Composite) ORDER BY I.name")
+                infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE S.ring_id = %s AND I.information_id NOT IN (SELECT part_id FROM Composite) ORDER BY I.name", (ensa.current_ring,))
             else:
-                infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id ORDER BY I.name")
+                infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE S.ring_id = %s ORDER BY I.name", (ensa.current_ring,))
             
 
         infos = []
@@ -560,31 +560,6 @@ class Database():
         # get associations
         return self.query("SELECT association_id, ring_id, level, accuracy, valid, modified, note FROM Association WHERE ring_id = %s", (ensa.current_ring,))
 
-
-    def get_associations_by_ids(self, association_ids):
-        query = "SELECT association_id, ring_id, level, accuracy, valid, modified, note FROM Association WHERE association_id IN("+association_ids+")"
-        return self.get_associations_by_X(query)
-
-    def get_associations_by_note(self, string):
-        query = "SELECT association_id, ring_id, level, accuracy, valid, modified, note FROM Association WHERE note LIKE '%"+string+"%'"
-        return self.get_associations_by_X(query)
-
-    def get_associations_by_location(self, location_ids):
-        query = "SELECT A.association_id, ring_id, level, accuracy, valid, modified, note FROM Association A INNER JOIN AL ON A.association_id = AL.association_id WHERE location_id IN("+location_ids+")"
-        return self.get_associations_by_X(query)
-
-    def get_associations_by_time(self, time_ids):
-        query = "SELECT A.association_id, ring_id, level, accuracy, valid, modified, note FROM Association A INNER JOIN AT ON A.association_id = AT.association_id WHERE time_id IN("+time_ids+")"
-        return self.get_associations_by_X(query)
-    
-    def get_associations_by_information(self, information_ids):
-        query = "SELECT A.association_id, ring_id, level, accuracy, valid, modified, note FROM Association A INNER JOIN AI ON A.association_id = AI.association_id WHERE information_id IN("+information_ids+")"
-        return self.get_associations_by_X(query)
-    
-    def get_associations_by_subject(self, codenames):
-        query = "SELECT A.association_id, A.ring_id, A.level, A.accuracy, A.valid, A.modified, A.note FROM Association A INNER JOIN AI ON A.association_id = AI.association_id INNER JOIN Information I ON AI.information_id = I.information_id INNER JOIN Subject S ON I.subject_id = S.subject_id WHERE S.codename IN("+codenames+")"
-        return self.get_associations_by_X(query)
-
     def get_associations_by_X(self, query):
         if not self.ring_ok():
             return []
@@ -619,6 +594,48 @@ class Database():
 
             result.append((assoc, infos, times, locations, associations))
         return result
+
+
+    def get_associations_by_ids(self, association_ids):
+        query = "SELECT association_id, ring_id, level, accuracy, valid, modified, note FROM Association WHERE association_id IN("+association_ids+")"
+        return self.get_associations_by_X(query)
+
+    def get_associations_by_note(self, string):
+        query = "SELECT association_id, ring_id, level, accuracy, valid, modified, note FROM Association WHERE note LIKE '%"+string+"%'"
+        return self.get_associations_by_X(query)
+
+    def get_associations_by_location(self, location_ids):
+        query = "SELECT A.association_id, ring_id, level, accuracy, valid, modified, note FROM Association A INNER JOIN AL ON A.association_id = AL.association_id WHERE location_id IN("+location_ids+")"
+        return self.get_associations_by_X(query)
+
+    def get_associations_by_time(self, time_ids):
+        query = "SELECT A.association_id, ring_id, level, accuracy, valid, modified, note FROM Association A INNER JOIN AT ON A.association_id = AT.association_id WHERE time_id IN("+time_ids+")"
+        return self.get_associations_by_X(query)
+    
+    def get_associations_by_information(self, information_ids):
+        query = "SELECT A.association_id, ring_id, level, accuracy, valid, modified, note FROM Association A INNER JOIN AI ON A.association_id = AI.association_id WHERE information_id IN("+information_ids+")"
+        return self.get_associations_by_X(query)
+    
+    def get_associations_by_subject(self, codenames):
+        query = "SELECT A.association_id, A.ring_id, A.level, A.accuracy, A.valid, A.modified, A.note FROM Association A INNER JOIN AI ON A.association_id = AI.association_id INNER JOIN Information I ON AI.information_id = I.information_id INNER JOIN Subject S ON I.subject_id = S.subject_id WHERE S.codename IN("+codenames+")"
+        return self.get_associations_by_X(query)
+
+
+    def get_timeline_by_location(self, location_ids):
+        query = "SELECT A.association_id, A.ring_id, A.level, A.accuracy, A.valid, A.modified, A.note FROM Association A INNER JOIN AL ON A.association_id = AL.association_id INNER JOIN AT ON A.association_id = AT.association_id INNER JOIN Time T ON T.time_id = AT.time_id WHERE location_id IN("+location_ids+") ORDER BY T.time"
+        return self.get_associations_by_X(query)
+
+    def get_timeline_by_information(self, information_ids):
+        query = "SELECT A.association_id, A.ring_id, A.level, A.accuracy, A.valid, A.modified, A.note FROM Association A INNER JOIN AI ON A.association_id = AI.association_id INNER JOIN AT ON A.association_id = AT.association_id INNER JOIN Time T ON T.time_id = AT.time_id WHERE information_id IN("+information_ids+") ORDER BY T.time"
+        return self.get_associations_by_X(query)
+
+    def get_timeline_by_subject(self, codenames):
+        query = "SELECT A.association_id, A.ring_id, A.level, A.accuracy, A.valid, A.modified, A.note FROM Association A INNER JOIN AI ON A.association_id = AI.association_id INNER JOIN Information I ON AI.information_id = I.information_id INNER JOIN Subject S ON I.subject_id = S.subject_id INNER JOIN AT ON A.association_id = AT.association_id INNER JOIN Time T ON T.time_id = AT.time_id WHERE S.codename IN("+codenames+") ORDER BY T.time"
+        return self.get_associations_by_X(query)
+
+    def get_timeline_by_range(self, start, end):
+        query = "SELECT A.association_id, A.ring_id, A.level, A.accuracy, A.valid, A.modified, A.note FROM Association A INNER JOIN AT ON A.association_id = AT.association_id INNER JOIN Time T ON T.time_id = AT.time_id WHERE T.time BETWEEN '%s' AND '%s' ORDER BY T.time" % (start, end)
+        return self.get_associations_by_X(query)
 
 
     def delete_associations(self, association_ids):
