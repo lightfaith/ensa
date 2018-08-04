@@ -692,7 +692,7 @@ class Database():
     def get_keywords_for_informations(self, information_ids):
         if not self.subject_ok():
             return []
-        result = self.query("SELECT IK.information_id, k.keyword FROM IK INNER JOIN Keyword ON IK.keyword_id = Keyword.keyword_id WHERE IK.information_id IN (SELECT information_id FROM Information WHERE information_id IN ("+information_ids+") AND subject_id = %s)", (ensa.current_subject,))
+        result = self.query("SELECT IK.information_id, K.keyword FROM IK INNER JOIN Keyword K ON IK.keyword_id = K.keyword_id WHERE IK.information_id IN (SELECT information_id FROM Information WHERE information_id IN ("+information_ids+") AND subject_id = %s)", (ensa.current_subject,))
         return result
    
 

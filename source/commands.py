@@ -250,7 +250,7 @@ def format_association(association_id, ring_id, level, accuracy, valid, modified
         log.COLOR_NONE,
         )
 
-def format_information(information_id, subject_id, codename, info_type, name, level, accuracy, valid, modified, note, value, id_len, name_len, value_len, use_codename=True, use_modified=True):
+def format_information(information_id, subject_id, codename, info_type, name, level, accuracy, valid, modified, note, value, id_len, name_len, value_len, keywords=None, use_codename=True, use_modified=True):
     color = log.COLOR_NONE
     if not valid:
         color = log.COLOR_DARK_RED
@@ -272,7 +272,7 @@ def format_information(information_id, subject_id, codename, info_type, name, le
         accuracy,
         ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
         ', invalid' if not valid else '',
-        ('# '+note.decode()) if note else '',
+        (('# '+note.decode()) if note else '') if keywords is None else (b', '.join(keywords).decode()),
         log.COLOR_NONE,
         )
 
@@ -908,7 +908,21 @@ def igt_function(*_, no_composite_parts=True):
 add_command(Command('igt', 'get all textual information for current subject', 'igt', igt_function))
 add_command(Command('igtc', 'get all textual information (even composite parts) for current subject', 'igtc', lambda *args: igt_function(args, no_composite_parts=False)))
 
-def igk_all_function(*args):
+
+def igk_function(*args):
+    result = []
+    infos = ensa.db.get_informations(Database.INFORMATION_ALL)
+    if not infos:
+        return []
+    keywords = ensa.db.get_keywords_for_informations(','.join([str(x[0]) for x in infos]))
+    info_lens = get_format_len_information(infos)
+    result = [format_information(*info, *info_lens, keywords=[x[1] for x in keywords if x[0] == info[0]], use_codename=False) for info in infos]
+    return result
+    
+add_command(Command('igk', 'get all information with keywords for current subject', 'igk', igk_function))
+
+
+def igbk_all_function(*args):
     keywords = ','.join(['\'%s\'' % x for x in args])
     if not keywords:
         log.err('Keyword must be specified.')
@@ -919,10 +933,10 @@ def igk_all_function(*args):
     info_lens = get_format_len_information(infos)
     result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
     return result
-add_command(Command('igk= <keyword>', 'get information having all keywords', 'igk=', igk_all_function))
+add_command(Command('igbk= <keyword>', 'get information having all keywords', 'igbk=', igbk_all_function))
 
 
-def igk_or_function(*args):
+def igbk_or_function(*args):
     keywords = ','.join(['\'%s\'' % x for x in args])
     if not keywords:
         log.err('Keyword must be specified.')
@@ -933,7 +947,7 @@ def igk_or_function(*args):
     info_lens = get_format_len_information(infos)
     result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
     return result
-add_command(Command('igk <keyword>', 'get information having any of keywords', 'igk', igk_or_function))
+add_command(Command('igbk <keyword>', 'get information having any of keywords', 'igbk', igbk_or_function))
 
 
 add_command(Command('im', 'modify information', 'im', lambda *args: []))
