@@ -15,9 +15,10 @@ if not ensa.db or not ensa.db.connect():
 rings = ensa.db.get_rings()
 if rings:
     log.info('Welcome! Create new ring using `ra` or choose an existing one with `rs <name>`.')
+    ring_lens = commands.get_format_len_ring(rings)
     log.info('Existing rings:')
-    for r in rings:
-        log.info('  %s' % r[1].decode()) # TODO count subjects
+    for ring in rings:
+        log.info('  '+commands.format_ring(*ring, *ring_lens))
 else:
     log.info('Welcome! It looks that you do not have any rings created. To do this, use `ra`.')
 

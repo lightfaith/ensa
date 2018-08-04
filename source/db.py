@@ -61,20 +61,20 @@ class Database():
 # Ring methods
 ###########################################
     def get_rings(self):
-        return self.query("SELECT ring_id, name, password, note FROM Ring")
+        return self.query("SELECT ring_id, name, password, reference_date, note FROM Ring")
 
     def create_ring(self, name, password, note):
         try:
-            self.query("INSERT INTO Ring(name, password, note) VALUES(%s, %s, %s)", (name, password, note))
+            self.query("INSERT INTO Ring(name, password, reference_date, note) VALUES(%s, %s, %s, %s)", (name, password, 'now', note))
             return True
         except:
             log.debug_error()
             return False
 
     def select_ring(self, name):
-        result = self.query("SELECT ring_id FROM Ring WHERE name = %s", (name,))
+        result = self.query("SELECT ring_id, reference_date FROM Ring WHERE name = %s", (name,))
         if result:
-            return result[0][0]
+            return result[0]
         log.err('There is no such ring.')
         return None
 
@@ -87,6 +87,11 @@ class Database():
 
     def delete_ring(self, ring_id):
         self.query("DELETE FROM Ring WHERE ring_id = %s", (ring_id,))
+
+    def set_ring_reference_date(self, reference_date):
+        if not self.ring_ok():
+            return
+        self.query("UPDATE Ring SET reference_date = %s WHERE ring_id = %s", (reference_date, ensa.current_ring))
 
 ###########################################
 # Subject methods
@@ -145,7 +150,7 @@ class Database():
         if not args or 'keywords' in args:
             self.query("DELETE FROM Keyword WHERE keyword_id NOT IN (SELECT keyword_id FROM IK)")
 
-    def create_information(self, info_type, name, value, accuracy=0, level=None, valid=True, note=None):
+    def create_information(self, info_type, name, value, accuracy=ensa.config['interaction.default_accuracy'][0], level=None, valid=True, note=None):
         if not self.subject_ok():
             return None
         try:
@@ -195,15 +200,23 @@ class Database():
 
 
     def get_informations(self, info_type=None, no_composite_parts=False):
-        if not self.subject_ok():
-            return []
+        #if not self.subject_ok():
+        #    return []
         if info_type is None:
             info_type = Database.INFORMATION_ALL
         result = []
-        if no_composite_parts:
-            infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE I.subject_id = %s AND I.information_id NOT IN (SELECT part_id FROM Composite) ORDER BY I.name", (ensa.current_subject,))
+        if ensa.current_subject:
+            if no_composite_parts:
+                infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE I.subject_id = %s AND I.information_id NOT IN (SELECT part_id FROM Composite) ORDER BY I.name", (ensa.current_subject,))
+            else:
+                infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE I.subject_id = %s ORDER BY I.name", (ensa.current_subject,))
         else:
-            infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE I.subject_id = %s ORDER BY I.name", (ensa.current_subject,))
+            if no_composite_parts:
+                infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id WHERE I.information_id NOT IN (SELECT part_id FROM Composite) ORDER BY I.name")
+            else:
+                infos_nodata = self.query("SELECT I.information_id, I.subject_id, S.codename, I.type, I.name, I.level, I.accuracy, I.valid, I.modified, I.note FROM Subject S INNER JOIN Information I ON S.subject_id = I.subject_id ORDER BY I.name")
+            
+
         infos = []
         for info in infos_nodata:
             if info[3] in [Database.INFORMATION_ALL, Database.INFORMATION_TEXT]:

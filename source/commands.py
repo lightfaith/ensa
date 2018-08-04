@@ -219,6 +219,12 @@ def get_format_len_information(infos):
         max([0]+[len(i[-1]) for i in infos]),
     )
 
+def get_format_len_ring(rings):
+    return (
+        max([0]+[len('%s' % r[1].decode()) for r in rings]),
+        
+    )
+
 def get_format_len_time(times):
     return (
         max([0]+[len('%d' % t[0]) for t in times]),
@@ -227,6 +233,14 @@ def get_format_len_time(times):
 def get_format_len_location(locations):
     return (
         max([0]+[len('%d' % l[0]) for l in locations]),
+    )
+
+def format_ring(ring_id, name, password, reference_date, note, name_len):
+    return '%*s  %-15s%s' % (
+        name_len,
+        name.decode(),
+        '(ref: %s)' % reference_date.decode(),
+        ' # %s' % note.decode() if note else '',
     )
 
 def format_association(association_id, ring_id, level, accuracy, valid, modified, note, use_modified=True):
@@ -871,7 +885,7 @@ def iak_function(*args):
         ensa.db.add_keyword(information_ids, keyword)
     return []
 add_command(Command('iak <information_ids> <keywords>', 'add keywords to information', 'iak', iak_function))
-    
+
 
 def id_function(*args):
     try:
@@ -903,20 +917,20 @@ def igt_function(*_, no_composite_parts=True):
     if not infos:
         return []
     info_lens = get_format_len_information(infos)
-    result = [format_information(*info, *info_lens, use_codename=False) for info in infos]
+    result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
     return result
-add_command(Command('igt', 'get all textual information for current subject', 'igt', igt_function))
-add_command(Command('igtc', 'get all textual information (even composite parts) for current subject', 'igtc', lambda *args: igt_function(args, no_composite_parts=False)))
+add_command(Command('igt', 'get all textual information for current subject/ring', 'igt', igt_function))
+add_command(Command('igtc', 'get all textual information (even composite parts) for current subject/ring', 'igtc', lambda *args: igt_function(args, no_composite_parts=False)))
 
 
 def igk_function(*args):
     result = []
-    infos = ensa.db.get_informations(Database.INFORMATION_ALL)
+    infos = ensa.db.get_informations()
     if not infos:
         return []
     keywords = ensa.db.get_keywords_for_informations(','.join([str(x[0]) for x in infos]))
     info_lens = get_format_len_information(infos)
-    result = [format_information(*info, *info_lens, keywords=[x[1] for x in keywords if x[0] == info[0]], use_codename=False) for info in infos]
+    result = [format_information(*info, *info_lens, keywords=sorted(x[1] for x in keywords if x[0] == info[0]), use_codename=(ensa.current_subject is None)) for info in infos]
     return result
     
 add_command(Command('igk', 'get all information with keywords for current subject', 'igk', igk_function))
@@ -1525,8 +1539,9 @@ add_command(Command('q', 'quit', '', lambda *_: [])) # solved in ensa
 RING COMMANDS
 """
 def r_function(*_):
-    result = ensa.db.get_rings() # TODO count subjects, show if encrypted, show notes, show if selected
-    return ['  %s ' % (r[1].decode()) for r in result]
+    rings = ensa.db.get_rings() # TODO count subjects, show if encrypted, show notes, show if selected
+    ring_lens = get_format_len_ring(rings)
+    return [format_ring(*ring, *ring_lens) for ring in rings]
 add_command(Command('r', 'print rings', 'r', r_function))
 
 def ra_function(*_):
@@ -1553,7 +1568,11 @@ def ra_function(*_):
     if not result:
         log.err('Error while inserting ring into DB.')
         return []
-    ensa.current_ring = ensa.db.select_ring(name)
+    ensa.current_ring, ensa.current_reference_date = ensa.db.select_ring(name)
+    if ensa.current_reference_date == 'now':
+       ensa.current_reference_date = time.strftime('%Y-%m-%d')
+    else:
+        ensa.current_reference_date = datetime.strptime(ensa.current_reference_date.decode(), '%Y-%m-%d')
     if ensa.current_ring:
         log.info('Currently working with \'%s\' romg.' % name)
     return []
@@ -1563,12 +1582,13 @@ def rd_function(*args):
     if not args:
         log.err('Ring name must be specified.')
     try:
-        ring_id = ensa.db.select_ring(args[0])
+        ring_id, _ = ensa.db.select_ring(args[0])
         if not ring_id:
             raise AttributeError
         if ensa.current_ring == ring_id:
             ensa.current_ring = None
             ensa.current_subject = None
+            ensa.current_reference_date = None
             log.set_prompt()
         ensa.db.delete_ring(ring_id)
     except:
@@ -1586,7 +1606,11 @@ def rs_function(*args):
             log.set_prompt()
             return []
         name = args[0]
-        ensa.current_ring = ensa.db.select_ring(name)
+        ensa.current_ring, ensa.current_reference_date = ensa.db.select_ring(name)
+        if ensa.current_reference_date.decode() == 'now':
+           ensa.current_reference_date = time.strftime('%Y-%m-%d')
+        else:
+            ensa.current_reference_date = datetime.strptime(ensa.current_reference_date.decode(), '%Y-%m-%d')
         if ensa.current_ring:
             ensa.current_subject = None
             log.info('Currently working with \'%s\' ring.' % name)
@@ -1596,6 +1620,28 @@ def rs_function(*args):
         log.debug_error()
     return []
 add_command(Command('rs <ring>', 'select a ring', 'rs', rs_function))
+
+
+def rr_function(*args):
+    try:
+        reference_date = args[0].lower()
+    except:
+        log.err('Reference id must be defined.')
+        return []
+    try:
+        _ = datetime.strptime(reference_date, 'YYYY-mm-dd')
+    except:
+        if reference_date != 'now':
+            log.err('Reference date must be \'now\' or in YYYY-mm-dd format.')
+            return []
+    ensa.db.set_ring_reference_date(reference_date)
+    ensa.current_reference_date = reference_date
+    if ensa.current_reference_date == 'now':
+        ensa.current_reference_date = time.strftime('%Y-%m-%d')
+    else:
+        ensa.current_reference_date = datetime.strptime(ensa.current_reference_date.decode(), '%Y-%m-%d')
+    return []
+add_command(Command('rr <now|YYYY-mm-dd>', 'set reference date for current ring', 'rr', rr_function))
 
 """
 SUBJECT COMMANDS
@@ -1619,7 +1665,131 @@ def sa_function(*args): # simple subject creation, `saw` for wizard
         
 add_command(Command('sa <codename>', 'add new subject in the current ring', 'sa', sa_function))
 
-# TODO `saw`
+
+
+def sawp_function(*_):
+    # general info
+    i = {}
+    codename, i['firstname'], i['middlename'], i['lastname'], i['sex'], i['y'], i['m'], i['d'], i['race'], i['religion'], i['politics'], i['orientation'] = wizard([
+        'Codename for the subject:',
+        'First name:',
+        'Middle name:',
+        'Last name:',
+        'Sex:',
+        'Year of birth:',
+        'Month of birth:',
+        'Day of birth:',
+        'Race:',
+        'Religion:',
+        'Politics:',
+        'Orientation:',
+    ])
+    
+    if not codename:
+        log.err('Codename must be specified.')
+        return []
+    if not ensa.db.create_subject(codename):
+        log.err('Subject could not be created.')
+        return []
+
+    if ensa.current_subject:
+        log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring).decode(), codename), symbol=']')
+        log.info('Currently working with \'%s\' subject.' % codename)
+
+    if i['sex'].lower() in ('m', 'male', 'boy', 'man'):
+        i['sex'] = 'male'
+    if i['sex'].lower() in ('f', 'female', 'girl', 'woman'):
+        i['sex'] = 'female'
+    if not i['sex'] in ('', 'male', 'female'):
+        log.err('Sex must be either male or female.')
+
+    for name, value in i.items():
+        if value:
+            ensa.db.create_information(Database.INFORMATION_TEXT, name, value)
+    
+    # address
+    log.newline()
+    while True:
+        i = {}
+        add_address, = wizard(['Add address entry?'])
+        if positive(add_address):
+            i['country'], i['province'], i['city'], i['street'], i['street_number'], i['postal'], valid = wizard([
+                'Country:',
+                'Province:',
+                'City:',
+                'Street:',
+                'Street number:',
+                'Postal code:',
+                'Is the address currently valid?',
+            ])
+            valid = positive(valid)
+            information_ids = filter(None, [ensa.db.create_information(Database.INFORMATION_TEXT, name, value, valid=valid) for name,value in i.items() if value])
+            if information_ids:
+                ensa.db.create_information(Database.INFORMATION_COMPOSITE, 'address', ','.join(str(x) for x in information_ids), valid=valid)
+
+        else:
+            break
+        
+    # likes, dislikes, skills, traits
+    for category, question in (
+            ('nickname', 'Nickname for %s:' % codename),
+            ('likes', '%s likes:' % codename.title()), 
+            ('dislikes', '%s dislikes:' % codename.title()), 
+            ('skill', '%s\'s skill:' % codename.title()),
+            ('trait', '%s\'s trait:' % codename.title()),
+            ('asset', '%s\'s asset:' % codename.title()),
+            ):
+        log.newline()
+        while True:
+            value, = wizard([
+                question,
+            ])
+            if value:
+                ensa.db.create_information(Database.INFORMATION_TEXT, category, value)
+            else:
+                break
+                
+    # work
+    # probably creating company as new subject and associate employees to it is better approach
+    """
+    log.newline()
+    while True:
+    i = {}
+        add_work, = wizard(['Add work entry?'])
+        if positive(add_work):
+            i['company_name'], i['company_id'], i['position'], i['office'], i['start date'], i['end_date'], valid = wizard([
+                'Company name:',
+                'Company identifier:',
+                'Position:',
+                'Office:',
+                'Start date:',
+                'End date:',
+                'Is the work currently valid?',
+            ])
+            add_address, = wizard(['Add address entry?']) # TODO not fixed
+            if positive(add_address):
+                i['country'], i['province'], i['city'], i['street'], i['street_number'], i['postal'], valid = wizard([
+                    'Country:',
+                    'Province:',
+                    'City:',
+                    'Street:',
+                    'Street number:',
+                    'Postal code:',
+                    'Is the address currently valid?',
+                ])
+                valid = positive(valid)
+                information_ids = filter(None, [ensa.db.create_information(Database.INFORMATION_TEXT, name, value, valid=valid) for name,value in i.items() if value])
+                if information_ids:
+                    ensa.db.create_information(Database.INFORMATION_COMPOSITE, 'address', ','.join(str(x) for x in information_ids))
+        """
+
+
+
+add_command(Command('saw', 'subject wizards', 'saw', lambda *_: []))
+add_command(Command('sawp', 'use wizard to create a Person subject', 'sawp', sawp_function))
+# TODO `sawc`
+
+
 
 def sd_function(*args):
     if not args:

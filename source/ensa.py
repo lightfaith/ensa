@@ -27,6 +27,7 @@ config['debug.query'] = (False, bool)    # show debug info about database querie
 """ External commands """
 config['external.editor'] = ('vim %s', str) # path to editor
 config['interaction.command_modifier'] = ('$', str) # command modifier
+config['interaction.default_accuracy'] = (0, int) # default accuracy
 config['interaction.max_accuracy'] = (10, int) # maximum accuracy (for color emphasis) # TODO check when modified
 config['interaction.max_level'] = (10, int) # maximum level # TODO needed? # TODO check when modified
 
@@ -40,6 +41,7 @@ Current data
 """
 current_ring = None
 current_subject = None
+current_reference_date = None
 
 """
 Database object
