@@ -563,7 +563,7 @@ add_command(Command('adt <association_id> <time_ids>', 'remove times from an ass
 
 
 
-def ag_function(*args, data_function=lambda *_: [], id_type=0, prepend_times=False, hide_details=False):
+def ag_function(*args, data_function=lambda *_: [], id_type=0, prepend_times=False, hide_details=False, use_modified=True):
 
     if id_type == 0: # ID sequence, parse it
         ids = ','.join(parse_sequence(','.join(args)))
@@ -584,13 +584,16 @@ def ag_function(*args, data_function=lambda *_: [], id_type=0, prepend_times=Fal
         return []
     for association, infos, times, locations, associations in data:
         aresult = []
+
+        """
         if prepend_times:
             aresult.append('')
             for time in times:
                 aresult.append(time[1].decode())
             aresult.append('-------------------')
-
-        aresult.append('{grepignore}#A'+format_association(*association, use_modified=True))
+        """
+        time = '%s  ' % times[0][1].decode() if times and prepend_times else ''
+        aresult.append(('{grepignore}%s#A' % time)+format_association(*association, use_modified=use_modified))
         if not hide_details:
             info_lens = get_format_len_information(infos)
             time_lens = get_format_len_time(times)
@@ -605,6 +608,7 @@ def ag_function(*args, data_function=lambda *_: [], id_type=0, prepend_times=Fal
                 aresult.append('    #A'+format_association(*a, use_modified=False))
         result.append(aresult)
     return result
+add_command(Command('ag', 'show associations', 'ag', lambda *_: []))
 add_command(Command('aga <association_ids>', 'show associations with specific ID', 'aga', lambda *args: ag_function(*args, data_function=lambda ids: ensa.db.get_associations_by_ids(ids), prepend_times=False)))
 add_command(Command('agl <location_ids>', 'show associations with specific location', 'aga', lambda *args: ag_function(*args, data_function=lambda ids: ensa.db.get_associations_by_location(ids), prepend_times=False)))
 add_command(Command('agt <time_ids>', 'show associations with specific time entry', 'agt', lambda *args: ag_function(*args, data_function=lambda ids: ensa.db.get_associations_by_time(ids), prepend_times=False)))
@@ -1901,59 +1905,28 @@ add_command(Command('td <time_id>', 'delete time entry from current ring', 'td',
 
 add_command(Command('tl', 'timelines', 'tl', lambda *_: []))
 def tli_function(*args):
-    return ag_function(*args, data_function=lambda ids: ensa.db.get_timeline_by_information(ids), prepend_times=True, hide_details=True)
+    return ag_function(*args, data_function=lambda ids: ensa.db.get_timeline_by_information(ids), prepend_times=True, hide_details=True, use_modified=False)
 add_command(Command('tli <information_ids>', 'show timelines for given informations', 'tli', tli_function))
 def tliv_function(*args):
-    return ag_function(*args, data_function=lambda ids: ensa.db.get_timeline_by_information(ids), prepend_times=True)
+    return ag_function(*args, data_function=lambda ids: ensa.db.get_timeline_by_information(ids), prepend_times=True, use_modified=False)
 add_command(Command('tliv <information_ids>', 'show timelines for given informations (verbose)', 'tli', tliv_function))
 
 def tll_function(*args):
-    return ag_function(*args, data_function=lambda ids: ensa.db.get_timeline_by_location(ids), prepend_times=True, hide_details=True)
+    return ag_function(*args, data_function=lambda ids: ensa.db.get_timeline_by_location(ids), prepend_times=True, hide_details=True, use_modified=False)
 add_command(Command('tll <location_ids>', 'show timelines for given locations', 'tll', tll_function))
 
 def tllv_function(*args):
-    return ag_function(*args, data_function=lambda ids: ensa.db.get_timeline_by_location(ids), prepend_times=True)
+    return ag_function(*args, data_function=lambda ids: ensa.db.get_timeline_by_location(ids), prepend_times=True, use_modified=False)
 add_command(Command('tllv <location_ids>', 'show timelines for given locations (verbose)', 'tll', tllv_function))
 
 def tls_function(*args):
-    return ag_function(*args, data_function=lambda codenames: ensa.db.get_timeline_by_subject(codenames), id_type=1, prepend_times=True, hide_details=True)
+    return ag_function(*args, data_function=lambda codenames: ensa.db.get_timeline_by_subject(codenames), id_type=1, prepend_times=True, hide_details=True, use_modified=False)
 add_command(Command('tls <codename>', 'show timelines for given subjects', 'tls', tls_function))
 def tlsv_function(*args):
-    return ag_function(*args, data_function=lambda codenames: ensa.db.get_timeline_by_subject(codenames), id_type=1, prepend_times=True)
+    return ag_function(*args, data_function=lambda codenames: ensa.db.get_timeline_by_subject(codenames), id_type=1, prepend_times=True, use_modified=False)
 add_command(Command('tlsv <codename>', 'show timelines for given subjects (verbose)', 'tls', tlsv_function))
 
-def tlt_function(*args, hide_details=False):
-    """start = None
-    end = None
-    start_ending = 2
-    end_starting = 1
-    date_formats = ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%H:%M:%S', '%H:%M')
-    for date_format in date_formats:
-        try:
-            start = datetime.strptime(' '.join(args[0:start_ending]), date_format)
-            if date_format == date_formats[0]:
-                end_starting = 2
-            break
-        except:
-            if date_format == date_formats[0]:
-                start_ending = 1
-            continue
-    if not start:
-        log.err('Start date must be defined.')
-        return []
-    if len(args)<end_starting+1 or args[end_starting] == 'now':
-        end = ensa.current_reference_date
-    else:
-        for date_format in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%H:%M:%S', '%H:%M'):
-            try:
-                end = datetime.strptime(' '.join(args[end_starting:]), date_format)
-                break
-            except:
-                continue
-        if not end:
-            log.err('End date must be defined in correct format.')
-            return []
-    """
+def tlt_function(*args, hide_details=False, use_modified=True):
     start = None
     end = None
     formats = {'dt': '%Y-%m-%d %H:%M:%S', 'd': '%Y-%m-%d', 't': '%H:%M:%S', 't2': '%H:%M'}
@@ -2015,12 +1988,12 @@ def tlt_function(*args, hide_details=False):
                         except:
                             log.err('Date range format is not supported (DT-x fail).')
                             return []
-    print(start)
-    print(end)
-    return ag_function(start, end, data_function=lambda dates: ensa.db.get_timeline_by_range(*dates), id_type=3, prepend_times=True, hide_details=hide_details)
+    #print(start)
+    #print(end)
+    return ag_function(start, end, data_function=lambda dates: ensa.db.get_timeline_by_range(*dates), id_type=3, prepend_times=True, hide_details=hide_details, use_modified=use_modified)
 
-add_command(Command('tlt <start> [<end>]', 'show timelines for given date range', 'tlt', lambda *args: tlt_function(*args, hide_details=True)))
-add_command(Command('tltv <start> [<end>]', 'show timelines for given date range (verbose)', 'tltv', lambda *args: tlt_function(*args)))
+add_command(Command('tlt <start> [<end>]', 'show timelines for given date range', 'tlt', lambda *args: tlt_function(*args, hide_details=True, use_modified=False)))
+add_command(Command('tltv <start> [<end>]', 'show timelines for given date range (verbose)', 'tltv', lambda *args: tlt_function(*args, use_modified=False)))
 
 
 
