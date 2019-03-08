@@ -94,6 +94,7 @@ def run_command(fullcommand):
             lines = ensa.commands[command].run(*args)
 
         except Exception as e:
+            traceback.print_exc()
             log.err('Cannot execute command \''+command+'\': '+str(e)+'.')
             log.debug_error()
             return
@@ -182,7 +183,7 @@ def run_command(fullcommand):
         if type(line) == str:
             log.tprint(re.sub('^\\{grepignore\\}', '', line))
         elif type(line) == bytes:
-            log.tprint(re.sub('^\\{grepignore\\}', '', line.decode()))
+            log.tprint(re.sub('^\\{grepignore\\}', '', line))
         elif type(line) == list:
             for subline in line:
                 log.tprint(re.sub('^\\{grepignore\\}', '', subline))
@@ -220,7 +221,7 @@ def get_format_len_information(infos):
 
 def get_format_len_ring(rings):
     return (
-        max([0]+[len('%s' % r[1].decode()) for r in rings]),
+        max([0]+[len('%s' % r[1]) for r in rings]),
         
     )
 
@@ -237,9 +238,9 @@ def get_format_len_location(locations):
 def format_ring(ring_id, name, password, reference_date, note, name_len):
     return '%*s  %-15s%s' % (
         name_len,
-        name.decode(),
-        '(ref: %s)' % reference_date.decode(),
-        ' # %s' % note.decode() if note else '',
+        name,
+        '(ref: %s)' % reference_date,
+        ' # %s' % note if note else '',
     )
 
 def format_association(association_id, ring_id, level, accuracy, valid, modified, note, use_modified=True):
@@ -255,10 +256,10 @@ def format_association(association_id, ring_id, level, accuracy, valid, modified
         color,
         #id_len,
         association_id,
-        note.decode() if note else '',
+        note if note else '',
         'lvl %d, ' % level if level else '',
         accuracy,
-        ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
+        ', mod '+modified if use_modified else '',
         ', invalid' if not valid else '',
         log.COLOR_NONE,
         )
@@ -276,22 +277,22 @@ def format_information(information_id, subject_id, codename, info_type, name, le
         color,
         id_len,
         information_id,
-        '<%s>' % codename.decode() if use_codename else '',
+        '<%s>' % codename if use_codename else '',
         name_len,
-        name.decode(),
+        name,
         value_len,
-        value.decode(),
+        value,
         'lvl %d, ' % level if level else '',
         accuracy,
-        ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
+        ', mod '+modified if use_modified else '',
         ', invalid' if not valid else '',
-        (('# '+note.decode()) if note else '') if keywords is None else (b', '.join(keywords).decode()),
+        (('# '+note) if note else '') if keywords is None else (b', '.join(keywords)),
         log.COLOR_NONE,
         )
 
 def format_location(location_id, name, gps, accuracy, valid, modified, note, id_len, use_modified=True):
     if gps:
-        lat, _, lon = gps.decode()[6:-1].partition(' ')
+        lat, _, lon = gps[6:-1].partition(' ')
         lat = lat+'N' if float(lat)>0 else lat[1:]+'S'
         lon = lon+'E' if float(lon)>0 else lon[1:]+'W'
         gps = '(%s %s)' % (lat, lon)
@@ -307,12 +308,12 @@ def format_location(location_id, name, gps, accuracy, valid, modified, note, id_
         color,
         id_len,
         location_id,
-        name.decode(),
+        name,
         gps if gps else '',
         accuracy,
-        ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
+        ', mod '+modified if use_modified else '',
         ', invalid' if not valid else '',
-        ('# '+note.decode()) if note else '',
+        ('# '+note) if note else '',
         log.COLOR_NONE,
         )
 
@@ -330,11 +331,11 @@ def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modi
         id_len,
         time_id,
         #time.strftime('%Y-%m-%d %H:%M:%S'),
-        time.decode() if time else '',
+        time if time else '',
         accuracy,
-        ', mod '+modified.strftime('%Y-%m-%d %H:%M:%S') if use_modified else '',
+        ', mod '+modified if use_modified else '',
         ', invalid' if not valid else '',
-        ('# '+note.decode()) if note else '',
+        ('# '+note) if note else '',
         log.COLOR_NONE,
         )
 
@@ -589,10 +590,10 @@ def ag_function(*args, data_function=lambda *_: [], id_type=0, prepend_times=Fal
         if prepend_times:
             aresult.append('')
             for time in times:
-                aresult.append(time[1].decode())
+                aresult.append(time[1])
             aresult.append('-------------------')
         """
-        time = '%s  ' % times[0][1].decode() if times and prepend_times else ''
+        time = '%s  ' % times[0][1] if times and prepend_times else ''
         aresult.append(('{grepignore}%s#A' % time)+format_association(*association, use_modified=use_modified))
         if not hide_details:
             info_lens = get_format_len_information(infos)
@@ -631,7 +632,7 @@ def ame_function(*args):
     data = ensa.db.get_association(association_id)
     if not data:
         return []
-    mapped = dict(zip([None, 'level', 'accuracy', 'valid', 'note'], [(x.decode() if type(x)==bytearray else x) if x else '' for x in data]))
+    mapped = dict(zip([None, 'level', 'accuracy', 'valid', 'note'], [(x if type(x)==bytearray else x) if x else '' for x in data]))
     #print(mapped)
     # write into file
     with tempfile.NamedTemporaryFile() as f:
@@ -641,7 +642,7 @@ def ame_function(*args):
         subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
         f.seek(0)
         # retrieve changes
-        changes = f.read().decode()
+        changes = f.read()
     change_occured = False
     for line in changes.splitlines():
         k, _, v = line.partition(': ')
@@ -944,6 +945,7 @@ def igt_function(*_, no_composite_parts=True):
     info_lens = get_format_len_information(infos)
     result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
     return result
+add_command(Command('ig', 'get all information for current subject/ring', 'ig', lambda *_: ['TODO']))
 add_command(Command('igt', 'get all textual information for current subject/ring', 'igt', igt_function))
 add_command(Command('igtc', 'get all textual information (even composite parts) for current subject/ring', 'igtc', lambda *args: igt_function(args, no_composite_parts=False)))
 
@@ -1010,7 +1012,7 @@ def ime_function(*args):
     #    value_column = 'compounds'
     else:
         value_column = 'ERROR'
-    mapped = dict(zip([None, 'subject', None, 'name', 'level', 'accuracy', 'valid', 'note', value_column], [(x.decode() if type(x)==bytearray else x) if x else '' for x in data]))
+    mapped = dict(zip([None, 'subject', None, 'name', 'level', 'accuracy', 'valid', 'note', value_column], [(x if type(x)==bytearray else x) if x else '' for x in data]))
     #print(mapped)
     # write into file
     with tempfile.NamedTemporaryFile() as f:
@@ -1020,7 +1022,7 @@ def ime_function(*args):
         subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
         f.seek(0)
         # retrieve changes
-        changes = f.read().decode()
+        changes = f.read()
     change_occured = False
     for line in changes.splitlines():
         k, _, v = line.partition(': ')
@@ -1254,7 +1256,7 @@ KEYWORD COMMANDS
 """
 # other keyword methods are under Information
 def k_function(*args):
-    return [x[0].decode() for x in ensa.db.get_keywords()]
+    return [x[0] for x in ensa.db.get_keywords()]
 add_command(Command('k', 'list keywords in current ring/subject', 'k', k_function))
 
 
@@ -1326,12 +1328,12 @@ def lme_function(*args):
     if not data:
         return []
     #print(data)
-    lat, _, lon = data[2].decode().partition('(')[2].partition(' ') if data[2] else (None, None, None)
+    lat, _, lon = data[2].partition('(')[2].partition(' ') if data[2] else (None, None, None)
     if lon:
         lon = lon[:-1]
     data = data[:2]+(lat,lon)+data[3:]
     # add labels
-    mapped = dict(zip([None, 'name', 'lat', 'lon', 'accuracy', 'valid', 'note'], [(x.decode() if type(x)==bytearray else x) if x else '' for x in data]))
+    mapped = dict(zip([None, 'name', 'lat', 'lon', 'accuracy', 'valid', 'note'], [(x if type(x)==bytearray else x) if x else '' for x in data]))
     #print(mapped)
     # write into file
     with tempfile.NamedTemporaryFile() as f:
@@ -1341,7 +1343,7 @@ def lme_function(*args):
         subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
         f.seek(0)
         # retrieve changes
-        changes = f.read().decode()
+        changes = f.read()
     change_occured = False
     for line in changes.splitlines():
         k, _, v = line.partition(': ')
@@ -1570,9 +1572,11 @@ def r_function(*_):
 add_command(Command('r', 'print rings', 'r', r_function))
 
 def ra_function(*_):
-    name, encrypted, note, confirm = wizard([
+    #name, encrypted, note, confirm = wizard([
+    encrypted = False
+    name, note, confirm = wizard([
             'Name of the ring (e.g. Work):',
-            'Should the ring be encrypted (default: no)?',
+            #'Should the ring be encrypted (default: no)?',
             'Optional comment:',
             '... Use provided information to create new ring?',
         ])
@@ -1597,9 +1601,10 @@ def ra_function(*_):
     if ensa.current_reference_date == 'now':
        ensa.current_reference_date = time.strftime('%Y-%m-%d')
     else:
-        ensa.current_reference_date = datetime.strptime(ensa.current_reference_date.decode(), '%Y-%m-%d')
+        ensa.current_reference_date = datetime.strptime(ensa.current_reference_date, '%Y-%m-%d')
     if ensa.current_ring:
-        log.info('Currently working with \'%s\' romg.' % name)
+        log.info('Currently working with \'%s\' ring.' % name)
+        log.set_prompt(key=name, symbol=')')
     return []
 add_command(Command('ra', 'add new ring', 'ra', ra_function))
 
@@ -1632,10 +1637,10 @@ def rs_function(*args):
             return []
         name = args[0]
         ensa.current_ring, ensa.current_reference_date = ensa.db.select_ring(name)
-        if ensa.current_reference_date.decode() == 'now':
+        if ensa.current_reference_date == 'now':
            ensa.current_reference_date = time.strftime('%Y-%m-%d')
         else:
-            ensa.current_reference_date = datetime.strptime(ensa.current_reference_date.decode(), '%Y-%m-%d')
+            ensa.current_reference_date = datetime.strptime(ensa.current_reference_date, '%Y-%m-%d')
         if ensa.current_ring:
             ensa.current_subject = None
             log.info('Currently working with \'%s\' ring.' % name)
@@ -1654,8 +1659,9 @@ def rr_function(*args):
         log.err('Reference id must be defined.')
         return []
     try:
-        _ = datetime.strptime(reference_date, 'YYYY-mm-dd')
+        _ = datetime.strptime(reference_date, '%Y-%m-%d')
     except:
+        traceback.print_exc()
         if reference_date != 'now':
             log.err('Reference date must be \'now\' or in YYYY-mm-dd format.')
             return []
@@ -1664,7 +1670,7 @@ def rr_function(*args):
     if ensa.current_reference_date == 'now':
         ensa.current_reference_date = time.strftime('%Y-%m-%d')
     else:
-        ensa.current_reference_date = datetime.strptime(ensa.current_reference_date.decode(), '%Y-%m-%d')
+        ensa.current_reference_date = datetime.strptime(ensa.current_reference_date, '%Y-%m-%d')
     return []
 add_command(Command('rr <now|YYYY-mm-dd>', 'set reference date for current ring', 'rr', rr_function))
 
@@ -1673,7 +1679,7 @@ SUBJECT COMMANDS
 """
 def s_function(*_):
     subjects = ensa.db.get_subjects()
-    return ['%10s (#%d)  %20s  %s' % (codename.decode(), subject_id, created.strftime('%Y-%m-%d %H:%M:%S'), note.decode() if note else '') for subject_id, codename, created, note in subjects]
+    return ['%10s (#%d)  %20s  %s' % (codename, subject_id, created, note if note else '') for subject_id, codename, created, note in subjects]
 add_command(Command('s', 'list subjects in the current ring', 's', s_function))
 
 def sa_function(*args):
@@ -1684,7 +1690,7 @@ def sa_function(*args):
         return []
     ensa.db.create_subject(codename)
     if ensa.current_subject:
-        log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring).decode(), codename), symbol=']')
+        log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring), codename), symbol=']')
         log.info('Currently working with \'%s\' subject.' % codename)
     return []
         
@@ -1718,7 +1724,7 @@ def sawp_function(*_):
         return []
 
     if ensa.current_subject:
-        log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring).decode(), codename), symbol=']')
+        log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring), codename), symbol=']')
         log.info('Currently working with \'%s\' subject.' % codename)
 
     if i['sex'].lower() in ('m', 'male', 'boy', 'man'):
@@ -1827,7 +1833,7 @@ def sd_function(*args):
             raise AttributeError
         if ensa.current_subject == subject_id:
             ensa.current_subject = None
-            log.set_prompt(key=ensa.db.get_ring_name(ensa.current_ring).decode(), symbol=')')
+            log.set_prompt(key=ensa.db.get_ring_name(ensa.current_ring), symbol=')')
         ensa.db.delete_subject(subject_id)
     except:
         log.debug_error()
@@ -1841,19 +1847,19 @@ def ss_function(*args):
     if not args:
         ensa.current_subject = None
         log.info('Currently working outside subject.')
-        log.set_prompt(key=ensa.db.get_ring_name(ensa.current_ring).decode(), symbol=')')
+        log.set_prompt(key=ensa.db.get_ring_name(ensa.current_ring), symbol=')')
         return []
     try:
         codename = args[0]
         ensa.current_subject = ensa.db.select_subject(codename)
         if ensa.current_subject:
             log.info('Currently working with \'%s\' subject.' % codename)
-            log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring).decode(), codename), symbol=']')
+            log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring), codename), symbol=']')
     except:
         log.err('Subject codename must be specified.')
         log.debug_error()
     return []
-add_command(Command('ss <subject>', 'select a subject', 'ss', ss_function))
+add_command(Command('ss <codename>', 'select a subject', 'ss', ss_function))
 
 
 """
@@ -2012,10 +2018,10 @@ def tme_function(*args):
     data = ensa.db.get_time(time_id)
     if not data:
         return []
-    d, _, t = data[1].decode().partition(' ')
+    d, _, t = data[1].partition(' ')
     data = data[:1]+(d,t)+data[2:]
     # add labels
-    mapped = dict(zip([None, 'date', 'time', 'accuracy', 'valid', 'note'], [(x.decode() if type(x)==bytearray else x) if x else '' for x in data]))
+    mapped = dict(zip([None, 'date', 'time', 'accuracy', 'valid', 'note'], [(x if type(x)==bytearray else x) if x else '' for x in data]))
     #print(mapped)
     # write into file
     with tempfile.NamedTemporaryFile() as f:
@@ -2025,7 +2031,7 @@ def tme_function(*args):
         subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
         f.seek(0)
         # retrieve changes
-        changes = f.read().decode()
+        changes = f.read()
     change_occured = False
     for line in changes.splitlines():
         k, _, v = line.partition(': ')
