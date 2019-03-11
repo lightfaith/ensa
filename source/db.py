@@ -71,7 +71,12 @@ class Database():
 ###########################################
 # Ring methods
 ###########################################
-    def get_rings(self):
+    def get_rings(self, name=None):
+        if name:
+            return self.query(("SELECT ring_id, name, password, "
+                               "       reference_date, note "
+                               "FROM Ring "
+                               "WHERE name LIKE '%"+name+"%'"))
         return self.query("SELECT ring_id, name, password, reference_date, note "
                           "FROM Ring")
 
@@ -83,10 +88,10 @@ class Database():
                         'p': password, 
                         'd': 'now', 
                         'note': note})
-            return True
+            return name
         except:
             log.debug_error()
-            return False
+            return ''
 
     def select_ring(self, name):
         result = self.query(("SELECT ring_id, reference_date "
@@ -155,12 +160,16 @@ class Database():
             log.debug_error()
             return None
 
-    def get_subjects(self, sort='codename'):
+    def get_subjects(self, codename=None, sort='codename'):
         if not self.ring_ok():
             return []
+        if codename:
+            codename_condition = "AND codename like '%" + codename + "%' "
+        else:
+            codename_condition = " "
         result = self.query(("SELECT subject_id, codename, created, note "
                              "FROM Subject "
-                             "WHERE ring_id = :r "
+                             "WHERE ring_id = :r " + codename_condition + 
                              "ORDER BY :s"), 
                             {'r': ensa.current_ring, 
                              's': sort})
@@ -1499,7 +1508,7 @@ class Database():
                  "            FROM Keyword "
                  "            WHERE keyword IN ("+keywords+")) "
                  "       GROUP BY information_id "
-                 "       HAVING COUNT(keyword_id) = :s)"), 
+                 "       HAVING COUNT(keyword_id) = :c)"), 
                 {'s': ensa.current_subject, 
                  'c': keywords.count(',')+1})
         else:

@@ -57,11 +57,11 @@ def run_command(fullcommand):
     """
     variable_setting = False
     """ first check if we are setting"""
-    if re.match(r'^%s[a-z_][a-z0-9_\-]* ?= ?.+' % regex_modifier, fullcommand):
+    if re.match(r'^%s[a-z_][a-z0-9_]* ?= ?.+' % regex_modifier, fullcommand):
         variable_setting = True
     """ now replace variables (ignore first variable if setting)"""
     while True: # TODO loop probably not needed
-        variable_matches = re.findall(r'(%s[a-z0-9_\-]+)' % regex_modifier, 
+        variable_matches = re.findall(r'(%s[a-z0-9_]+)' % regex_modifier, 
                                       fullcommand[(1 if variable_setting
                                                    else 0):])
         if not variable_matches:
@@ -346,7 +346,7 @@ def format_information(information_id, subject_id, codename, info_type, name, le
         accuracy,
         ', mod '+modified if use_modified else '',
         ', invalid' if not valid else '',
-        (('# '+note) if note else '') if keywords is None else (b', '.join(keywords)),
+        (('# '+note) if note else '') if keywords is None else (', '.join(keywords)),
         log.COLOR_NONE,
         )
 
@@ -947,12 +947,18 @@ def iat_function(*args):
         if not value:
             log.err('Value must be specified.')
             return []
-        ensa.db.create_information(Database.INFORMATION_TEXT, name, value)
+        information_id = ensa.db.create_information(Database.INFORMATION_TEXT, 
+                                                    name, 
+                                                    value)
+        return information_id
     except:
         log.debug_error()
-        return []
-    return []
-add_command(Command('iat <name> <value>', 'add textual information to current subject', 'iat', iat_function))
+        return None
+    return None
+add_command(Command('iat <name> <value>', 
+                    'add textual information to current subject', 
+                    'iat', 
+                    iat_function))
 
 
 def iak_function(*args):
@@ -997,11 +1003,15 @@ def idk_function(*args):
 add_command(Command('idk <information_id> [<keyword>]', 'delete keywords from information', 'idk', idk_function))
     
 
-def igt_function(*_, no_composite_parts=True):
+def igt_function(*args, no_composite_parts=True):
     result = []
-    infos = ensa.db.get_informations(Database.INFORMATION_TEXT, no_composite_parts)
+    infos = ensa.db.get_informations(Database.INFORMATION_TEXT, 
+                                     no_composite_parts)
     if not infos:
         return []
+    """use info id as last if only one is found"""
+    if len(infos) == 1:
+        ensa.variables['last'] = infos[0][0]
     info_lens = get_format_len_information(infos)
     result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
     return result
@@ -1015,6 +1025,8 @@ def igk_function(*args):
     infos = ensa.db.get_informations()
     if not infos:
         return []
+    if len(infos) == 1:
+        ensa.variables['last'] = infos[0][0]
     keywords = ensa.db.get_keywords_for_informations(','.join([str(x[0]) for x in infos]))
     info_lens = get_format_len_information(infos)
     result = [format_information(*info, *info_lens, keywords=sorted(x[1] for x in keywords if x[0] == info[0]), use_codename=(ensa.current_subject is None)) for info in infos]
@@ -1031,6 +1043,8 @@ def igbk_all_function(*args):
     infos = ensa.db.get_informations_for_keywords_and(keywords)
     if not infos:
         return []
+    if len(infos) == 1:
+        ensa.variables['last'] = infos[0][0]
     info_lens = get_format_len_information(infos)
     result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
     return result
@@ -1045,6 +1059,8 @@ def igbk_or_function(*args):
     infos = ensa.db.get_informations_for_keywords_or(keywords)
     if not infos:
         return []
+    if len(infos) == 1:
+        ensa.variables['last'] = infos[0][0]
     info_lens = get_format_len_information(infos)
     result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
     return result
@@ -1625,21 +1641,33 @@ add_command(Command('q', 'quit', '', lambda *_: [])) # solved in ensa
 """
 RING COMMANDS
 """
-def r_function(*_):
-    rings = ensa.db.get_rings() # TODO count subjects, show if encrypted, show notes, show if selected
+def r_function(*args):
+    rings = ensa.db.get_rings(name=(args[0] if args else None))
+    """use ring name as last if only result"""
+    if len(rings) == 1:
+        ensa.variables['last'] = rings[0][1]
+    # TODO count subjects, show if encrypted, show notes, show if selected
     ring_lens = get_format_len_ring(rings)
     return [format_ring(*ring, *ring_lens) for ring in rings]
-add_command(Command('r', 'print rings', 'r', r_function))
+add_command(Command('r [<name>]', 'print rings', 'r', r_function))
 
-def ra_function(*_):
+def ra_function(*args):
+    
     #name, encrypted, note, confirm = wizard([
     encrypted = False
-    name, note, confirm = wizard([
-            'Name of the ring (e.g. Work):',
-            #'Should the ring be encrypted (default: no)?',
-            'Optional comment:',
-            '... Use provided information to create new ring?',
-        ])
+    wizard_questions = [
+        'Name of the ring (e.g. Work):',
+        #'Should the ring be encrypted (default: no)?',
+        'Optional comment:',
+        '... Use provided information to create new ring?',
+    ]
+    """ name given in args?"""
+    if args:
+        name = args[0]
+        wizard_questions = wizard_questions[1:]
+        note, confirm = wizard(wizard_questions)
+    else:
+        name, note, confirm = wizard(wizard_questions)
     if negative(confirm):
         return []
     if not name:
@@ -1657,6 +1685,7 @@ def ra_function(*_):
     if not result:
         log.err('Error while inserting ring into DB.')
         return []
+    ensa.variables['last'] = result
     ensa.current_ring, ensa.current_reference_date = ensa.db.select_ring(name)
     if ensa.current_reference_date == 'now':
        ensa.current_reference_date = time.strftime('%Y-%m-%d')
@@ -1737,9 +1766,15 @@ add_command(Command('rr <now|YYYY-mm-dd>', 'set reference date for current ring'
 """
 SUBJECT COMMANDS
 """
-def s_function(*_):
-    subjects = ensa.db.get_subjects()
-    return ['%10s (#%d)  %20s  %s' % (codename, subject_id, created, note if note else '') for subject_id, codename, created, note in subjects]
+def s_function(*args):
+    codename = args[0] if args else None
+    subjects = ensa.db.get_subjects(codename=codename)
+    """ save codename if only one match"""
+    if len(subjects) == 1:
+        ensa.variables['last'] = subjects[0][0]
+    return ['%10s (#%d)  %20s  %s' 
+            % (codename, subject_id, created, note if note else '') 
+            for subject_id, codename, created, note in subjects]
 add_command(Command('s', 'list subjects in the current ring', 's', s_function))
 
 def sa_function(*args):
@@ -1748,9 +1783,14 @@ def sa_function(*args):
     except:
         log.err('You must specify codename.')
         return []
-    ensa.db.create_subject(codename)
+    subject_id = ensa.db.create_subject(codename)
+    #ensa.variables['last'] = str(subject_id)
+    ensa.variables['last'] = codename
     if ensa.current_subject:
-        log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring), codename), symbol=']')
+        log.set_prompt(key='%s/%s' 
+                       % (ensa.db.get_ring_name(ensa.current_ring), 
+                          codename), 
+                       symbol=']')
         log.info('Currently working with \'%s\' subject.' % codename)
     return []
         
@@ -2276,7 +2316,10 @@ def tmvw_function(*args):
 add_command(Command('tmvw <time_ids>', 'use wizard to modify time validity', 'tmvw', tmvw_function))
 
 def v_function():
-    max_key_len = max(len(k) for k,v in ensa.variables.items())
+    try:
+        max_key_len = max(len(k) for k,v in ensa.variables.items())
+    except:
+        return []
     for key, value in ensa.variables.items():
         print('    %*s: %s' % (max_key_len, key, value))
 

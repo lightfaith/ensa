@@ -26,7 +26,7 @@ class Test:
         self.arguments = arguments
         
     def run(self):
-        print('\033[34m%30s\033[0m: ' % self.name, end='')
+        print('\033[34m%50s\033[0m: ' % self.name, end='')
         sys.stdout.flush()
         r, o, e = Test.run_command('./ensa', self.payload)
         o = o.decode()
@@ -38,7 +38,7 @@ class Test:
             print('\033[32;1mOK\033[0m')
         else:
             print('\033[31;1mFAIL\033[0m %s' % self.error_message)
-            print('    Command: echo -e "%s" | ./ensa' 
+            print('    Command: echo -e \'%s\' | ./ensa' 
                   % self.payload.replace('\n', '\\n'))
             for line in e.splitlines():
                 print('   ', line)
@@ -46,7 +46,7 @@ class Test:
 """ ring manipulation """ 
 ring_tests = [
     Test('create ring',
-         ['ra', 'TEST', 'test comment', 'y', 'r'],
+         ['ra', 'TEST', 'test comment', 'y', 'r $last'],
          '',
          lambda r,o,e,args: 
          len([l for l in o.splitlines() if re.search(r'^ *TEST', l)]) == 1,
@@ -57,7 +57,7 @@ ring_tests = [
          lambda r,o,e,args: o.splitlines()[-2].startswith('\x1b[95m\x1b[01mTEST) '),
          {}),
     Test('change ring date',
-         ['rs TEST', 'rr 1971-01-01', 'r'],
+         ['rs TEST', 'rr 1971-01-01', 'r TEST'],
          '',
          lambda r,o,e,args: 
          [re.search(r'^ *TEST *\(ref: 1971-01-01\)', l) for l in o.splitlines()],
@@ -67,7 +67,7 @@ ring_tests = [
 """ subject manipulation """ 
 subject_tests = [
     Test('create subject',
-         ['rs TEST', 'sa trump', 's'],
+         ['rs TEST', 'sa trump', 's $last'],
          '',
          lambda r,o,e,args: 
          len([l for l in o.splitlines() if re.search(r'^ *trump \(#', l)]) == 1,
@@ -91,14 +91,74 @@ subject_tests = [
 
 ]
 
-""" information manipulation """
+""" information and keyword manipulation """
 info_tests = [
-    Test('select subject',
-         ['rs TEST', 'ss trump', 'iat firstname Donald', 'igt~Firstname'],
+    Test('add textual information with keyword, get it',
+         ['rs TEST', 'ss trump', 'iat firstname Donald', 
+          'iak $last KEYWORD', 'git $last'],
          '',
          lambda r,o,e,args: 
-         lambda r,o,e,args: o.splitlines()[-2].startswith('\x1b[95m\x1b[01mTEST/trump] '),
+         lambda r,o,e,args:
+         len([l for l in o.splitlines() 
+              if re.search(r'^[0-9]+ +<trump> +firstname: Donald ', l)]) == 1,
          {}),
+    Test('get textual information by keyword',
+         ['rs TEST', 'ss trump', 'igbk KEYWORD', 'igt $last'],
+         '',
+         lambda r,o,e,args: 
+         lambda r,o,e,args:
+         len([l for l in o.splitlines() 
+              if re.search(r'^[0-9]+ +<trump> +firstname: Donald ', l)]) == 1,
+         {}),
+    Test('remove keyword',
+         ['rs TEST', 'ss trump', 'igbk KEYWORD', 'idk $last', 'igbk KEYWORD'],
+         '',
+         lambda r,o,e,args: 
+         lambda r,o,e,args:
+         len([l for l in o.splitlines() 
+              if re.search(r'^[0-9]+ +<trump> +firstname: Donald ', l)]) == 0,
+         {}),
+    Test('modify information accuracy',
+         ['rs TEST', 'ss trump', 'igt', 'ima $last 7', 'igt'],
+         '',
+         lambda r,o,e,args: 
+         lambda r,o,e,args:
+         len([l for l in o.splitlines() 
+              if re.search(r'acc +7, ', l)]) == 1,
+         {}),
+    Test('modify information level',
+         ['rs TEST', 'ss trump', 'igt', 'iml $last 6', 'igt'],
+         '',
+         lambda r,o,e,args: 
+         lambda r,o,e,args:
+         len([l for l in o.splitlines() 
+              if re.search(r'(lvl +6, ', l)]) == 1,
+         {}),
+    Test('modify information note',
+         ['rs TEST', 'ss trump', 'igt', 'imn $last LOL', 'igt'],
+         '',
+         lambda r,o,e,args: 
+         lambda r,o,e,args:
+         len([l for l in o.splitlines() 
+              if re.search(r'# LOL', l)]) == 1,
+         {}),
+    Test('modify information validity',
+         ['rs TEST', 'ss trump', 'igt', 'imv $last 0', 'igt'],
+         '',
+         lambda r,o,e,args: 
+         lambda r,o,e,args:
+         len([l for l in o.splitlines() 
+              if re.search(r'invalid)', l)]) == 1,
+         {}),
+    Test('remove textual information',
+         ['rs TEST', 'ss trump', 'idt firstname', 'igt'],
+         '',
+         lambda r,o,e,args: 
+         lambda r,o,e,args:
+         len([l for l in o.splitlines() 
+              if re.search(r'^[0-9]+ +<trump> +firstname: ', l)]) == 0,
+         {}),
+
 ]
 
 """ test cleanup (delete ring, validate on delete cascade etc.) """ 
