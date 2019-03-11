@@ -239,8 +239,9 @@ def run_command(fullcommand):
     if any(phase.values()):
         log.err('Invalid command.')
         return
-    
-    for line in (lines or []):
+    if type(lines) not in (tuple, list):
+        lines = []
+    for line in lines:
         if type(line) == str:
             log.tprint(re.sub('^\\{grepignore\\}', '', line))
         elif type(line) == bytes:
@@ -988,7 +989,7 @@ def id_function(*args):
     except:
         log.err('ID of information must be specified.')
         return []
-    ensa.db.delete_information(information_id)
+    ensa.db.delete_information(information_id) # TODO range
     return []
 add_command(Command('id <information_id>', 'delete information of current subject', 'id', id_function))
 

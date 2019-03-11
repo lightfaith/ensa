@@ -46,7 +46,7 @@ signal.signal(signal.SIGINT, exit_program)
 def reload_config():
     log.info('Loading config file...')
     # read lines from conf file
-    with open(os.path.join(os.path.dirname(sys.argv[0]), 'ensa.conf'), 'r') as f:
+    with open(os.path.join(os.path.dirname(sys.argv[0]), 'files/ensa.conf'), 'r') as f:
         for line in f.readlines():
             line = line.strip()
             # skip empty and comments

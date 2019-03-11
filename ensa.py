@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 """
 Ensa is collaborative tool for human information management.
 """
@@ -7,7 +7,6 @@ from source import log
 from source import lib
 from source import ensa
 from source import commands
-
 if not ensa.db or not ensa.db.connect():
     log.err('Cannot connect to DB!')
     lib.exit_program(None, None)
