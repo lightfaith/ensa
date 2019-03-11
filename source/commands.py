@@ -12,6 +12,7 @@ from source.docs import doc
 from source.lib import *
 from source.db import Database
 from datetime import datetime
+import dateutil.parser
 
 """
 Universal class for commands.
@@ -288,6 +289,7 @@ def get_format_len_ring(rings):
 def get_format_len_time(times):
     return (
         max([0]+[len('%d' % t[0]) for t in times]),
+        #max([0]+[len('%s' % t[1]) for t in times]),
     )
 
 def get_format_len_location(locations):
@@ -390,8 +392,9 @@ def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modi
         color,
         id_len,
         time_id,
-        #time.strftime('%Y-%m-%d %H:%M:%S'),
-        time if time else '',
+        dateutil.parser.parse(time).strftime('%Y-%m-%d %H:%M:%S'),
+        #datetime.strptime(time).strftime('%Y-%m-%d %H:%M:%S'),
+        #time if time else '',
         accuracy,
         ', mod '+modified if use_modified else '',
         ', invalid' if not valid else '',
@@ -533,14 +536,14 @@ def aaw_function(*_):
             'Description:',
             'Optional level of importance:',
             'Accuracy of this entry (default 0):',
-            'Should the entry be marked as invalid?',
+            'Is the entry valid?',
             '... Use provided information to create new association?',
         ])
     if negative(confirm):
         return []
     level = int(level) if level.isdigit() else None
     accuracy = int(accuracy) if accuracy.isdigit() else 0
-    valid = not positive(valid)
+    valid = not negative(valid)
     association_id = ensa.db.create_association(level, accuracy, valid, note)
     if association_id:
         log.info('Created new association with id #%d' % association_id)
@@ -1983,14 +1986,14 @@ def taw_function(*_):
             'Date (YYYY-mm-dd):',
             'Time (HH:MM:SS):',
             'Accuracy of this entry (default 0):',
-            'Should the entry be marked as invalid?',
+            'Is the entry valid?',
             'Optional comment:',
             '... Use provided information to create new time?',
         ])
     if negative(confirm):
         return []
     accuracy = int(accuracy) if accuracy.isdigit() else 0
-    valid = not positive(valid)
+    valid = not negative(valid)
     time_id = ensa.db.create_time(date, time, accuracy, valid, note)
     if time_id:
         log.info('Created new time entry with id #%d' % time_id)

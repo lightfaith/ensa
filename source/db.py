@@ -660,8 +660,10 @@ class Database():
         if not self.ring_ok():
             return []
         return self.query(("SELECT time_id, "
-                           "       DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'), "
+                           #"       DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'), "
+                           "       time, "
                            "       accuracy, valid, modified, note "
+                           #"       accuracy, valid, note "
                            "FROM Time "
                            "WHERE ring_id = :r"), {'r': ensa.current_ring})
 
@@ -678,7 +680,7 @@ class Database():
             return []
         try:
             info = self.query(("SELECT time_id, "
-                               "       DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'), "
+                               "       time"
                                "       accuracy, valid, note "
                                "FROM Time "
                                "WHERE time_id = :t "
