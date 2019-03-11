@@ -982,7 +982,6 @@ class Database():
                            "WHERE ring_id = :r"), 
                           {'r': ensa.current_ring})
 
-
     def get_associations_by_X(self, query, query_args=None):
         if not self.ring_ok():
             return []
