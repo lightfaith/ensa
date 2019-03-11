@@ -12,10 +12,12 @@ config = OrderedDict()
 censore_keys = ['db.password']
 
 """ connection settings """
-config['db.host'] = ('localhost', str)  # MySQL server hostname/IP
-config['db.name'] = ('ensa', str)       # MySQL database name
-config['db.username'] = ('ensa', str)   # MySQL username
-config['db.password'] = ('', str)       # MySQL password
+#config['db.host'] = ('localhost', str)  # MySQL server hostname/IP
+#config['db.name'] = ('ensa', str)       # MySQL database name
+#config['db.username'] = ('ensa', str)   # MySQL username
+#config['db.password'] = ('', str)       # MySQL password
+config['db.file'] = ('', str)            # SQLite file
+
 
 """ debug settings """
 config['debug.command'] = (False, bool)  # show debug info about used commands
@@ -42,6 +44,11 @@ Current data
 current_ring = None
 current_subject = None
 current_reference_date = None
+
+"""
+Variables
+"""
+variables = OrderedDict()
 
 """
 Database object

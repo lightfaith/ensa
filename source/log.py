@@ -4,6 +4,7 @@ Print and logging stuff is here.
 """
 
 import threading
+import sys
 from source.lib import positive
 from source.ensa import config
 import traceback
@@ -64,7 +65,10 @@ Thread-safe print
 """
 def tprint(string='', color=COLOR_NONE, new_line=True, stdout=True):
     lines = []
-    lines.append(color+string+COLOR_NONE)
+    if color == COLOR_NONE:
+        lines.append(string)
+    else:
+        lines.append(color+string+COLOR_NONE)
     if stdout:
         with loglock:
             for line in lines:
@@ -83,14 +87,14 @@ def newline(stdout=True):
 """
 OK, INFO, WARN, ERR, QUESTION
 """
-def show_marked(c, color='', string='', new_line=True, stdout=True):
+def show_marked(c, color='', string='', new_line=True, stdout=True, output=sys.stdout):
     lines = []
     #lines.append('%s%s%s%s%s%s' % (color, COLOR_BOLD, c, COLOR_NONE, str(string),('\n' if newline else '')))
     lines.append('%s%s%s%s%s' % (color, COLOR_BOLD, c, COLOR_NONE, str(string)))
     if stdout:
         with loglock:
             for line in lines:
-                print(line, end=('\n' if new_line else ''))
+                print(line, end=('\n' if new_line else ''), file=output)
     return lines
 
 def ok(string='', new_line=True, stdout=True):
@@ -103,7 +107,7 @@ def warn(string='', new_line=True, stdout=True):
     return show_marked('[!] ', COLOR_YELLOW, string, new_line, stdout)
     
 def err(string='', new_line=True, stdout=True):
-    return show_marked('[-] ', COLOR_RED, string, new_line, stdout)
+    return show_marked('[-] ', COLOR_RED, string, new_line, stdout, output=sys.stderr)
  
 def question(string='', new_line=True, stdout=True):
     return show_marked('[?] ', COLOR_CYAN, string, new_line, stdout)
