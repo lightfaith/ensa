@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-import time, datetime
+import time
+import datetime
+import os
 import sqlite3 as sqlite
 from source import log
 from source import ensa
@@ -263,16 +265,14 @@ class Database():
                             'v': value})
 
 
-            #elif info_type == Database.INFORMATION_BINARY: # TODO file upload, path alteration
-            #    self.query("INSERT INTO Bin(information_id, path) VALUES(%s, %s)", (information_id, value))
+            elif info_type == Database.INFORMATION_BINARY:
+                # TODO optional encryption?
+                """move file from uploads/ to binary/, rename properly"""
+                os.rename('files/uploads/%s' % value, 
+                          'files/binary/%d' % information_id)
 
 
             elif info_type == Database.INFORMATION_COMPOSITE:
-                ## check if all parts exist
-                #available = [str(x[0]) for x in self.query("SELECT information_id FROM Information WHERE subject_id = %s", (ensa.current_subject,))]
-                #for part in value:
-                #    if part in available:
-                #
                 self.query(("INSERT INTO Composite(information_id, part_id) "
                             "SELECT :i, information_id "
                             "FROM Information "
@@ -280,9 +280,6 @@ class Database():
                             "      AND subject_id = :s"), 
                            {'i': information_id, 
                             's': ensa.current_subject})
-                #    else:
-                #        log.err('Information #%s does not belong to current subject.' % (part))
-                # clean composites without parts
                 self.information_cleanup('composites')
 
             return information_id
@@ -376,7 +373,9 @@ class Database():
                 value = '{composite}'
             else:
                 value = 'ERROR'
-            infos.append(tuple(list(info)+[value]))
+            if (info_type == Database.INFORMATION_ALL 
+                    or info_type == info[3]):
+                infos.append(tuple(list(info)+[value]))
         return infos
     
     def get_information(self, information_id):

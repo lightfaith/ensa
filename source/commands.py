@@ -928,6 +928,25 @@ INFORMATION COMMANDS
 add_command(Command('i', 'print information overview for current subject', 'i', lambda *_: ['TODO']))
 add_command(Command('ia', 'add information to current subject', 'ia', lambda *_: []))
 
+def iab_function(*args):
+    try:
+        name = args[0].lower()
+        filename = args[1]
+        with open('files/uploads/%s' % filename, 'rb') as f:
+            pass
+        information_id = ensa.db.create_information(Database.INFORMATION_BINARY, 
+                                                    name, 
+                                                    filename)
+        return information_id
+    except:
+        log.debug_error()
+        return None
+    return None
+add_command(Command('iab <name> <filename>', 
+                    'add binary information from uploads/ folder to current subject', 
+                    'iab', 
+                    iab_function))
+
 def iac_function(*args):
     try:
         name = args[0].lower()
@@ -1006,10 +1025,10 @@ def idk_function(*args):
     ensa.db.delete_keywords(information_id, keywords)
 add_command(Command('idk <information_id> [<keyword>]', 'delete keywords from information', 'idk', idk_function))
     
-
-def igt_function(*args, no_composite_parts=True):
+'''
+def igb_function(*args, no_composite_parts=True):
     result = []
-    infos = ensa.db.get_informations(Database.INFORMATION_TEXT, 
+    infos = ensa.db.get_informations(Database.INFORMATION_BINARY, 
                                      no_composite_parts)
     if not infos:
         return []
@@ -1019,9 +1038,27 @@ def igt_function(*args, no_composite_parts=True):
     info_lens = get_format_len_information(infos)
     result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
     return result
-add_command(Command('ig', 'get all information for current subject/ring', 'ig', lambda *_: ['TODO']))
-add_command(Command('igt', 'get all textual information for current subject/ring', 'igt', igt_function))
-add_command(Command('igtc', 'get all textual information (even composite parts) for current subject/ring', 'igtc', lambda *args: igt_function(args, no_composite_parts=False)))
+add_command(Command('igb', 'get all binary information for current subject/ring', 'igb', igb_function))
+add_command(Command('igbc', 'get all binary information (even composite parts) for current subject/ring', 'igbc', lambda *args: igb_function(args, no_composite_parts=False)))
+'''
+def ig_function(*args, info_type=Database.INFORMATION_ALL, no_composite_parts=True):
+    result = []
+    infos = ensa.db.get_informations(info_type, no_composite_parts)
+    if not infos:
+        return []
+    """use info id as last if only one is found"""
+    if len(infos) == 1:
+        ensa.variables['last'] = infos[0][0]
+    info_lens = get_format_len_information(infos)
+    result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
+    return result
+add_command(Command('ig', 'get all information for current subject/ring', 'ig', lambda *args: ig_function(*args)))
+add_command(Command('iga', 'get all information including composite parts for current subject/ring', 'igc', lambda *args: ig_function(*args, no_composite_parts=False)))
+# TODO igc - composite, igca - composite with values (tree) 
+add_command(Command('igb', 'get all binary information for current subject/ring', 'igb', lambda *args: ig_function(*args, info_type=Database.INFORMATION_BINARY)))
+add_command(Command('igba', 'get all binary information including composite parts for current subject/ring', 'igbc', lambda *args: ig_function(args, info_type=Database.INFORMATION_BINARY, no_composite_parts=False)))
+add_command(Command('igt', 'get all textual information for current subject/ring', 'igt', lambda *args: ig_function(*args, info_type=Database.INFORMATION_TEXT)))
+add_command(Command('igta', 'get all textual information including composite parts for current subject/ring', 'igtc', lambda *args: ig_function(args, info_type=Database.INFORMATION_TEXT, no_composite_parts=False)))
 
 
 def igk_function(*args):
