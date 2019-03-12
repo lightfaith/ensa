@@ -8,6 +8,7 @@ from source import ensa
 from source import lib
 from source import log
 from source.docs import doc
+from source.pdf import *
 #from source.protocols import protocols
 from source.lib import *
 from source.db import Database
@@ -1804,6 +1805,7 @@ def rr_function(*args):
     return []
 add_command(Command('rr <now|YYYY-mm-dd>', 'set reference date for current ring', 'rr', rr_function))
 
+
 """
 SUBJECT COMMANDS
 """
@@ -1983,6 +1985,20 @@ def sd_function(*args):
     return []
     
 add_command(Command('sd <codename>', 'delete subject from the current ring', 'sd', sd_function))
+
+def srp_function(*_):
+    if not ensa.current_subject:
+        log.err('A subject must be selected.')
+        return []
+    codename = ensa.db.get_subject_codename(ensa.current_subject)
+    print('Generating Person report for', codename)
+    
+    infos = ensa.db.get_informations(no_composite_parts=True)
+    person_report(infos, 'files/tmp/%s.pdf' % codename)
+    print('Report is saved as files/tmp/%s.pdf.' % codename)
+add_command(Command('sr <codename>', 'subject report generation', 'sr', lambda *_: []))
+add_command(Command('srp', 'generate Person report of the current subject', 'srp', srp_function))
+
 
 def ss_function(*args):
     if not args:
