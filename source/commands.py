@@ -938,6 +938,17 @@ def iab_function(*args):
         information_id = ensa.db.create_information(Database.INFORMATION_BINARY, 
                                                     name, 
                                                     filename)
+        """add extension as keyword"""
+        extension = filename.rpartition('.')[2].lower()
+        ensa.db.add_keyword(information_id, 
+                            'extension:%s' % extension)
+        """try to guess file type"""
+        if extension in ('jpg', 'png', 'bmp', 'gif'):
+            ensa.db.add_keyword(information_id, 'image')
+        if extension in ('doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 
+                         'pps', 'ppsx', 'pdf', 'odt', 'txt'):
+            ensa.db.add_keyword(information_id, 'document')
+        # TODO more
         return information_id
     except:
         log.debug_error()

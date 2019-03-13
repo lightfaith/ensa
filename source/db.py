@@ -1356,6 +1356,10 @@ class Database():
     def add_keyword(self, information_ids, keyword):
         if not self.subject_ok():
             return
+        if type(information_ids) == int:
+            information_ids = str(information_ids)
+        elif type(information_ids) in (tuple, list):
+            information_ids = ','.join(information_ids)
         keyword_id = self.get_keyword_id(keyword)
         self.query(("INSERT INTO IK(information_id, keyword_id) "
                     "SELECT information_id, :k "
