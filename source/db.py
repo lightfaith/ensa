@@ -264,13 +264,10 @@ class Database():
                            {'i': information_id, 
                             'v': value})
 
-
-            elif info_type == Database.INFORMATION_BINARY:
-                # TODO optional encryption?
-                """move file from uploads/ to binary/, rename properly"""
-                os.rename('files/uploads/%s' % value, 
-                          'files/binary/%d' % information_id)
-
+                '''
+                elif info_type == Database.INFORMATION_BINARY:
+                    # TODO optional encryption?
+                '''
 
             elif info_type == Database.INFORMATION_COMPOSITE:
                 self.query(("INSERT INTO Composite(information_id, part_id) "
@@ -287,6 +284,13 @@ class Database():
             log.debug_error()
             return None
     
+    def add_binary(self, information_id, filename):
+        """
+        adds binary content to an existing information entry
+        """
+        """move file from uploads/ to binary/, rename properly"""
+        os.rename('files/uploads/%s' % filename, 
+                  'files/binary/%d' % information_id)
 
     def delete_information(self, information_id):
         # test if can delete
@@ -304,6 +308,8 @@ class Database():
         self.query(("DELETE FROM Information "
                     "WHERE information_id = :i"), 
                    {'i': information_id})
+        if os.path.isfile('files/binary/%d' % information_id):
+            os.remove('files/binary/%d' % information_id)
         log.info('Information deleted.')
 
 

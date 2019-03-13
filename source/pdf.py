@@ -2,6 +2,7 @@
 """
 This module is responsible for generating PDF reports of provided data.
 """
+import os
 import traceback
 from reportlab.lib import colors, utils
 from reportlab.lib.units import cm
@@ -144,21 +145,20 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
     try:
         religion = get_valid_by_level(infos, 'religion')[0][10]
     except:
-        traceback.print_exc()
         religion = ''
     try:
         politics = get_valid_by_level(infos, 'politics')[0][10]
     except:
-        traceback.print_exc()
         politics = ''
     basic_info = {
         'Codename': get_valid(infos, 'codename')[0][10],
         'Name': name,
-        'Known as': ', '.join(i[10] for i in get_valid(infos, 'nickname')),
+        'Known as': list(par(i[10]) for i in get_valid(infos, 'nickname')),
         'Characteristics': ' '.join((sex_symbol, 
                                      orientation_symbol,
                                      religion_symbols.get(religion) or religion,
-                                     politics_symbols.get(politics) or politics)),
+                                     politics_symbols.get(politics) or politics)
+                                   ).strip(),
         'Phone': list(par(i[10]) for i in get_valid(infos, 'phone')),
         'Email': list(par(i[10]) for i in get_valid(infos, 'email')),
     }
@@ -166,11 +166,23 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
     # TODO email, phone, ...
     # TODO rc, ico apod.
     """portrait"""
+    '''
     try:
         portrait_id = get_valid(infos, 'portrait')[0][0]
     except:
         print('No portrait available.')
-    portrait = Image('files/binary/%d' % portrait_id)
+    '''
+    portrait_path = 'files/binary/%d' % get_valid(infos, 'codename')[0][0]
+    if os.path.isfile(portrait_path):
+        portrait = Image(portrait_path)
+    else:
+        print('No portrait available.')
+        import PIL.Image
+        from io import BytesIO
+        white = PIL.Image.new('RGB', (150, 200), (255, 255, 255))
+        portrait_str = BytesIO()
+        white.save(portrait_str, format='PNG')
+        portrait = Image(portrait_str)
     portrait._restrictSize(7*cm, 10*cm)
     
     """Add basic info and portrait to the report"""
@@ -180,7 +192,7 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
                [Table(
                    [[par(k), 
                     par(v) if type(v) == str else v] 
-                    for k,v in basic_info.items()], 
+                    for k,v in basic_info.items() if v], 
                    colWidths=[3.5*cm, 9*cm], 
                    style=TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'),])
                    #style=test_style(2),

@@ -337,10 +337,11 @@ def format_information(information_id, subject_id, codename, info_type, name, le
             color = log.COLOR_GREEN
         elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'][0]:
             color = log.COLOR_BROWN
-    return '%s%-*d  %s  %*s: %-*s  (%sacc %2d%s%s)  %s%s' % (
+    return '%s%-*d %s %s  %*s: %-*s  (%sacc %2d%s%s)  %s%s' % (
         color,
         id_len,
         information_id,
+        '*' if os.path.isfile('files/binary/%d' % information_id) else ' ',
         '<%s>' % codename if use_codename else '',
         name_len,
         name,
@@ -931,13 +932,24 @@ add_command(Command('ia', 'add information to current subject', 'ia', lambda *_:
 
 def iab_function(*args):
     try:
-        name = args[0].lower()
-        filename = args[1]
+        if len(args) == 3:
+            """add new information"""
+            name = args[0].lower()
+            value = args[1]
+            filename = args[2]
+            information_id = ensa.db.create_information(
+                Database.INFORMATION_TEXT, 
+                name, 
+                value)
+        elif len(args) == 2:
+            """add content to existing information"""
+            information_id = int(args[0])
+            filename = args[1]
+        else:
+            raise AttributeError
         with open('files/uploads/%s' % filename, 'rb') as f:
             pass
-        information_id = ensa.db.create_information(Database.INFORMATION_BINARY, 
-                                                    name, 
-                                                    filename)
+        ensa.db.add_binary(information_id, filename)
         """add extension as keyword"""
         extension = filename.rpartition('.')[2].lower()
         ensa.db.add_keyword(information_id, 
@@ -954,7 +966,7 @@ def iab_function(*args):
         log.debug_error()
         return None
     return None
-add_command(Command('iab <name> <filename>', 
+add_command(Command('iab (<id>|<name> <value>) <filename>', 
                     'add binary information from uploads/ folder to current subject', 
                     'iab', 
                     iab_function))
