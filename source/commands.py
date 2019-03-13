@@ -278,8 +278,11 @@ Format functions
 def get_format_len_information(infos):
     return (
         max([0]+[len('%d' % i[0]) for i in infos]),
+        max([0]+[2 + len('%s' % i[2]) for i in infos]),
         max([0]+[len(i[4]) for i in infos]),
-        max([0]+[len(i[-1]) for i in infos]),
+        max([0]+[(len(i[-1]) 
+                  if i[3] != Database.INFORMATION_COMPOSITE 
+                  else len(','.join([str(x) for x in i[-1]])) + 2) for i in infos]),
     )
 
 def get_format_len_ring(rings):
@@ -328,7 +331,7 @@ def format_association(association_id, ring_id, level, accuracy, valid, modified
         log.COLOR_NONE,
         )
 
-def format_information(information_id, subject_id, codename, info_type, name, level, accuracy, valid, modified, note, value, id_len, name_len, value_len, keywords=None, use_codename=True, use_modified=True):
+def format_information(information_id, subject_id, codename, info_type, name, level, accuracy, valid, modified, note, value, id_len, codename_len, name_len, value_len, keywords=None, use_codename=True, use_modified=True):
     color = log.COLOR_NONE
     if not valid:
         color = log.COLOR_DARK_RED
@@ -337,16 +340,19 @@ def format_information(information_id, subject_id, codename, info_type, name, le
             color = log.COLOR_GREEN
         elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'][0]:
             color = log.COLOR_BROWN
-    return '%s%-*d %s %s  %*s: %-*s  (%sacc %2d%s%s)  %s%s' % (
+    return '%s%-*d %s %*s  %*s: %-*s  (%sacc %2d%s%s)  %s%s' % (
         color,
         id_len,
         information_id,
         '*' if os.path.isfile('files/binary/%d' % information_id) else ' ',
+        codename_len,
         '<%s>' % codename if use_codename else '',
         name_len,
         name,
         value_len,
-        value,
+        ('{%s}' % ','.join(str(x) for x in value) 
+         if info_type == Database.INFORMATION_COMPOSITE
+         else value),
         'lvl %d, ' % level if level else '',
         accuracy,
         ', mod '+modified if use_modified else '',
@@ -1079,8 +1085,8 @@ def ig_function(*args, info_type=Database.INFORMATION_ALL, no_composite_parts=Tr
 add_command(Command('ig', 'get all information for current subject/ring', 'ig', lambda *args: ig_function(*args)))
 add_command(Command('iga', 'get all information including composite parts for current subject/ring', 'igc', lambda *args: ig_function(*args, no_composite_parts=False)))
 # TODO igc - composite, igca - composite with values (tree) 
-add_command(Command('igb', 'get all binary information for current subject/ring', 'igb', lambda *args: ig_function(*args, info_type=Database.INFORMATION_BINARY)))
-add_command(Command('igba', 'get all binary information including composite parts for current subject/ring', 'igbc', lambda *args: ig_function(args, info_type=Database.INFORMATION_BINARY, no_composite_parts=False)))
+#add_command(Command('igb', 'get all binary information for current subject/ring', 'igb', lambda *args: ig_function(*args, info_type=Database.INFORMATION_BINARY)))
+#add_command(Command('igba', 'get all binary information including composite parts for current subject/ring', 'igbc', lambda *args: ig_function(args, info_type=Database.INFORMATION_BINARY, no_composite_parts=False)))
 add_command(Command('igt', 'get all textual information for current subject/ring', 'igt', lambda *args: ig_function(*args, info_type=Database.INFORMATION_TEXT)))
 add_command(Command('igta', 'get all textual information including composite parts for current subject/ring', 'igtc', lambda *args: ig_function(args, info_type=Database.INFORMATION_TEXT, no_composite_parts=False)))
 
@@ -1147,14 +1153,16 @@ def ime_function(*args):
     # add labels
     if data[2] == ensa.db.INFORMATION_TEXT:
         value_column = 'value'
-    elif data[2] == ensa.db.INFORMATION_BINARY:
-        value_column = 'path'
+        '''
+        elif data[2] == ensa.db.INFORMATION_BINARY:
+            value_column = 'path'
+        '''
     #elif data[2] == ensa.db.INFORMATION_COMPOSITE: # TODO composite without edit support?
     #    value_column = 'compounds'
     else:
         value_column = 'ERROR'
-    mapped = dict(zip([None, 'subject', None, 'name', 'level', 'accuracy', 'valid', 'note', value_column], [(x if type(x)==bytearray else x) if x else '' for x in data]))
-    #print(mapped)
+    mapped = dict(zip([None, 'subject', None, 'name', 'level', 'accuracy', 'valid', 'note', value_column], [(x if type(x)==bytearray else x) if x is not None else '' for x in data]))
+    print('Mapped before change:', mapped)
     # write into file
     with tempfile.NamedTemporaryFile() as f:
         for k in sorted(filter(None, mapped.keys())):
@@ -1163,7 +1171,7 @@ def ime_function(*args):
         subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
         f.seek(0)
         # retrieve changes
-        changes = f.read()
+        changes = f.read().decode()
     change_occured = False
     for line in changes.splitlines():
         k, _, v = line.partition(': ')
@@ -1178,9 +1186,10 @@ def ime_function(*args):
                 if type(v) == int or v.isdigit():
                     mapped[k] = int(v)
                 else:
-                    log.err('Accuracy must be a number.')
-                    change_occured = False
-                    break
+                    mapped[k] = 0
+                    #log.err('Accuracy must be a number.')
+                    #change_occured = False
+                    #break
             elif k == 'valid':
                 mapped[k] = positive(v)
             elif k == 'level':
@@ -1215,6 +1224,7 @@ def ime_function(*args):
                     log.err('Subject must be specified.')
                     change_occured = False
                     break
+    print('Mapped after change:', mapped)
     if change_occured:
         # update DB
         del mapped[None]
@@ -2016,7 +2026,7 @@ def srp_function(*_):
     codename = ensa.db.get_subject_codename(ensa.current_subject)
     print('Generating Person report for', codename)
     
-    infos = ensa.db.get_informations(no_composite_parts=True)
+    infos = ensa.db.get_informations(no_composite_parts=False)
     person_report(infos, 'files/tmp/%s.pdf' % codename)
     print('Report is saved as files/tmp/%s.pdf.' % codename)
 add_command(Command('sr <codename>', 'subject report generation', 'sr', lambda *_: []))

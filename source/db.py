@@ -308,7 +308,7 @@ class Database():
         self.query(("DELETE FROM Information "
                     "WHERE information_id = :i"), 
                    {'i': information_id})
-        if os.path.isfile('files/binary/%d' % information_id):
+        if os.path.isfile('files/binary/%s' % information_id):
             os.remove('files/binary/%d' % information_id)
         log.info('Information deleted.')
 
@@ -371,12 +371,17 @@ class Database():
                                     "FROM Text "
                                     "WHERE information_id = :i"), 
                                    {'i': info[0]})[0][0]
-            elif info[3] in [Database.INFORMATION_ALL, 
-                             Database.INFORMATION_BINARY]:
-                value = '[binary]'
+                '''
+                elif info[3] in [Database.INFORMATION_ALL, 
+                                 Database.INFORMATION_BINARY]:
+                    value = '[binary]'
+                '''
             elif info[3] in [Database.INFORMATION_ALL, 
                              Database.INFORMATION_COMPOSITE]:
-                value = '{composite}'
+                value = [row[0] for row in self.query((
+                    "SELECT part_id "
+                    "FROM Composite "
+                    "WHERE information_id = :i"), {'i': info[0]})]
             else:
                 value = 'ERROR'
             if (info_type == Database.INFORMATION_ALL 
@@ -405,17 +410,19 @@ class Database():
                                 "FROM Text "
                                 "WHERE information_id = :i"), 
                                {'i': info[0]})[0][0]
-        elif info[2] in [Database.INFORMATION_ALL, 
-                         Database.INFORMATION_BINARY]:
-            value = b'[binary]'
+            '''
+            elif info[2] in [Database.INFORMATION_ALL, 
+                             Database.INFORMATION_BINARY]:
+                value = b'[binary]'
+            '''
         elif info[2] in [Database.INFORMATION_ALL, 
                          Database.INFORMATION_COMPOSITE]:
-            value = b' '.join(row[0] for row in self.query((
+            value = ' '.join(row[0] for row in self.query((
                 "SELECT part_id "
                 "FROM Composite "
                 "WHERE information_id = :i"), {'i': information_id}))
         else:
-            value = b'ERROR'
+            value = 'ERROR'
         return tuple(list(info)+[value])
       
 
@@ -463,7 +470,7 @@ class Database():
                                     note=None): 
         if not self.subject_ok():
             return
-        if accuracy:
+        if accuracy is not None:
             self.query(("UPDATE Information "
                         "SET modified = :m, accuracy = :a "
                         "WHERE subject_id = :s "
@@ -1487,12 +1494,17 @@ class Database():
                                     "FROM Text "
                                     "WHERE information_id = :i"), 
                                    {'i': info[0]})[0][0]
-            elif info[3] in [Database.INFORMATION_ALL, 
-                             Database.INFORMATION_BINARY]:
-                value = '[binary]'
+                '''
+                elif info[3] in [Database.INFORMATION_ALL, 
+                                 Database.INFORMATION_BINARY]:
+                    value = '[binary]'
+                '''
             elif info[3] in [Database.INFORMATION_ALL, 
                              Database.INFORMATION_COMPOSITE]:
-                value = '{composite}'
+                value = [row[0] for row in self.query((
+                    "SELECT part_id "
+                    "FROM Composite "
+                    "WHERE information_id = :i"), {'i': info[0]})]
             else:
                 value = 'ERROR'
             infos.append(tuple(list(info)+[value]))
@@ -1549,12 +1561,17 @@ class Database():
                                     "FROM Text "
                                     "WHERE information_id = :i"), 
                                    {'i': info[0]})[0][0]
-            elif info[3] in [Database.INFORMATION_ALL, 
-                             Database.INFORMATION_BINARY]:
-                value = '[binary]'
+                '''
+                elif info[3] in [Database.INFORMATION_ALL, 
+                                 Database.INFORMATION_BINARY]:
+                    value = '[binary]'
+                '''
             elif info[3] in [Database.INFORMATION_ALL, 
                              Database.INFORMATION_COMPOSITE]:
-                value = '{composite}'
+                value = [row[0] for row in self.query((
+                    "SELECT part_id "
+                    "FROM Composite "
+                    "WHERE information_id = :i"), {'i': info[0]})]
             else:
                 value = 'ERROR'
             infos.append(tuple(list(info)+[value]))

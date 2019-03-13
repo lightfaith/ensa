@@ -4,6 +4,7 @@ This module is responsible for generating PDF reports of provided data.
 """
 import os
 import traceback
+
 from reportlab.lib import colors, utils
 from reportlab.lib.units import cm
 from reportlab.lib.pagesizes import A4
@@ -13,6 +14,7 @@ from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
+from source.db import Database
 
 styles = getSampleStyleSheet()
 
@@ -40,11 +42,14 @@ def get_valid_by_level(infos, key):
     """
     return sorted(get_valid(infos, key), key=lambda x: x[5] or 0, reverse=True)
 
+def get_valid_by_ids(infos, ids):
+    return [i for i in infos if i[7] == 1 and i[0] in ids]
 
 
 def person_report(infos, filename): # TODO give keywords, composites, etc. as argument
     #for info in infos:
     #    print(info)
+
     doc = SimpleDocTemplate(filename, pagesize=A4)
     font_file = 'source/symbola.ttf'
     symbola_font = TTFont('Symbola', font_file)
@@ -146,10 +151,30 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
         religion = get_valid_by_level(infos, 'religion')[0][10]
     except:
         religion = ''
+    
     try:
         politics = get_valid_by_level(infos, 'politics')[0][10]
     except:
         politics = ''
+    
+    """find address that is not part of a composite (e.g. work address)"""
+    composites = [i for i in infos if i[3] == Database.INFORMATION_COMPOSITE]
+    try:
+        address = [a for a in infos 
+                   if a[0] not in [x for i in composites for x in i[10]]
+                   and a[3] == Database.INFORMATION_COMPOSITE
+                   and a[4] == 'address']
+        address_entries = {i[4]:i[10] for i in get_valid_by_ids(infos, address[0][10])}
+        address = ['%s %s' % (address_entries.get('street') or '', 
+                              address_entries.get('street_number') or ''), # TODO or reverse
+                   '%s, %s %s' % (address_entries.get('city') or '',
+                                  address_entries.get('province') or '',
+                                  address_entries.get('postal') or ''),
+                   address_entries.get('country') or '']
+        print(address)
+    except:
+        traceback.print_exc()
+        address = ['']
     basic_info = {
         'Codename': get_valid(infos, 'codename')[0][10],
         'Name': name,
@@ -161,9 +186,9 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
                                    ).strip(),
         'Phone': list(par(i[10]) for i in get_valid(infos, 'phone')),
         'Email': list(par(i[10]) for i in get_valid(infos, 'email')),
+        'Address': [par(line) for line in address],
     }
     # TODO address
-    # TODO email, phone, ...
     # TODO rc, ico apod.
     """portrait"""
     '''
