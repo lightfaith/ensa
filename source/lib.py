@@ -92,4 +92,14 @@ def hexdump(data):
     
     return result
 
+'''
+def degree_to_dms(value):
+    degrees = int(value)
+    minutes = int(60 * value - degrees)
+    seconds = 3600 * (value - degrees) - 60 * minutes
+    return (degrees, minutes, seconds)
+
+def dms_to_degree(degrees, minutes, seconds):
+    return degrees + minutes/60 + seconds/3600
+'''
 

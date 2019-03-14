@@ -9,6 +9,7 @@ from source import lib
 from source import log
 from source.docs import doc
 from source.pdf import *
+from source.map import *
 #from source.protocols import protocols
 from source.lib import *
 from source.db import Database
@@ -361,12 +362,24 @@ def format_information(information_id, subject_id, codename, info_type, name, le
         log.COLOR_NONE,
         )
 
-def format_location(location_id, name, gps, accuracy, valid, modified, note, id_len, use_modified=True):
-    if gps:
-        lat, _, lon = gps[6:-1].partition(' ')
-        lat = lat+'N' if float(lat)>0 else lat[1:]+'S'
-        lon = lon+'E' if float(lon)>0 else lon[1:]+'W'
-        gps = '(%s %s)' % (lat, lon)
+def format_location(location_id, name, lat, lon, accuracy, valid, modified, note, id_len, use_modified=True):
+    #if gps:
+    #    lat, _, lon = gps[6:-1].partition(' ')
+    '''
+    lat = '%c%d %d\' %.3f "' % (('N' if lat > 0 else 'S',) 
+                               + lib.degree_to_dms(lat))
+    lon = '%c%d %d\' %.3f"' % (('E' if lon > 0 else 'W',) 
+                               + lib.degree_to_dms(lon))
+    '''
+    if type(lat) == str:
+        lat = float(lat)
+    if type(lon) == str:
+        lon = float(lon)
+    lat = '%.6f\u00b0 %c' % (abs(lat), 'N' if lat > 0 else 'S')
+    lon = '%.6f\u00b0 %c' % (abs(lon), 'E' if lon > 0 else 'W')
+    #lat = lat+'N' if float(lat)>0 else lat[1:]+'S'
+    #lon = lon+'E' if float(lon)>0 else lon[1:]+'W'
+    gps = '(%s %s)' % (lat, lon)
     color = log.COLOR_NONE
     if not valid:
         color = log.COLOR_DARK_RED
@@ -429,7 +442,6 @@ TEST COMMANDS
 """
 def test_function(*args):
     result = []
-    print(parse_sequence(args[0]))
     return result
 add_command(Command('test', 'do actually tested action', '', test_function))
 
@@ -445,8 +457,8 @@ ASSOCIATION COMMANDS
 """
 def a_function(*_):
     associations = ensa.db.get_associations()
-    for association in associations:
-        yield format_association(*association, use_modified=True)
+    return [format_association(*association, use_modified=True)
+            for association in associations]
 add_command(Command('a', 'list associations for this ring', 'a', a_function))
 add_command(Command('aa', 'association creation', 'aa', lambda *_: []))
 
@@ -1419,8 +1431,15 @@ def l_function(*_):
     if not locations:
         return []
     location_lens = get_format_len_location(locations)
-    for location in locations:
-        yield format_location(*location, *location_lens, use_modified=True) 
+    # visualization testing # TODO move
+    labels = [location[1] for location in locations]
+    coords = [location[2:4] for location in locations]
+    get_map(coords, labels).savefig('files/tmp/map.png', bbox_inches='tight', pad_inches=0)
+
+        
+
+    return [format_location(*location, *location_lens, use_modified=True) 
+            for location in locations]
 add_command(Command('l', 'list locations for current ring', 'l', l_function))
 add_command(Command('la', 'add new location for current ring', 'la', lambda *_: ['TODO']))
 
@@ -1433,7 +1452,7 @@ def law_function(*_):
             'Latitude (e.g. -50.079795):',
             'Longitude (e.g. -14.429710):',
             'Accuracy of this entry (default 0):',
-            'Should the entry be marked as invalid?',
+            'Is the entry valid?',
             'Optional comment:',
             '... Use provided information to create new location?',
         ])
@@ -1446,14 +1465,17 @@ def law_function(*_):
         lat = None
         lon = None
     accuracy = int(accuracy) if accuracy.isdigit() else 0
-    valid = not positive(valid)
+    valid = not negative(valid)
     location_id = ensa.db.create_location(name, lat, lon, accuracy, valid, note)
     if location_id:
         log.info('Created new location with id #%d' % location_id)
     else:
         log.err('Adding new location failed.')
     return []
-add_command(Command('law', 'use wizard to add new location to current ring', 'law', law_function))
+add_command(Command('law', 
+                    'use wizard to add new location to current ring', 
+                    'law', 
+                    law_function))
 
 def ld_function(*args):
     try:
@@ -1463,7 +1485,10 @@ def ld_function(*args):
         log.debug_error()
         log.err('Correct location ID from this ring must be provided.')
     return []
-add_command(Command('ld <location_id>', 'delete location entry from current ring', 'ld', ld_function))
+add_command(Command('ld <location_id>', 
+                    'delete location entry from current ring', 
+                    'ld', 
+                    ld_function))
 
 
 add_command(Command('lm', 'modify location', 'lm', lambda *args: []))
@@ -2063,10 +2088,9 @@ def t_function(*_):
     if not times:
         return []
     time_lens = get_format_len_time(times)
-    for time in times:
-        yield format_time(*time, *time_lens, use_modified=True) 
+    return [format_time(*time, *time_lens, use_modified=True)
+            for time in times]
 add_command(Command('t', 'list time entries for current ring', 't', t_function))
-add_command(Command('la', 'add new location for current ring', 'la', lambda *_: ['TODO']))
 
 def taw_function(*_):
     if not ensa.current_ring:
@@ -2088,7 +2112,14 @@ def taw_function(*_):
     if time_id:
         log.info('Created new time entry with id #%d' % time_id)
     return []
-add_command(Command('taw', 'use wizard to add new time entry to current ring', 't', taw_function))
+add_command(Command('ta', 
+                    'add time entry to current ring', 
+                    'ta', 
+                    lambda *_: [])) # TODO?
+add_command(Command('taw', 
+                    'use wizard to add new time entry to current ring', 
+                    't', 
+                    taw_function))
 
 def td_function(*args):
     try:
@@ -2098,7 +2129,10 @@ def td_function(*args):
         log.debug_error()
         log.err('Correct time ID from this ring must be provided.')
     return []
-add_command(Command('td <time_id>', 'delete time entry from current ring', 'td', td_function))
+add_command(Command('td <time_id>', 
+                    'delete time entry from current ring', 
+                    'td', 
+                    td_function))
 
 
 
@@ -2189,7 +2223,13 @@ def tlt_function(*args, hide_details=False, use_modified=True):
                             return []
     #print(start)
     #print(end)
-    return ag_function(start, end, data_function=lambda dates: ensa.db.get_timeline_by_range(*dates), id_type=3, prepend_times=True, hide_details=hide_details, use_modified=use_modified)
+    return ag_function(start, 
+                       end, 
+                       data_function=lambda dates: 
+                       ensa.db.get_timeline_by_range(*dates), id_type=3, 
+                       prepend_times=True, 
+                       hide_details=hide_details, 
+                       use_modified=use_modified)
 
 add_command(Command('tlt <start> [<end>]', 'show timelines for given date range', 'tlt', lambda *args: tlt_function(*args, hide_details=True, use_modified=False)))
 add_command(Command('tltv <start> [<end>]', 'show timelines for given date range (verbose)', 'tltv', lambda *args: tlt_function(*args, use_modified=False)))

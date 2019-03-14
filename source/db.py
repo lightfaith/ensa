@@ -517,12 +517,12 @@ class Database():
         if not self.ring_ok():
             return None
         try:
-            gps = 'POINT(%f, %f)' % (lat, lon) if lat and lon else 'NULL'
-            print(gps)
-            self.query(("INSERT INTO Location(name, gps, accuracy, valid, "
+            self.query(("INSERT INTO Location(name, lat, lon, accuracy, valid, "
                         "                     ring_id, modified, note) "
-                        "VALUES(:n, "+gps+", :a, :v, :r, :m, :note)"), 
+                        "VALUES(:n, :lat, :lon, :a, :v, :r, :m, :note)"), 
                        {'n': name, 
+                        'lat': lat,
+                        'lon': lon,
                         'a': accuracy, 
                         'v': valid, 
                         'r': ensa.current_ring, 
@@ -540,7 +540,7 @@ class Database():
     def get_locations(self):
         if not self.ring_ok():
             return []
-        return self.query(("SELECT location_id, name, ST_AsText(gps), "
+        return self.query(("SELECT location_id, name, lat, lon, "
                            "       accuracy, valid, modified, note "
                            "FROM Location "
                            "WHERE ring_id = :r"), 
@@ -559,7 +559,7 @@ class Database():
         if not self.ring_ok():
             return []
         try:
-            info = self.query(("SELECT location_id, name, ST_AsText(gps), "
+            info = self.query(("SELECT location_id, name, lat, lon, "
                                "       accuracy, valid, note "
                                "FROM Location "
                                "WHERE location_id = :l "
@@ -577,11 +577,10 @@ class Database():
         if not self.ring_ok():
             return
         try:
-            gps = ('POINT(%s, %s)' % (kwargs['lat'], kwargs['lon']) 
-                   if kwargs.get('lat') and kwargs.get('lon') 
-                   else 'NULL')
             args = {k:kwargs[v] for k,v in {
-                'l': 'location_id', 
+                'l': 'location_id',
+                'lat': 'lat',
+                'lon': 'lon',
                 'n': 'name', 
                 'a': 'accuracy', 
                 'v': 'valid', 
@@ -591,7 +590,7 @@ class Database():
                 'r': ensa.current_ring})
 
             self.query(("UPDATE Location "
-                        "SET modified = :d, name = :n, gps = "+gps+", "
+                        "SET modified = :d, name = :n, lat = :lat, lon = :lon,"
                         "    accuracy = :a, valid = :v, note = :note "
                         "WHERE location_id = :l "
                         "      AND ring_id = :r"), args)
@@ -1034,15 +1033,15 @@ class Database():
                 infos.append(tuple(list(info)+[value]))
             # get time entries
             times = self.query(("SELECT Time.time_id, "
-                                "       DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'),"
-                                "       accuracy, valid, modified, note "
+                                #"       DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'),"
+                                "       time, accuracy, valid, modified, note "
                                 "FROM Time INNER JOIN AT "
                                 "     ON Time.time_id = AT.time_id "
                                 "WHERE AT.association_id = :a"), 
                                {'a': assoc[0]}) or []
             # get location entries
             locations = self.query(("SELECT L.location_id, name, "
-                                    "       ST_AsText(gps), accuracy, valid, "
+                                    "       lat, lon, accuracy, valid, "
                                     "       modified, note "
                                     "FROM Location L INNER JOIN AL "
                                     "     ON L.location_id = AL.location_id "
