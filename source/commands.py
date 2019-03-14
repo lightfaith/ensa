@@ -2027,6 +2027,9 @@ def srp_function(*_):
     print('Generating Person report for', codename)
     
     infos = ensa.db.get_informations(no_composite_parts=False)
+    """add keywords"""
+    infos = [i + ([x[1] for x in ensa.db.get_keywords_for_informations(i[0])],) 
+             for i in infos]
     person_report(infos, 'files/tmp/%s.pdf' % codename)
     print('Report is saved as files/tmp/%s.pdf.' % codename)
 add_command(Command('sr <codename>', 'subject report generation', 'sr', lambda *_: []))

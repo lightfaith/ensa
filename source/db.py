@@ -1440,6 +1440,10 @@ class Database():
     def get_keywords_for_informations(self, information_ids):
         if not self.subject_ok():
             return []
+        if type(information_ids) == int:
+            information_ids = str(information_ids)
+        elif type(information_ids) in (tuple, list):
+            information_ids = ','.join(information_ids)
         result = self.query(("SELECT IK.information_id, K.keyword "
                              "FROM IK INNER JOIN Keyword K "
                              "     ON IK.keyword_id = K.keyword_id "

@@ -36,6 +36,52 @@ def get_level_sort(infos):
 get_valid = lambda infos,key: [i for i in infos if i[7] == 1 and i[4] == key]
 par = lambda x: Paragraph(x, styles['BodyText'])
 
+religion_symbols = {
+    'atheist': '',
+    'atheism': '',
+    'christian': '\u271e',
+    'christianity': '\u271e',
+    'catholic': '\u271e',
+    'jew': '\u2721',
+    'judaism': '\u2721',
+    'jewish': '\u2721',
+    'muslim': '\u262a',
+    'islam': '\u262a',
+    'islamic': '\u262a',
+    'buddhist': '\u262f',
+    'buddhism': '\u262f',
+    'shinto': '\u26e9',
+    'shintoism': '\u26e9',
+    'shintoist': '\u26e9',
+    'hindu': '\U0001f549',
+    'hinduist': '\U0001f549',
+    'hinduism': '\U0001f549',
+    'satanist': '\u26e7',
+    'satanism': '\u26e7',
+}
+horoscope_symbols = {
+    'aries': '\u2648',
+    'taurus': '\u2649',
+    'gemini': '\u264a',
+    'cancer': '\u264b',
+    'leo': '\u264c',
+    'virgo': '\u264d',
+    'libra': '\u264e',
+    'scorpius': '\u264f',
+    'sagittarius': '\u2650',
+    'capricorn': '\u2651',
+    'aquarius': '\u2652',
+    'pisces': '\u2653',
+}
+politics_symbols = {
+    'communist': '\u262d',
+    'communism': '\u262d',
+    #'nazi': '\u0fd5',
+    #'nazism': '\u0fd5',
+    #'nazist': '\u0fd5',
+}
+
+
 def get_valid_by_level(infos, key):
     """
     Returns only valid infos as get_valid method, but sorted by level.
@@ -44,6 +90,16 @@ def get_valid_by_level(infos, key):
 
 def get_valid_by_ids(infos, ids):
     return [i for i in infos if i[7] == 1 and i[0] in ids]
+
+def get_valid_by_keyword(infos, keyword):
+    return [i for i in infos if i[7] == 1 and keyword in i[11]]
+
+test_colors = [colors.salmon, colors.yellow, colors.magenta, colors.lightgreen]
+test_style = lambda x: TableStyle([
+    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+    ('BACKGROUND', (0, 0), (-1, -1), test_colors[x]),
+    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+])
 
 
 def person_report(infos, filename): # TODO give keywords, composites, etc. as argument
@@ -56,12 +112,6 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
     styles['BodyText'].fontName = 'Symbola'
     styles['BodyText'].fontSize = 12
     pdfmetrics.registerFont(symbola_font)
-    test_colors = [colors.salmon, colors.yellow, colors.magenta, colors.lightgreen]
-    test_style = lambda x: TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('BACKGROUND', (0, 0), (-1, -1), test_colors[x]),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-    ])
     
     entries = []
 
@@ -92,50 +142,6 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
             orientation_symbol = '' # TODO any for hetero? or we call it default?
     except:
         orientation_symbol = ''
-    religion_symbols = {
-        'atheist': '',
-        'atheism': '',
-        'christian': '\u271e',
-        'christianity': '\u271e',
-        'catholic': '\u271e',
-        'jew': '\u2721',
-        'judaism': '\u2721',
-        'jewish': '\u2721',
-        'muslim': '\u262a',
-        'islam': '\u262a',
-        'islamic': '\u262a',
-        'buddhist': '\u262f',
-        'buddhism': '\u262f',
-        'shinto': '\u26e9',
-        'shintoism': '\u26e9',
-        'shintoist': '\u26e9',
-        'hindu': '\U0001f549',
-        'hinduist': '\U0001f549',
-        'hinduism': '\U0001f549',
-        'satanist': '\u26e7',
-        'satanism': '\u26e7',
-    }
-    horoscope_symbols = {
-        'aries': '\u2648',
-        'taurus': '\u2649',
-        'gemini': '\u264a',
-        'cancer': '\u264b',
-        'leo': '\u264c',
-        'virgo': '\u264d',
-        'libra': '\u264e',
-        'scorpius': '\u264f',
-        'sagittarius': '\u2650',
-        'capricorn': '\u2651',
-        'aquarius': '\u2652',
-        'pisces': '\u2653',
-    }
-    politics_symbols = {
-        'communist': '\u262d',
-        'communism': '\u262d',
-        #'nazi': '\u0fd5',
-        #'nazism': '\u0fd5',
-        #'nazist': '\u0fd5',
-    }
     '''
     #racial_modifiers = '\U0001f3fb\U0001f3fc\U0001f3fd\U0001f3fe\U0001f3ff'
     # http://unicode.org/charts/nameslist/n_2600.html
@@ -252,7 +258,7 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
             valids_levels = [(k, [x[10] for x in v]) 
                              for k,v in get_level_sort(valids)]
             t = Table([[par(str(level or '')), 
-                        par('' + ', '.join(valids))] 
+                        par('' + ', '.join(set(valids)))] 
                        for level, valids in valids_levels],
                       colWidths=[cm, 16*cm],
                       style=test_style(3))
@@ -260,7 +266,37 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
     """ timeline """
     # TODO with description, shown images, map etc.
     """ gallery """
-    # TODO get from 'image' keyword
+    images = get_valid_by_keyword(infos, 'image')
+    if images:
+        entries.append(Paragraph('Gallery', styles['Heading2']))
+        images_dict = {}
+        for image in images:
+            key = '%s:%s' % (image[4], image[10])
+            if key not in images_dict.keys():
+                images_dict[key] = []
+            images_dict[key].append(image)
+        for key, imgs in sorted(images_dict.items(), key=lambda x: x[0]):
+            heading = Paragraph(key, styles['Heading3'])
+            imgs_in_category = []
+            for img in imgs:
+                try:
+                    image = Image('files/binary/%d' % img[0])
+                    image._restrictSize(3.5*cm, 5*cm)
+                    #entries.append(image)
+                    imgs_in_category.append(image)
+                except:
+                    traceback.print_exc()
+                    continue
+            columns = 4
+            t = (Table([imgs_in_category[i:i+columns] 
+                        for i in range(0, len(imgs_in_category), columns)],
+                       hAlign='LEFT',
+                       style=TableStyle([
+                           #('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                           ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                           ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                       ])))
+            entries.append(KeepTogether([heading, t]))
     """ build PDF from individual entries"""
     doc.build(entries)
 
