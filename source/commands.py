@@ -1902,7 +1902,9 @@ add_command(Command('sa <codename>', 'add new subject in the current ring', 'sa'
 def sawp_function(*_):
     # general info
     i = {}
-    codename, i['firstname'], i['middlename'], i['lastname'], i['sex'], i['y'], i['m'], i['d'], i['race'], i['religion'], i['politics'], i['orientation'] = wizard([
+    (codename, i['firstname'], i['middlename'], i['lastname'], i['sex'], 
+     i['y'], i['m'], i['d'], i['race'], i['religion'], i['politics'], 
+     i['orientation']) = wizard([
         'Codename for the subject:',
         'First name:',
         'Middle name:',
@@ -1925,7 +1927,9 @@ def sawp_function(*_):
         return []
 
     if ensa.current_subject:
-        log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring), codename), symbol=']')
+        log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring), 
+                                                            codename), 
+                       symbol=']')
         log.info('Currently working with \'%s\' subject.' % codename)
 
     if i['sex'].lower() in ('m', 'male', 'boy', 'man'):
@@ -1938,8 +1942,11 @@ def sawp_function(*_):
     information_ids = []
     for name, value in i.items():
         if value:
-            information_ids.append(ensa.db.create_information(Database.INFORMATION_TEXT, name, value))
-    ensa.db.add_keyword(','.join(str(x) for x in filter(None, information_ids)), 'general')
+            information_ids.append(ensa.db.create_information(
+                Database.INFORMATION_TEXT, name, value))
+    ensa.db.add_keyword(','.join(str(x) 
+                        for x in filter(None, information_ids)), 
+                        'general')
     
     # address
     log.newline()
@@ -1947,7 +1954,8 @@ def sawp_function(*_):
         i = {}
         add_address, = wizard(['Add address entry?'])
         if positive(add_address):
-            i['country'], i['province'], i['city'], i['street'], i['street_number'], i['postal'], valid = wizard([
+            (i['country'], i['province'], i['city'], i['street'], 
+             i['street_number'], i['postal'], valid, lat, lon) = wizard([
                 'Country:',
                 'Province:',
                 'City:',
@@ -1955,12 +1963,39 @@ def sawp_function(*_):
                 'Street number:',
                 'Postal code:',
                 'Is the address currently valid?',
+                'Latitude (e.g. -50.079795):',
+                'Longitude (e.g. -14.429710):',
             ])
             valid = positive(valid)
-            information_ids = filter(None, [ensa.db.create_information(Database.INFORMATION_TEXT, name, value, valid=valid) for name,value in i.items() if value])
+            information_ids = filter(None, 
+                [ensa.db.create_information(Database.INFORMATION_TEXT, 
+                                            name, 
+                                            value, 
+                                            valid=valid) 
+                 for name,value in i.items() if value])
             if information_ids:
-                ensa.db.create_information(Database.INFORMATION_COMPOSITE, 'address', ','.join(str(x) for x in information_ids), valid=valid)
-
+                address_id = ensa.db.create_information(
+                    Database.INFORMATION_COMPOSITE, 
+                    'address', 
+                    ','.join(str(x) for x in information_ids), 
+                    valid=valid)
+            try:
+                lat = float(lat)
+                lon = float(lon)
+                location_id = ensa.db.create_location('%s\'s home' 
+                                                      % codename.title(),
+                                                      lat,
+                                                      lon,
+                                                      valid=valid)
+                association_id = ensa.db.create_association(valid=valid, 
+                                                            note='%s\'s home' 
+                                                            % codename.title())
+                ensa.db.associate_information(association_id, address_id)
+                ensa.db.associate_location(association_id, location_id)
+            except:
+                traceback.print_exc()
+                log.err('Cannot set Address as Location, '
+                        'keeping as Information.')
         else:
             break
         

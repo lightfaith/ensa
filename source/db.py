@@ -831,6 +831,10 @@ class Database():
     def associate_information(self, association_id, information_ids):
         if not self.ring_ok():
             return None
+        if type(information_ids) == int:
+            information_ids = str(information_ids)
+        if type(information_ids) in (tuple, list):
+            information_ids = ','.join(information_ids)
         try:
             ring_id = self.query(("SELECT ring_id "
                                   "FROM Association "
@@ -871,6 +875,10 @@ class Database():
     def associate_location(self, association_id, location_ids):
         if not self.ring_ok():
             return None
+        if type(location_ids) == int:
+            location_ids = str(location_ids)
+        if type(location_ids) in (tuple, list):
+            location_ids = ','.join(location_ids)
         try:
             ring_id = self.query(("SELECT ring_id "
                                   "FROM Association "
@@ -1092,6 +1100,10 @@ class Database():
         return self.get_associations_by_X(query)
     
     def get_associations_by_information(self, information_ids):
+        if type(information_ids) == int:
+            information_ids = str(information_ids)
+        if type(information_ids) in (tuple, list):
+            information_ids = ','.join(information_ids)
         query = ("SELECT A.association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
                  "FROM Association A INNER JOIN AI "

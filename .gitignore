@@ -106,3 +106,4 @@ venv.bak/
 # own
 nogit/
 .*.swp
+files/tmp/

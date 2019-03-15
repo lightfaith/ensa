@@ -3,6 +3,7 @@
 This module is responsible for generating PDF reports of provided data.
 """
 import os
+import tempfile
 import traceback
 
 from reportlab.lib import colors, utils
@@ -14,7 +15,9 @@ from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
+from source import ensa
 from source.db import Database
+from source.map import *
 
 styles = getSampleStyleSheet()
 
@@ -152,7 +155,7 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
                    + ''.join(set(politics_symbols.values())))
     entries.append(par(font_testing))
     entries.append(par(''))
-    '''
+    #'''
     try:
         religion = get_valid_by_level(infos, 'religion')[0][10]
     except:
@@ -163,28 +166,13 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
     except:
         politics = ''
     
-    """find address that is not part of a composite (e.g. work address)"""
-    composites = [i for i in infos if i[3] == Database.INFORMATION_COMPOSITE]
-    try:
-        address = [a for a in infos 
-                   if a[0] not in [x for i in composites for x in i[10]]
-                   and a[3] == Database.INFORMATION_COMPOSITE
-                   and a[4] == 'address']
-        address_entries = {i[4]:i[10] for i in get_valid_by_ids(infos, address[0][10])}
-        address = ['%s %s' % (address_entries.get('street') or '', 
-                              address_entries.get('street_number') or ''), # TODO or reverse
-                   '%s, %s %s' % (address_entries.get('city') or '',
-                                  address_entries.get('province') or '',
-                                  address_entries.get('postal') or ''),
-                   address_entries.get('country') or '']
-        print(address)
-    except:
-        traceback.print_exc()
-        address = ['']
+    codename = get_valid(infos, 'codename')[0][10]
     basic_info = {
-        'Codename': get_valid(infos, 'codename')[0][10],
+        'Codename': codename,
         'Name': name,
         'Known as': list(par(i[10]) for i in get_valid(infos, 'nickname')),
+        'Identifier': list(par(i[10]) for i in get_valid(infos, 'identifier')),
+        'Age': '', # TODO
         'Characteristics': ' '.join((sex_symbol, 
                                      orientation_symbol,
                                      religion_symbols.get(religion) or religion,
@@ -192,9 +180,10 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
                                    ).strip(),
         'Phone': list(par(i[10]) for i in get_valid(infos, 'phone')),
         'Email': list(par(i[10]) for i in get_valid(infos, 'email')),
-        'Address': [par(line) for line in address],
+        'Website': list(par('<link href="%s">%s</link>' % (i[10], i[10])) 
+                        for i in get_valid(infos, 'website')),
+        #'Address': [par(line) for line in address],
     }
-    # TODO address
     # TODO rc, ico apod.
     """portrait"""
     '''
@@ -229,22 +218,83 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
                    #style=test_style(2),
                    )]], 
                 #style=test_style(1), 
-                hAlign='LEFT'), 
+            hAlign='LEFT'), 
           portrait]], 
         colWidths=[10*cm, 7.5*cm],
         style=TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'),
                           #('BACKGROUND', (0, 0), (-1, -1), test_colors[0]),
                           ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                          ]),
+                         ]),
         hAlign='CENTER', 
         vAlign='TOP'))
+
+    """Address"""
+    description = '%s\'s home' % codename.title()
+    """find address that is not part of a composite (e.g. work address)"""
+    composites = [i for i in infos if i[3] == Database.INFORMATION_COMPOSITE]
+    try:
+        address = [a for a in infos 
+                   if a[0] not in [x for i in composites for x in i[10]]
+                   and a[3] == Database.INFORMATION_COMPOSITE
+                   and a[4] == 'address']
+        address_entries = {i[4]:i[10] 
+                           for i in get_valid_by_ids(infos, address[0][10])}
+        address_id = address[0][0]
+        '''
+        address = ['%s %s' % (address_entries.get('street') or '', 
+                              address_entries.get('street_number') or ''), # TODO or reverse
+                   '%s, %s %s' % (address_entries.get('city') or '',
+                                  address_entries.get('province') or '',
+                                  address_entries.get('postal') or ''),
+                   address_entries.get('country') or '']
+        '''
+        address = [address_entries.get(x) or '' 
+                   for x in ('street', 'street_number', 'city', 'province', 
+                             'postal', 'country')]
+    except:
+        traceback.print_exc()
+        address = ['']
+    """get map"""
+    # get associations with address
+    address_map = None
+    address_assocs = [a for a in ensa.db.get_associations_by_information(address_id)
+                     if a[0][6] == description]
+    # find association with location entry
+    for address_assoc in address_assocs:
+        if address_assoc[3]:
+            address_locations = [x for x in address_assoc[3] 
+                                if x[2] is not None and x[3] is not None]
+            if address_locations:
+                # create map, load as image
+                with tempfile.NamedTemporaryFile() as f:
+                    address_map = get_map([address_locations[0][2:4]], 
+                                          [description])
+                    address_map.savefig(
+                        f.name + '.png', bbox_inches='tight', pad_inches=0)
+                    address_map = Image(f.name + '.png')
+                    address_map._restrictSize(12*cm, 12*cm)
+    entries.append(Table([[[Paragraph('Address', styles['Heading2'])]
+                           + [par(line) for line in address], 
+                           address_map]], 
+                         style=TableStyle([
+                            ('VALIGN', (0, 0), (-1, -1), 'TOP'), 
+                         ]),
+                         colWidths=[5.5*cm, 12*cm],
+                         ))
     """Family"""
+    entries.append(Paragraph('Family', styles['Heading2']))
+
     """Job"""
+    entries.append(Paragraph('Job', styles['Heading2']))
+
     """Friends"""
+    entries.append(Paragraph('Friends', styles['Heading2']))
     """Social bubble scheme"""
+
     """Credentials"""
+    entries.append(Paragraph('Credentials', styles['Heading2']))
+
     """Likes, skills etc."""
-    # TODO filter binary 
     for category, category_name in (
             ('skill', 'Skills'), 
             ('likes', 'Likes'), 
@@ -254,7 +304,6 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
         ):
         valids = get_valid(infos, category)
         if valids:
-            entries.append(Paragraph(category_name, styles['Heading2']))
             valids_levels = [(k, [x[10] for x in v]) 
                              for k,v in get_level_sort(valids)]
             t = Table([[par(str(level or '')), 
@@ -262,9 +311,16 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
                        for level, valids in valids_levels],
                       colWidths=[cm, 16*cm],
                       style=test_style(3))
-            entries.append(t)
-    """ timeline """
+            entries.append(KeepTogether([
+                Paragraph(category_name, styles['Heading2']),
+                t]))
+
+    """ Timeline """
+    entries.append(Paragraph('Timeline', styles['Heading2']))
     # TODO with description, shown images, map etc.
+    
+    """ medical """ # TODO ?
+
     """ gallery """
     images = get_valid_by_keyword(infos, 'image')
     if images:
