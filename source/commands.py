@@ -729,7 +729,7 @@ def ame_function(*args):
         changes = f.read()
     change_occured = False
     for line in changes.splitlines():
-        k, _, v = line.partition(': ')
+        k, _, v = line.partition(b': ')
         if k not in mapped.keys(): # ingore unknown keys
             continue
         try:

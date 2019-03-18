@@ -18,6 +18,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from source import ensa
 from source.db import Database
 from source.map import *
+from source.graph import *
 
 styles = getSampleStyleSheet()
 
@@ -166,7 +167,9 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
     except:
         politics = ''
     
-    codename = get_valid(infos, 'codename')[0][10]
+    codename_tuple = get_valid(infos, 'codename')[0]
+    codename_id = codename_tuple[0]
+    codename = codename_tuple[10]
     basic_info = {
         'Codename': codename,
         'Name': name,
@@ -184,7 +187,6 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
                         for i in get_valid(infos, 'website')),
         #'Address': [par(line) for line in address],
     }
-    # TODO rc, ico apod.
     """portrait"""
     '''
     try:
@@ -240,14 +242,6 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
         address_entries = {i[4]:i[10] 
                            for i in get_valid_by_ids(infos, address[0][10])}
         address_id = address[0][0]
-        '''
-        address = ['%s %s' % (address_entries.get('street') or '', 
-                              address_entries.get('street_number') or ''), # TODO or reverse
-                   '%s, %s %s' % (address_entries.get('city') or '',
-                                  address_entries.get('province') or '',
-                                  address_entries.get('postal') or ''),
-                   address_entries.get('country') or '']
-        '''
         address = [address_entries.get(x) or '' 
                    for x in ('street', 'street_number', 'city', 'province', 
                              'postal', 'country')]
@@ -281,9 +275,46 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
                          ]),
                          colWidths=[5.5*cm, 12*cm],
                          ))
+
     """Family"""
     entries.append(Paragraph('Family', styles['Heading2']))
+    relationships = [
+        r for r in ensa.db.get_associations_by_information(codename_id)
+        if len([info for info in r[1] if info[4] == 'codename']) == 2
+        and (r[0][6].lower().startswith('%s-%s ' 
+                                        % (r[1][0][10], r[1][1][10]))
+             or r[0][6].lower().startswith('%s-%s ' 
+                                           % (r[1][1][10], r[1][0][10]))
+            )
+        ]
 
+    # prepare dict as (codename, codename): (relationship, level, accuracy)
+    relationships = {(r[1][0][10], r[1][1][10]):(r[0][6].partition(' ')[2], 
+                                                 r[0][2], 
+                                                 r[0][3]) 
+                     for r in relationships}
+    print(relationships)
+    acquaintances = set(sum([k for k,_ in relationships.items()], ()))
+    acquaintances.remove(codename)
+    print(acquaintances)
+    # create network, load as image
+    network = None
+    with tempfile.NamedTemporaryFile() as f:
+        network = get_relationship_graph(codename, acquaintances, relationships)
+        network.savefig(
+            f.name + '.png', bbox_inches='tight', pad_inches=0)
+        network = Image(f.name + '.png')
+        network._restrictSize(17*cm, 30*cm)
+    entries.append(network)
+    '''
+    entries.append(Table([[[Paragraph('Family', styles['Heading2'])],
+                           network]], 
+                         style=TableStyle([
+                            ('VALIGN', (0, 0), (-1, -1), 'TOP'), 
+                         ]),
+                         colWidths=[5.5*cm, 12*cm],
+                         ))
+    '''
     """Job"""
     entries.append(Paragraph('Job', styles['Heading2']))
 
