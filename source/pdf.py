@@ -29,13 +29,25 @@ def get_level_sort(infos):
     alphabetically by value.
     """
     infos_levels = {}
+    """create level: info list"""
     for info in infos:
-        if info[5] not in infos_levels:
-            infos_levels[info[5]] = []
-        infos_levels[info[5]].append(info)
-    infos_levels = {k:sorted(v, key=lambda x:x[10]) 
-                    for k,v in infos_levels.items()}
-    return sorted(infos_levels.items(), key=lambda x: x[0] or 0, reverse=True)
+        key = info[5] or ''
+        if key not in infos_levels:
+            infos_levels[key] = []
+        infos_levels[key].append(info)
+
+    """add infos with the similar level (0, '', None) together"""
+    result = {}
+    for k,v in infos_levels.items():
+        if k not in result.keys():
+            result[k] = []
+        result[k] += v
+
+    """sort the infos in each level"""
+    for k,v in result.items():
+        result[k] = sorted(v, key=lambda x:x[10])
+    """sort levels"""
+    return sorted(result.items(), key=lambda x: x[0] or 0, reverse=True)
 
 get_valid = lambda infos,key: [i for i in infos if i[7] == 1 and i[4] == key]
 par = lambda x: Paragraph(x, styles['BodyText'])
@@ -239,42 +251,43 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
                    if a[0] not in [x for i in composites for x in i[10]]
                    and a[3] == Database.INFORMATION_COMPOSITE
                    and a[4] == 'address']
-        address_entries = {i[4]:i[10] 
-                           for i in get_valid_by_ids(infos, address[0][10])}
-        address_id = address[0][0]
-        address = [address_entries.get(x) or '' 
-                   for x in ('street', 'street_number', 'city', 'province', 
-                             'postal', 'country')]
+        if address:
+            address_entries = {i[4]:i[10] 
+                               for i in get_valid_by_ids(infos, address[0][10])}
+            address_id = address[0][0]
+            address = [address_entries.get(x) or '' 
+                       for x in ('street', 'street_number', 'city', 'province', 
+                                 'postal', 'country')]
+            """get map"""
+            # get associations with address
+            address_map = None
+            address_assocs = [a for a in ensa.db.get_associations_by_information(address_id)
+                             if a[0][6] == description]
+            # find association with location entry
+            for address_assoc in address_assocs:
+                if address_assoc[3]:
+                    address_locations = [x for x in address_assoc[3] 
+                                        if x[2] is not None and x[3] is not None]
+                    if address_locations:
+                        # create map, load as image
+                        with tempfile.NamedTemporaryFile() as f:
+                            address_map = get_map([address_locations[0][2:4]], 
+                                                  [description])
+                            address_map.savefig(
+                                f.name + '.png', bbox_inches='tight', pad_inches=0)
+                            address_map = Image(f.name + '.png')
+                            address_map._restrictSize(12*cm, 12*cm)
+            entries.append(Table([[[Paragraph('Address', styles['Heading2'])]
+                                   + [par(line) for line in address], 
+                                   address_map]], 
+                                 style=TableStyle([
+                                    ('VALIGN', (0, 0), (-1, -1), 'TOP'), 
+                                 ]),
+                                 colWidths=[5.5*cm, 12*cm],
+                                 ))
     except:
         traceback.print_exc()
         address = ['']
-    """get map"""
-    # get associations with address
-    address_map = None
-    address_assocs = [a for a in ensa.db.get_associations_by_information(address_id)
-                     if a[0][6] == description]
-    # find association with location entry
-    for address_assoc in address_assocs:
-        if address_assoc[3]:
-            address_locations = [x for x in address_assoc[3] 
-                                if x[2] is not None and x[3] is not None]
-            if address_locations:
-                # create map, load as image
-                with tempfile.NamedTemporaryFile() as f:
-                    address_map = get_map([address_locations[0][2:4]], 
-                                          [description])
-                    address_map.savefig(
-                        f.name + '.png', bbox_inches='tight', pad_inches=0)
-                    address_map = Image(f.name + '.png')
-                    address_map._restrictSize(12*cm, 12*cm)
-    entries.append(Table([[[Paragraph('Address', styles['Heading2'])]
-                           + [par(line) for line in address], 
-                           address_map]], 
-                         style=TableStyle([
-                            ('VALIGN', (0, 0), (-1, -1), 'TOP'), 
-                         ]),
-                         colWidths=[5.5*cm, 12*cm],
-                         ))
 
     """Social Network"""
     relationships = [
@@ -337,7 +350,7 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
                         par('' + ', '.join(set(valids)))] 
                        for level, valids in valids_levels],
                       colWidths=[cm, 15*cm],
-                      #style=test_style(3)
+                      style=test_style(3),
                       )
             entries.append(KeepTogether([
                 Paragraph(category_name, styles['Heading2']),

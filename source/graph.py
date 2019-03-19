@@ -4,9 +4,9 @@ This script generates graphs for relationship visualization.
 """
 import os
 import graphviz as gv
-import networkx as nx
-import matplotlib.pyplot as plt
-from collections import OrderedDict
+#import networkx as nx
+#import matplotlib.pyplot as plt
+#from collections import OrderedDict
 import tempfile
 from io import BytesIO
 
@@ -39,21 +39,21 @@ def get_relationship_graph(codename, acquaintances, relationships):
                     ((codename:str, codename:str): 
                      (relationship:str, level:int, accuracy:int, valid:bool))
     """
+    '''
     g = nx.MultiGraph()
     g.add_node(codename, color='red')
     g.add_nodes_from(acquaintances)
     # TODO limit transitive relationships
-    # TODO multigraph
     
     #edges = OrderedDict([(k, v[0]) for k,v in relationships])
     edges = [(*k, i) for i,(k,v) in enumerate(relationships)]
     edge_colors = [get_relationship_color(v[0]) 
                    for _,v in relationships]
-    edge_weights = [v[1]*v[2]/20 
+    edge_weights = [(v[1] or 0) * v[2] / 20 
                     for _,v in relationships]
     edge_styles = [('solid' if v[3] else 'dotted') 
                    for _,v in relationships]
-    '''
+
     #print(edges)
     #g.add_edges_from(edges)
     for edge, color, weight, style in zip(edges, edge_colors, edge_weights, edge_styles):
@@ -88,7 +88,7 @@ def get_relationship_graph(codename, acquaintances, relationships):
                b, 
                label=relationship + ' ' * 10, 
                color=get_relationship_color(relationship), 
-               penwidth=str(level*accuracy/20),
+               penwidth=str((level or 1) * accuracy / 20),
                fontsize=edge_fontsize,
                style='solid' if valid else 'dotted')
     #g.view()

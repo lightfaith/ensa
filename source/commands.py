@@ -1902,10 +1902,11 @@ add_command(Command('sa <codename>', 'add new subject in the current ring', 'sa'
 def sawp_function(*_):
     # general info
     i = {}
-    (codename, i['firstname'], i['middlename'], i['lastname'], i['sex'], 
-     i['y'], i['m'], i['d'], i['race'], i['religion'], i['politics'], 
-     i['orientation']) = wizard([
+    (codename, portrait_name, i['firstname'], i['middlename'], i['lastname'], 
+     i['sex'], i['y'], i['m'], i['d'], i['race'], i['religion'], 
+     i['politics'], i['orientation']) = wizard([
         'Codename for the subject:',
+        'Name of portrait photo (in files/uploads/):',
         'First name:',
         'Middle name:',
         'Last name:',
@@ -1926,6 +1927,12 @@ def sawp_function(*_):
     if not codename_id:
         log.err('Subject could not be created.')
         return []
+
+    if portrait_name:
+        try:
+            ensa.db.add_binary(ensa.db.select_subject(codename), portrait_name)
+        except:
+            traceback.print_exc()
 
     if ensa.current_subject:
         log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring), 
@@ -1982,21 +1989,28 @@ def sawp_function(*_):
                     valid=valid)
             try:
                 lat = float(lat)
+            except:
+                lat = None
+            try:
                 lon = float(lon)
-                location_id = ensa.db.create_location('%s\'s home' 
-                                                      % codename.title(),
-                                                      lat,
-                                                      lon,
-                                                      valid=valid)
-                association_id = ensa.db.create_association(valid=valid, 
-                                                            note='%s\'s home' 
-                                                            % codename.title())
-                ensa.db.associate_information(association_id, address_id)
-                ensa.db.associate_location(association_id, location_id)
+            except:
+                lon = None
+            location_id = ensa.db.create_location('%s\'s home' 
+                                                  % codename.title(),
+                                                  lat,
+                                                  lon,
+                                                  valid=valid)
+            association_id = ensa.db.create_association(valid=valid, 
+                                                        note='%s\'s home' 
+                                                        % codename.title())
+            ensa.db.associate_information(association_id, address_id)
+            ensa.db.associate_location(association_id, location_id)
+            '''
             except:
                 traceback.print_exc()
                 log.err('Cannot set Address as Location, '
                         'keeping as Information.')
+            '''
         else:
             break
         
@@ -2093,7 +2107,26 @@ add_command(Command('saw', 'subject wizards', 'saw', lambda *_: []))
 add_command(Command('sawp', 'use wizard to create a Person subject', 'sawp', sawp_function))
 # TODO `sawc`
 
+"""subject - add relationship"""
+def sar_function(*args):
+    try:
+        acquaintance = args[0]
+        relationship = args[1]
+    except:
+        log.err('Invalid parameters.')
+        return []
+    codename = ensa.db.get_subject_codename(ensa.current_subject)
+    as_note = '%s-%s %s' % (codename, acquaintance, relationship)
+    association_id = ensa.db.create_association( 
+        accuracy=ensa.config['interaction.default_accuracy'][0], 
+        valid=True, 
+        note=as_note)
+    ensa.db.associate_subject(association_id, [codename, 
+                                               acquaintance])
+    return []
 
+add_command(Command('sar <codename> <relationship>', 'add relationship to a subject', 'sar', sar_function))
+    
 
 def sd_function(*args):
     if not args:

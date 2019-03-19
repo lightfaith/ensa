@@ -917,6 +917,8 @@ class Database():
     def associate_subject(self, association_id, codenames):
         if not self.ring_ok():
             return None
+        if type(codenames) in (tuple, list):
+            codenames = "','".join(codenames)
         try:
             ring_id = self.query(("SELECT ring_id "
                                   "FROM Association "
@@ -934,7 +936,7 @@ class Database():
                         "FROM Subject S INNER JOIN Information I "
                         "     ON S.subject_id = I.subject_id "
                         "WHERE I.name = 'codename' "
-                        "      AND S.codename IN ("+ codenames +") "
+                        "      AND S.codename IN ('"+ codenames +"') "
                         "      AND S.ring_id = :r"), 
                        {'a': association_id, 'r': ensa.current_ring})
             count_after = self.query("SELECT COUNT(*) FROM AI")[0][0]
