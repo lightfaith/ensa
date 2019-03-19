@@ -7,6 +7,7 @@ from source import log
 from source import lib
 from source import ensa
 from source import commands
+# TODO different db file from argument - but what about binary content?
 if not ensa.db or not ensa.db.connect():
     log.err('Cannot connect to DB!')
     lib.exit_program(None, None)

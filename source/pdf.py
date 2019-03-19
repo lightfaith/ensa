@@ -225,7 +225,7 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
         colWidths=[10*cm, 7.5*cm],
         style=TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'),
                           #('BACKGROUND', (0, 0), (-1, -1), test_colors[0]),
-                          ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                          #('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
                          ]),
         hAlign='CENTER', 
         vAlign='TOP'))
@@ -276,8 +276,7 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
                          colWidths=[5.5*cm, 12*cm],
                          ))
 
-    """Family"""
-    entries.append(Paragraph('Family', styles['Heading2']))
+    """Social Network"""
     relationships = [
         r for r in ensa.db.get_associations_by_information(codename_id)
         if len([info for info in r[1] if info[4] == 'codename']) == 2
@@ -289,38 +288,34 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
         ]
 
     # prepare dict as (codename, codename): (relationship, level, accuracy)
-    relationships = {(r[1][0][10], r[1][1][10]):(r[0][6].partition(' ')[2], 
-                                                 r[0][2], 
-                                                 r[0][3]) 
-                     for r in relationships}
-    print(relationships)
-    acquaintances = set(sum([k for k,_ in relationships.items()], ()))
+    relationships = [((r[1][0][10], 
+                       r[1][1][10]), 
+                      (r[0][6].partition(' ')[2], 
+                       r[0][2], 
+                       r[0][3],
+                       bool(r[0][4])))
+                     for r in relationships]
+    acquaintances = set(sum([k for k,_ in relationships], ()))
     acquaintances.remove(codename)
-    print(acquaintances)
     # create network, load as image
     network = None
+    '''
     with tempfile.NamedTemporaryFile() as f:
         network = get_relationship_graph(codename, acquaintances, relationships)
         network.savefig(
             f.name + '.png', bbox_inches='tight', pad_inches=0)
         network = Image(f.name + '.png')
-        network._restrictSize(17*cm, 30*cm)
-    entries.append(network)
     '''
-    entries.append(Table([[[Paragraph('Family', styles['Heading2'])],
-                           network]], 
-                         style=TableStyle([
-                            ('VALIGN', (0, 0), (-1, -1), 'TOP'), 
-                         ]),
-                         colWidths=[5.5*cm, 12*cm],
-                         ))
-    '''
+    network_str = get_relationship_graph(codename, acquaintances, relationships)
+    network = Image(network_str)
+    network._restrictSize(17*cm, 30*cm)
+    entries.append(KeepTogether([
+        Paragraph('Social Network', 
+        styles['Heading2']), network]))
+
+
     """Job"""
     entries.append(Paragraph('Job', styles['Heading2']))
-
-    """Friends"""
-    entries.append(Paragraph('Friends', styles['Heading2']))
-    """Social bubble scheme"""
 
     """Credentials"""
     entries.append(Paragraph('Credentials', styles['Heading2']))
@@ -332,6 +327,7 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
             ('dislikes', 'Dislikes'), 
             ('trait', 'Traits'), 
             ('asset', 'Assets'), 
+            ('medical', 'Medical conditions'), 
         ):
         valids = get_valid(infos, category)
         if valids:
@@ -340,8 +336,9 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
             t = Table([[par(str(level or '')), 
                         par('' + ', '.join(set(valids)))] 
                        for level, valids in valids_levels],
-                      colWidths=[cm, 16*cm],
-                      style=test_style(3))
+                      colWidths=[cm, 15*cm],
+                      #style=test_style(3)
+                      )
             entries.append(KeepTogether([
                 Paragraph(category_name, styles['Heading2']),
                 t]))
@@ -349,8 +346,6 @@ def person_report(infos, filename): # TODO give keywords, composites, etc. as ar
     """ Timeline """
     entries.append(Paragraph('Timeline', styles['Heading2']))
     # TODO with description, shown images, map etc.
-    
-    """ medical """ # TODO ?
 
     """ gallery """
     images = get_valid_by_keyword(infos, 'image')

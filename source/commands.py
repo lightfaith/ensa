@@ -1922,7 +1922,8 @@ def sawp_function(*_):
     if not codename:
         log.err('Codename must be specified.')
         return []
-    if not ensa.db.create_subject(codename):
+    codename_id = ensa.db.create_subject(codename)
+    if not codename_id:
         log.err('Subject could not be created.')
         return []
 
@@ -2002,11 +2003,13 @@ def sawp_function(*_):
     # likes, dislikes, skills, traits
     for category, question in (
             ('nickname', 'Nickname for %s:' % codename),
+            ('identifier', 'Unique %s\'s identifier:' % codename),
             ('likes', '%s likes:' % codename.title()), 
             ('dislikes', '%s dislikes:' % codename.title()), 
             ('skill', '%s\'s skill:' % codename.title()),
             ('trait', '%s\'s trait:' % codename.title()),
             ('asset', '%s\'s asset:' % codename.title()),
+            ('medical', '%s\'s medical condition:' % codename.title()),
             ):
         log.newline()
         while True:
@@ -2017,7 +2020,39 @@ def sawp_function(*_):
                 ensa.db.create_information(Database.INFORMATION_TEXT, category, value)
             else:
                 break
-                
+    
+    """relationships"""
+    log.newline()
+    while True:
+        acq, = wizard(['Who does the subject has a relationship with?'])
+        if not acq:
+            break
+        acq_id = ensa.db.select_subject(acq)
+        if not acq_id:
+            log.err('No such subject exists.')
+            continue
+        valid, relationship, level, accuracy,  = wizard(
+        [
+            'Is the relationship still valid?',
+            'Who is %s to %s?' % (codename, acq),
+            'What is the relationship level?',
+            'How accurate is the relationship definition?',
+        ])
+        valid = positive(valid)
+        association_id = ensa.db.create_association(level=level, 
+                                                    accuracy=accuracy, 
+                                                    valid=valid, 
+                                                    note = ('%s-%s %s' 
+                                                            % (codename, 
+                                                               acq, 
+                                                               relationship)))
+        ensa.db.associate_subject(association_id, [codename, acq])
+        # TODO bugged somehow
+
+
+
+
+    
     # work
     # probably creating company as new subject and associate employees to it is better approach
     """
