@@ -2,6 +2,7 @@
 import time
 import datetime
 import os
+import pdb
 import sqlite3 as sqlite
 from source import log
 from source import ensa
@@ -981,6 +982,7 @@ class Database():
             return None
         try:
             count_before = self.query("SELECT COUNT(*) FROM AI")[0][0]
+            # pdb.set_trace()
             self.query(("INSERT INTO AI(association_id, information_id) "
                         "SELECT :a, I.information_id "
                         "FROM Subject S INNER JOIN Information I "
@@ -1126,6 +1128,10 @@ class Database():
         return result
 
     def get_associations_by_ids(self, association_ids):
+        if type(association_ids) == int:
+            association_ids = str(association_ids)
+        elif type(association_ids) in (tuple, list):
+            association_ids = ','.join(association_ids)
         query = ("SELECT association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
                  "FROM Association "
@@ -1140,6 +1146,10 @@ class Database():
         return self.get_associations_by_X(query)
 
     def get_associations_by_location(self, location_ids):
+        if type(location_ids) == int:
+            location_ids = str(location_ids)
+        elif type(location_ids) in (tuple, list):
+            location_ids = ','.join(location_ids)
         query = ("SELECT A.association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
                  "FROM Association A INNER JOIN AL "
@@ -1148,6 +1158,10 @@ class Database():
         return self.get_associations_by_X(query)
 
     def get_associations_by_time(self, time_ids):
+        if type(time_ids) == int:
+            time_ids = str(time_ids)
+        elif type(time_ids) in (tuple, list):
+            time_ids = ','.join(time_ids)
         query = ("SELECT A.association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
                  "FROM Association A INNER JOIN AT "
@@ -1158,7 +1172,7 @@ class Database():
     def get_associations_by_information(self, information_ids):
         if type(information_ids) == int:
             information_ids = str(information_ids)
-        if type(information_ids) in (tuple, list):
+        elif type(information_ids) in (tuple, list):
             information_ids = ','.join(information_ids)
         query = ("SELECT A.association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
@@ -1183,6 +1197,10 @@ class Database():
         return self.get_associations_by_X(query)
 
     def get_timeline_by_location(self, location_ids):
+        if type(location_ids) == int:
+            location_ids = str(location_ids)
+        elif type(location_ids) in (tuple, list):
+            location_ids = ','.join(str(i) for i in location_ids)
         query = ("SELECT A.association_id, A.ring_id, A.level, A.accuracy, "
                  "       A.valid, A.modified, A.note "
                  "FROM Association A "
@@ -1197,6 +1215,10 @@ class Database():
         return self.get_associations_by_X(query)
 
     def get_timeline_by_information(self, information_ids):
+        if type(information_ids) == int:
+            information_ids = str(information_ids)
+        elif type(information_ids) in (tuple, list):
+            information_ids = ','.join(str(i) for i in information_ids)
         query = ("SELECT A.association_id, A.ring_id, A.level, A.accuracy, "
                  "       A.valid, A.modified, A.note "
                  "FROM Association A "
@@ -1211,8 +1233,10 @@ class Database():
         return self.get_associations_by_X(query)
 
     def get_timeline_by_subject(self, codenames):
+        if type(codenames) in (tuple, list):
+            codenames = "','".join(codenames)
         query = ("SELECT A.association_id, A.ring_id, A.level, A.accuracy, "
-                 "       A.valid, A.modified, A.note"
+                 "       A.valid, A.modified, A.note "
                  "FROM Association A "
                  "     INNER JOIN AI "
                  "         ON A.association_id = AI.association_id "
@@ -1224,7 +1248,7 @@ class Database():
                  "         ON A.association_id = AT.association_id "
                  "     INNER JOIN Time T "
                  "         ON T.time_id = AT.time_id "
-                 "WHERE S.codename IN("+codenames+") "
+                 "WHERE S.codename IN('"+codenames+"') "
                  "ORDER BY T.time")
         return self.get_associations_by_X(query)
 

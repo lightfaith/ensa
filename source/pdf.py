@@ -137,7 +137,7 @@ def test_style(x): return TableStyle([
 ])
 
 
-def person_report(infos, filename):  # TODO give keywords, composites, etc. as argument
+def person_report(infos, filename):
     # for info in infos:
     #    print(info)
 
@@ -155,6 +155,7 @@ def person_report(infos, filename):  # TODO give keywords, composites, etc. as a
     entries.append(Paragraph(
         '<para align=center spaceAfter=20>Person Report</para>',
         styles['Title']))
+    # TODO generation timestamp
 
     """basic info"""
     name = ' '.join([i[10] for i in get_valid(infos, 'firstname')]
@@ -268,7 +269,6 @@ def person_report(infos, filename):  # TODO give keywords, composites, etc. as a
                             for i in get_valid(infos, 'identifier'))),
         ('Birth', time_events.get('birth')),
         ('Death', time_events.get('death')),
-        # TODO age
         ('Known as', list(par(i[10]) for i in get_valid(infos, 'nickname'))),
         ('Characteristics', ' '.join((sex_symbol,
                                       orientation_symbol,

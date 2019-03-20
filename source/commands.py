@@ -4,6 +4,7 @@ Commands and config methods are implemented here.
 """
 
 import os
+import pdb
 import sys
 import re
 import traceback
@@ -534,7 +535,7 @@ def aai_function(*args):
         log.err('Association ID must be specified.')
         return []
     try:
-        information_ids = ','.join(parse_sequence(','.join(args[1:])))
+        information_ids = parse_sequence(','.join(args[1:]))
         if not information_ids:
             raise AttributeError
     except:
@@ -576,7 +577,8 @@ def aas_function(*args):
         log.err('Association ID must be specified.')
         return []
     try:
-        codenames = ','.join(['\'%s\'' % codename for codename in args[1:]])
+        #codenames = ','.join(['\'%s\'' % codename for codename in args[1:]])
+        codenames = args[1:]
         if not codenames:
             raise AttributeError
     except:
@@ -731,13 +733,14 @@ def ag_function(*args, data_function=lambda *_: [], id_type=0, prepend_times=Fal
 
     if id_type == 0:  # ID sequence, parse it
         ids = ','.join(parse_sequence(','.join(args)))
-    elif id_type == 1:  # list of words, join it with ','
-        ids = ','.join('\'%s\'' % arg for arg in args)
+    # elif id_type == 1:  # list of words, join it with ',' - tuple is dealt with by DB methods
+    #    ids = ','.join('\'%s\'' % arg for arg in args)
     elif id_type == 2:  # string, join it with ' '
         ids = ' '.join(args)
-    elif id_type == 3:  # keep it as tuple
+    # elif id_type == 3:  # keep it as tuple
+    #    ids = args
+    else:
         ids = args
-
     if not ids:
         log.err('Identifier must be specified.')
         return []
@@ -2767,7 +2770,7 @@ def tme_function(*args):
     # ingore unknown keys
     for line in changes.splitlines():
         #import pdb
-        #pdb.set_trace()
+        # pdb.set_trace()
         k, _, v = line.partition(': ')
         # ingore unknown keys
         if k not in mapped.keys():
