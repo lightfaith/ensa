@@ -17,6 +17,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from itertools import zip_longest
 
 from source import ensa
 from source.db import Database
@@ -122,6 +123,10 @@ def get_valid_by_keyword(infos, keyword):
     return [i for i in infos if i[7] == 1 and keyword in i[11]]
 
 
+def get_by_keyword(infos, keyword):
+    return [i for i in infos if keyword in i[11]]
+
+
 test_colors = [colors.salmon, colors.yellow, colors.magenta, colors.lightgreen]
 
 
@@ -198,7 +203,7 @@ def person_report(infos, filename):  # TODO give keywords, composites, etc. as a
     codename = codename_tuple[10]
 
     """Birth, death"""
-    #import pdb
+    # import pdb
     # pdb.set_trace()
     time_events = {}
     for event in ['birth', 'death']:
@@ -409,7 +414,56 @@ def person_report(infos, filename):  # TODO give keywords, composites, etc. as a
     entries.append(Paragraph('Job', styles['Heading2']))
 
     """Credentials"""
-    entries.append(Paragraph('Credentials', styles['Heading2']))
+    # get valid credentials for systems
+    credentials = []
+    credential_tuples = get_valid_by_keyword(infos, 'credentials')
+    for c in credential_tuples:
+        system = c[4]
+        creds = get_valid_by_ids(infos, c[10])
+        try:
+            username = [c[10] for c in creds if c[4] == 'username'][0]
+            password = [c[10] for c in creds if c[4] == 'password'][0]
+        except:
+            continue
+        credentials.append((system, '%s:%s' % (username, password)))
+
+    if credentials:
+        entries.append(KeepTogether([
+            Paragraph('Credentials', styles['Heading2']),
+            Table([[Paragraph('Valid credentials', styles['Heading3']), '']] + [[*c] for c in credentials],
+                  colWidths=[4*cm, 12*cm],
+                  style=TableStyle([
+                      ('SPAN', (0, 0), (1, 0)),
+                      #('GRID', (0, 0), (-1, -1), 0.5, 'black'),
+                  ])
+                  )
+        ]))
+    # get all usernames, passwords (even invalid)
+    usernames = [i[10] for i in infos if i[4] == 'username']
+    if usernames:
+        entries.append(KeepTogether([
+            Paragraph('Usernames', styles['Heading3']),
+            Table([[u] for u in usernames], colWidths=[16*cm])]))
+
+    passwords = [i[10] for i in infos if i[4] == 'password']
+    if passwords:
+        entries.append(KeepTogether([
+            Paragraph('Passwords', styles['Heading3']),
+            Table([[u] for u in passwords], colWidths=[16*cm])]))
+
+    '''
+    cells = ([[Paragraph(x, styles['Heading3']) for x in ['Valid credentials', '', 'Usernames', 'Passwords']]] +
+             [[*(credentials or (None, None)), username, password] for credentials, username, password in zip_longest(credentials, usernames, passwords)])
+    entries.append(KeepTogether([
+        Paragraph('Credentials', styles['Heading2']),
+        Table(cells,
+              colWidths=[3*cm, 5*cm, 4*cm, 4*cm],
+              style=TableStyle([
+                  ('SPAN', (0, 0), (1, 0)),
+                  #('GRID', (0, 0), (-1, -1), 0.5, 'black'),
+              ]))
+    ]))
+    '''
 
     """Likes, skills etc."""
     for category, category_name in (

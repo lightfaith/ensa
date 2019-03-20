@@ -330,6 +330,8 @@ class Database():
                 '''
 
             elif info_type == Database.INFORMATION_COMPOSITE:
+                if type(value) in (tuple, list):
+                    value = ','.join(str(v) for v in value)
                 self.query(("INSERT INTO Composite(information_id, part_id) "
                             "SELECT :i, information_id "
                             "FROM Information "
@@ -744,7 +746,7 @@ class Database():
             return []
         try:
             info = self.query(("SELECT time_id, "
-                               "       time"
+                               "       time,"
                                "       accuracy, valid, note "
                                "FROM Time "
                                "WHERE time_id = :t "
@@ -1349,18 +1351,18 @@ class Database():
         try:
             args = {k: kwargs[v] for k, v in {
                 'as': 'association_id',
-                'd': 'datetime',
                 'a': 'accuracy',
+                'l': 'level',
                 'v': 'valid',
-                'note': 'note'}.items()}
+                'n': 'note'}.items()}
             args.update({
                 'm': time.strftime('%Y-%m-%d %H:%M:%S'),
                 'r': ensa.current_ring})
-            self.query(("UPDATE Association "
-                        "SET modified = :m, level = :l, accuracy = :a, "
-                        "    valid = :v, note = :n "
-                        "WHERE association_id = :as "
-                        "      AND ring_id = :r", args))
+            self.query("UPDATE Association "
+                       "SET modified = :m, level = :l, accuracy = :a, "
+                       "    valid = :v, note = :n "
+                       "WHERE association_id = :as "
+                       "      AND ring_id = :r", args)
         except:
             log.debug_error()
             log.err("Association update failed.")

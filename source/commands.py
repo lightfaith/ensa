@@ -818,16 +818,19 @@ def ame_function(*args):
         subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
         f.seek(0)
         # retrieve changes
-        changes = f.read()
+        changes = f.read().decode()
     change_occured = False
     for line in changes.splitlines():
-        k, _, v = line.partition(b': ')
+        k, _, v = line.partition(': ')
         if k not in mapped.keys():  # ingore unknown keys
             continue
         try:
             v = type(mapped[k])(v.strip())
         except:
-            pass
+            if type(mapped[k]) == int and not v.strip():
+                v = 0
+            else:
+                raise
         if mapped[k] != v:
             #print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
             change_occured = True
@@ -1356,7 +1359,13 @@ def ime_function(*args):
         k, _, v = line.partition(': ')
         if k not in mapped.keys():  # ingore unknown keys
             continue
-        v = type(mapped[k])(v.strip())
+        try:
+            v = type(mapped[k])(v.strip())
+        except:
+            if type(mapped[k]) == int and not v.strip():
+                v = 0
+            else:
+                raise
         if mapped[k] != v:
             #print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
             change_occured = True
@@ -1726,12 +1735,14 @@ def lme_function(*args):
     data = ensa.db.get_location(location_id)
     if not data:
         return []
-    # print(data)
+    print(data)
+    '''
     lat, _, lon = data[2].partition('(')[2].partition(
         ' ') if data[2] else (None, None, None)
     if lon:
         lon = lon[:-1]
     data = data[:2]+(lat, lon)+data[3:]
+    '''
     # add labels
     mapped = dict(zip([None, 'name', 'lat', 'lon', 'accuracy', 'valid', 'note'], [
                   (x if type(x) == bytearray else x) if x else '' for x in data]))
@@ -1744,13 +1755,19 @@ def lme_function(*args):
         subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
         f.seek(0)
         # retrieve changes
-        changes = f.read()
+        changes = f.read().decode()
     change_occured = False
     for line in changes.splitlines():
         k, _, v = line.partition(': ')
         if k not in mapped.keys():  # ingore unknown keys
             continue
-        v = type(mapped[k])(v.strip())
+        try:
+            v = type(mapped[k])(v.strip())
+        except:
+            if type(mapped[k]) == int and not v.strip():
+                v = 0
+            else:
+                raise
         if mapped[k] != v:
             #print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
             change_occured = True
@@ -1759,9 +1776,10 @@ def lme_function(*args):
                 if type(v) == int or v.isdigit():
                     mapped[k] = int(v)
                 else:
-                    log.err('Accuracy must be a number.')
-                    change_occured = False
-                    break
+                    mapped[k] = 0
+                    #log.err('Accuracy must be a number.')
+                    #change_occured = False
+                    # break
             elif k == 'valid':
                 mapped[k] = positive(v)
             elif k == 'name':
@@ -2275,7 +2293,8 @@ def sawp_function(*_):
                 address_id = ensa.db.create_information(
                     Database.INFORMATION_COMPOSITE,
                     'address',
-                    ','.join(str(x) for x in information_ids),
+                    #','.join(str(x) for x in information_ids),
+                    information_ids,
                     valid=valid)
             try:
                 lat = float(lat)
@@ -2396,6 +2415,36 @@ add_command(
     Command('sawp', 'use wizard to create a Person subject', 'sawp', sawp_function))
 # TODO `sawc`
 
+
+"""subject - add credentials"""
+
+
+def sac_function(*args):
+    try:
+        username = args[0]
+        password = args[1]
+    except:
+        log.err('Parameters are wrong.')
+        return []
+    try:
+        system = args[2]
+    except:
+        system = None
+    username_id = ensa.db.create_information(
+        Database.INFORMATION_TEXT, 'username', username)
+    password_id = ensa.db.create_information(
+        Database.INFORMATION_TEXT, 'password', password)
+    if system:
+        system_id = ensa.db.create_information(
+            Database.INFORMATION_COMPOSITE, system, [username_id, password_id])
+        ensa.db.add_keyword(system_id, 'credentials')
+
+    return []
+
+
+add_command(Command('sac <username> <password> [<system>]',
+                    'add credentials to current subject', 'sac', sac_function))
+
 """subject - add relationship"""
 
 
@@ -2450,14 +2499,14 @@ def srp_function(*_):
         log.err('A subject must be selected.')
         return []
     codename = ensa.db.get_subject_codename(ensa.current_subject)
-    print('Generating Person report for', codename)
+    log.info('Generating Person report for %s...' % codename)
 
     infos = ensa.db.get_informations(no_composite_parts=False)
     """add keywords"""
     infos = [i + ([x[1] for x in ensa.db.get_keywords_for_informations(i[0])],)
              for i in infos]
     person_report(infos, 'files/tmp/%s.pdf' % codename)
-    print('Report is saved as files/tmp/%s.pdf.' % codename)
+    log.info('Report is saved as files/tmp/%s.pdf.' % codename)
 
 
 add_command(Command('sr <codename>',
@@ -2713,13 +2762,23 @@ def tme_function(*args):
         subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
         f.seek(0)
         # retrieve changes
-        changes = f.read()
+        changes = f.read().decode()
     change_occured = False
+    # ingore unknown keys
     for line in changes.splitlines():
+        #import pdb
+        #pdb.set_trace()
         k, _, v = line.partition(': ')
-        if k not in mapped.keys():  # ingore unknown keys
+        # ingore unknown keys
+        if k not in mapped.keys():
             continue
-        v = type(mapped[k])(v.strip())
+        try:
+            v = type(mapped[k])(v.strip())
+        except:
+            if type(mapped[k]) == int and not v.strip():
+                v = 0
+            else:
+                raise
         if mapped[k] != v:
             #print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
             change_occured = True
@@ -2728,9 +2787,10 @@ def tme_function(*args):
                 if type(v) == int or v.isdigit():
                     mapped[k] = int(v)
                 else:
-                    log.err('Accuracy must be a number.')
-                    change_occured = False
-                    break
+                    mapped[k] = 0
+                    #log.err('Accuracy must be a number.')
+                    #change_occured = False
+                    # break
             elif k == 'valid':
                 mapped[k] = positive(v)
             elif k == 'name':
@@ -2760,10 +2820,14 @@ def tme_function(*args):
                         _ = datetime.strptime(v, '%H:%M:%S')
                         mapped[k] = v
                     except:
-                        log.err('Time must be of HH:MM:SS format.')
-                        log.debug_error()
-                        change_occured = False
-                        break
+                        try:
+                            _ = datetime.strptime(v, '%H:%M')
+                            mapped[k] = v
+                        except:
+                            log.err('Time must be of HH:MM or HH:MM:SS format.')
+                            log.debug_error()
+                            change_occured = False
+                            break
             elif k == 'note':
                 mapped[k] = v if v else None
     if change_occured:
