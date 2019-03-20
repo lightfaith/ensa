@@ -14,20 +14,24 @@ if not ensa.db or not ensa.db.connect():
 
 rings = ensa.db.get_rings()
 if rings:
-    log.info('Welcome! Create new ring using `ra` or choose an existing one with `rs <name>`.')
+    log.info(
+        'Welcome! Create new ring using `ra` or choose an '
+        'existing one with `rs <name>`.')
     ring_lens = commands.get_format_len_ring(rings)
     log.info('Existing rings:')
     for ring in rings:
         log.info('  '+commands.format_ring(*ring, *ring_lens))
 else:
-    log.info('Welcome! It looks that you do not have any rings created. To do this, use `ra`.')
+    log.info(
+        'Welcome! It looks that you do not have any rings created. '
+        'To do this, use `ra`.')
 
 
 while True:
     # get command
     try:
         cmd = input(log.prompt).strip()
-    except EOFError: # Ctrl+D -> quit
+    except EOFError:  # Ctrl+D -> quit
         log.newline()
         lib.exit_program(None, None)
     if len(cmd) == 0:
@@ -40,4 +44,3 @@ while True:
     # do command
     else:
         commands.run_command(cmd)
-

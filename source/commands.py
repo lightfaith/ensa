@@ -3,7 +3,12 @@
 Commands and config methods are implemented here.
 """
 
-import os, sys, re, traceback, tempfile, subprocess
+import os
+import sys
+import re
+import traceback
+import tempfile
+import subprocess
 from source import ensa
 from source import lib
 from source import log
@@ -19,6 +24,8 @@ import dateutil.parser
 """
 Universal class for commands.
 """
+
+
 class Command():
 
     def __init__(self, command, apropos, doc_tag, function):
@@ -41,6 +48,8 @@ class Command():
 """
 Function to add new command
 """
+
+
 def add_command(command):
     ensa.commands[command.command.partition(' ')[0]] = command
 
@@ -48,6 +57,8 @@ def add_command(command):
 """
 Function to run commands, apply filters etc.
 """
+
+
 def run_command(fullcommand):
     modifier = ensa.config['interaction.command_modifier'][0]
     regex_modifier = (modifier   # TODO there must be better way
@@ -63,8 +74,8 @@ def run_command(fullcommand):
     if re.match(r'^%s[a-z_][a-z0-9_]* ?= ?.+' % regex_modifier, fullcommand):
         variable_setting = True
     """ now replace variables (ignore first variable if setting)"""
-    while True: # TODO loop probably not needed
-        variable_matches = re.findall(r'(%s[a-z0-9_]+)' % regex_modifier, 
+    while True:  # TODO loop probably not needed
+        variable_matches = re.findall(r'(%s[a-z0-9_]+)' % regex_modifier,
                                       fullcommand[(1 if variable_setting
                                                    else 0):])
         if not variable_matches:
@@ -87,16 +98,16 @@ def run_command(fullcommand):
             '''
             value = ensa.variables.get(name)
             if value:
-                fullcommand = ((modifier if variable_setting else '') 
-                               + re.sub(regex_modifier + name, 
-                                        value, 
-                                        fullcommand[(1 if variable_setting 
+                fullcommand = ((modifier if variable_setting else '')
+                               + re.sub(regex_modifier + name,
+                                        value,
+                                        fullcommand[(1 if variable_setting
                                                      else 0):]))
             else:
                 log.err('Non-existent variable used!')
                 return []
         if variable_matches:
-            log.debug_command('  Fullcmd with variables: \'%s\'' 
+            log.debug_command('  Fullcmd with variables: \'%s\''
                               % (fullcommand))
     """ finally, set a variable if desired """
     if variable_setting:
@@ -107,46 +118,49 @@ def run_command(fullcommand):
         log.info('$%s = %s' % (variable, value))
         return []
 
-    
     """split fullcommand into parts"""
-    parts = list(filter(None, re.split(r'(~~|~|%s)' % (regex_modifier), 
+    parts = list(filter(None, re.split(r'(~~|~|%s)' % (regex_modifier),
                                        fullcommand)))
     command = parts[0]
     phase = {'~': False, '~~': False, modifier: False}
-    
+
     # test if it is documented
     try:
         if not ensa.commands[command.rstrip('?')].description.strip():
             log.warn('The command has no documentation.')
     except:
         # command does not exist, but it will be dealt in a while
-        pass 
+        pass
 
     # help or command?
     if command.endswith('?'):
         lines = []
-        for k, v in sorted(ensa.commands.items(), key=lambda x:x[0]):
+        for k, v in sorted(ensa.commands.items(), key=lambda x: x[0]):
             length = 50
-            if k == '': # empty command - just print long description
+            if k == '':  # empty command - just print long description
                 continue
-            
-            if k.startswith(command[:-1]) and len(k)-len(command[:-1])<=1:
+
+            if k.startswith(command[:-1]) and len(k)-len(command[:-1]) <= 1:
                 # do colors
                 cmd, _, args = v.command.partition(' ')
                 # question mark after command?
                 more = ''
-                if len([x for x in ensa.commands.keys() if x.startswith(cmd)])>1:
+                if len([x for x in ensa.commands.keys() if x.startswith(cmd)]) > 1:
                     length += len(log.COLOR_BROWN)+len(log.COLOR_NONE)
                     more = log.COLOR_BROWN+'[?]'+log.COLOR_NONE
-                command_colored = '%s%s %s%s%s' % (cmd, more, log.COLOR_BROWN, args, log.COLOR_NONE)
-                apropos_colored = '%s%s%s' % (log.COLOR_DARK_GREEN, v.apropos, log.COLOR_NONE)
-                lines.append('    %-*s %s' % (length, command_colored, apropos_colored))
+                command_colored = '%s%s %s%s%s' % (
+                    cmd, more, log.COLOR_BROWN, args, log.COLOR_NONE)
+                apropos_colored = '%s%s%s' % (
+                    log.COLOR_DARK_GREEN, v.apropos, log.COLOR_NONE)
+                lines.append('    %-*s %s' %
+                             (length, command_colored, apropos_colored))
         # show description if '??'
         if command.endswith('??'):
             for k, v in ensa.commands.items():
                 if k == command[:-2]:
                     lines.append('')
-                    lines += ['    '+log.COLOR_DARK_GREEN+line+log.COLOR_NONE for line in v.description.splitlines()]
+                    lines += ['    '+log.COLOR_DARK_GREEN+line +
+                              log.COLOR_NONE for line in v.description.splitlines()]
     else:
         try:
             command, *args = command.split(' ')
@@ -168,8 +182,8 @@ def run_command(fullcommand):
     #     a list of lists:
     #         every line of inner list matching grep expression or starting with '{grepignore}' will be printed if there is at least one grep matching line WITHOUT '{grepignore}'
     result_lines = []
-    nocolor = lambda line: re.sub('\033\\[[0-9]+m', '', str(line))
-    
+    def nocolor(line): return re.sub('\033\\[[0-9]+m', '', str(line))
+
     # go through all command parts and modify those lines
     for part in parts[1:]:
         tmp_lines = []
@@ -186,7 +200,6 @@ def run_command(fullcommand):
         elif not any(phase.values()):
             log.err('Invalid command (bad regex)!')
             return
-        
 
         # deal with phases
         elif phase['~']:
@@ -199,7 +212,8 @@ def run_command(fullcommand):
                         tmp_lines.append(line)
                 elif type(line) == list:
                     # pick groups if at least one line starts with {grepignore} or matches grep
-                    sublines = [l for l in line if str(l).startswith('{grepignore}') or part in nocolor(l)]
+                    sublines = [l for l in line if str(l).startswith(
+                        '{grepignore}') or part in nocolor(l)]
                     if [x for x in sublines if (not str(x).startswith('{grepignore}') or part in nocolor(x)) and x.strip()]:
                         tmp_lines.append(sublines)
         elif phase['~~']:
@@ -212,22 +226,25 @@ def run_command(fullcommand):
                         tmp_lines.append(line)
                 elif type(line) == list:
                     # pick groups if at least one line starts with {grepignore} or matches grep
-                    sublines = [l for l in line if str(l).startswith('{grepignore}') or re.search(part, nocolor(l.strip()))]
+                    sublines = [l for l in line if str(l).startswith(
+                        '{grepignore}') or re.search(part, nocolor(l.strip()))]
                     if [x for x in sublines if (not str(x).startswith('{grepignore}') or part in nocolor(x)) and x.strip()]:
                         tmp_lines.append(sublines)
-        elif phase[modifier]: # TODO line intervals and more features
+        elif phase[modifier]:  # TODO line intervals and more features
             # modifying
             log.debug_command('  modification \'%s\'' % part)
             phase[modifier] = False
-            # less? 
+            # less?
             if part.endswith('L'):
                 less_lines = []
                 for line in lines:
                     if type(line) == str:
-                        less_lines.append(nocolor(re.sub('^\\{grepignore\\}', '', line)))
+                        less_lines.append(
+                            nocolor(re.sub('^\\{grepignore\\}', '', line)))
                     elif type(line) == list:
                         for subline in line:
-                            less_lines.append(nocolor(re.sub('^\\{grepignore\\}', '', subline)))
+                            less_lines.append(
+                                nocolor(re.sub('^\\{grepignore\\}', '', subline)))
                 with tempfile.NamedTemporaryFile() as f:
                     f.write('\n'.join(less_lines).encode())
                     f.flush()
@@ -252,10 +269,14 @@ def run_command(fullcommand):
             for subline in line:
                 log.tprint(re.sub('^\\{grepignore\\}', '', subline))
 
+
 """
 Important command functions
 """
-def parse_sequence(sequence): # parses '1,3-5,9' into ['1', '3', '4', '5', '9']
+
+
+# parses '1,3-5,9' into ['1', '3', '4', '5', '9']
+def parse_sequence(sequence):
     result = []
     for part in sequence.split(','):
         part = part.strip()
@@ -265,6 +286,7 @@ def parse_sequence(sequence): # parses '1,3-5,9' into ['1', '3', '4', '5', '9']
         if begin.isdigit() and end.isdigit():
             result += [str(x) for x in range(int(begin), int(end)+1)]
     return result
+
 
 def wizard(questions):
     for q in questions:
@@ -276,21 +298,24 @@ def wizard(questions):
 Format functions
 """
 
+
 def get_format_len_information(infos):
     return (
         max([0]+[len('%d' % i[0]) for i in infos]),
         max([0]+[2 + len('%s' % i[2]) for i in infos]),
         max([0]+[len(i[4]) for i in infos]),
-        max([0]+[(len(i[-1]) 
-                  if i[3] != Database.INFORMATION_COMPOSITE 
+        max([0]+[(len(i[-1])
+                  if i[3] != Database.INFORMATION_COMPOSITE
                   else len(','.join([str(x) for x in i[-1]])) + 2) for i in infos]),
     )
+
 
 def get_format_len_ring(rings):
     return (
         max([0]+[len('%s' % r[1]) for r in rings]),
-        
+
     )
+
 
 def get_format_len_time(times):
     return (
@@ -298,10 +323,12 @@ def get_format_len_time(times):
         #max([0]+[len('%s' % t[1]) for t in times]),
     )
 
+
 def get_format_len_location(locations):
     return (
         max([0]+[len('%d' % l[0]) for l in locations]),
     )
+
 
 def format_ring(ring_id, name, password, reference_date, note, name_len):
     return '%*s  %-15s%s' % (
@@ -310,6 +337,7 @@ def format_ring(ring_id, name, password, reference_date, note, name_len):
         '(ref: %s)' % reference_date,
         ' # %s' % note if note else '',
     )
+
 
 def format_association(association_id, ring_id, level, accuracy, valid, modified, note, use_modified=True):
     color = log.COLOR_NONE
@@ -322,7 +350,7 @@ def format_association(association_id, ring_id, level, accuracy, valid, modified
             color = log.COLOR_BROWN
     return '%s%-d  %s (%sacc %d%s%s)%s' % (
         color,
-        #id_len,
+        # id_len,
         association_id,
         note if note else '',
         'lvl %d, ' % level if level else '',
@@ -330,7 +358,8 @@ def format_association(association_id, ring_id, level, accuracy, valid, modified
         ', mod '+modified if use_modified else '',
         ', invalid' if not valid else '',
         log.COLOR_NONE,
-        )
+    )
+
 
 def format_information(information_id, subject_id, codename, info_type, name, level, accuracy, valid, modified, note, value, id_len, codename_len, name_len, value_len, keywords=None, use_codename=True, use_modified=True):
     color = log.COLOR_NONE
@@ -351,7 +380,7 @@ def format_information(information_id, subject_id, codename, info_type, name, le
         name_len,
         name,
         value_len,
-        ('{%s}' % ','.join(str(x) for x in value) 
+        ('{%s}' % ','.join(str(x) for x in value)
          if info_type == Database.INFORMATION_COMPOSITE
          else value),
         'lvl %d, ' % level if level else '',
@@ -360,10 +389,11 @@ def format_information(information_id, subject_id, codename, info_type, name, le
         ', invalid' if not valid else '',
         (('# '+note) if note else '') if keywords is None else (', '.join(keywords)),
         log.COLOR_NONE,
-        )
+    )
+
 
 def format_location(location_id, name, lat, lon, accuracy, valid, modified, note, id_len, use_modified=True):
-    #if gps:
+    # if gps:
     #    lat, _, lon = gps[6:-1].partition(' ')
     '''
     lat = '%c%d %d\' %.3f "' % (('N' if lat > 0 else 'S',) 
@@ -399,7 +429,8 @@ def format_location(location_id, name, lat, lon, accuracy, valid, modified, note
         ', invalid' if not valid else '',
         ('# '+note) if note else '',
         log.COLOR_NONE,
-        )
+    )
+
 
 def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modified=True):
     color = log.COLOR_NONE
@@ -422,7 +453,7 @@ def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modi
         ', invalid' if not valid else '',
         ('# '+note) if note else '',
         log.COLOR_NONE,
-        )
+    )
 
 # # # # ## ## ### #### ###### ############################ ##### #### ### ## ## # # # #
 
@@ -430,6 +461,7 @@ def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modi
 # # # # ## ## ### #### ###### ############################ ##### #### ### ## ## # # # #
 # # # # ## ## ### #### ###### ############################ ##### #### ### ## ## # # # #
 # # # # ## ## ### #### ###### ############################ ##### #### ### ## ## # # # #
+
 
 # # # # ## ## ### #### ###### ############################ ##### #### ### ## ## # # # #
 help_description = """
@@ -440,27 +472,39 @@ add_command(Command('', '', 'help', lambda: []))
 """
 TEST COMMANDS
 """
+
+
 def test_function(*args):
     result = []
     return result
+
+
 add_command(Command('test', 'do actually tested action', '', test_function))
 
-def prompt_function(*_): # TODO for testing only!
+
+def prompt_function(*_):  # TODO for testing only!
     while True:
         print('> ', end='')
         exec(input())
     return []
+
+
 add_command(Command('prompt', 'gives python3 shell', '', prompt_function))
 
 """
 ASSOCIATION COMMANDS
 """
+
+
 def a_function(*_):
     associations = ensa.db.get_associations()
     return [format_association(*association, use_modified=True)
             for association in associations]
+
+
 add_command(Command('a', 'list associations for this ring', 'a', a_function))
 add_command(Command('aa', 'association creation', 'aa', lambda *_: []))
+
 
 def aaa_function(*args):
     try:
@@ -477,7 +521,11 @@ def aaa_function(*args):
         return []
     ensa.db.associate_association(association_id, association_ids)
     return []
-add_command(Command('aaa <association_id> <association_ids>', 'associate associations to an association', 'aaa', aaa_function))
+
+
+add_command(Command('aaa <association_id> <association_ids>',
+                    'associate associations to an association', 'aaa', aaa_function))
+
 
 def aai_function(*args):
     try:
@@ -494,7 +542,11 @@ def aai_function(*args):
         return []
     ensa.db.associate_information(association_id, information_ids)
     return []
-add_command(Command('aai <association_id> <information_ids>', 'associate information entries to an association', 'aai', aai_function))
+
+
+add_command(Command('aai <association_id> <information_ids>',
+                    'associate information entries to an association', 'aai', aai_function))
+
 
 def aal_function(*args):
     try:
@@ -511,7 +563,10 @@ def aal_function(*args):
         return []
     ensa.db.associate_location(association_id, location_ids)
     return []
-add_command(Command('aal <association_id> <location_ids>', 'associate location entries to an association', 'aal', aal_function))
+
+
+add_command(Command('aal <association_id> <location_ids>',
+                    'associate location entries to an association', 'aal', aal_function))
 
 
 def aas_function(*args):
@@ -529,7 +584,10 @@ def aas_function(*args):
         return []
     ensa.db.associate_subject(association_id, codenames)
     return []
-add_command(Command('aas <association_id> <codename>', 'associate subject to an association', 'aas', aas_function))
+
+
+add_command(Command('aas <association_id> <codename>',
+                    'associate subject to an association', 'aas', aas_function))
 
 
 def aat_function(*args):
@@ -547,19 +605,23 @@ def aat_function(*args):
         return []
     ensa.db.associate_time(association_id, time_ids)
     return []
-add_command(Command('aat <association_id> <time_ids>', 'associate time entries to an association', 'aat', aat_function))
+
+
+add_command(Command('aat <association_id> <time_ids>',
+                    'associate time entries to an association', 'aat', aat_function))
+
 
 def aaw_function(*_):
     if not ensa.current_ring:
         log.err('First select a ring with `rs <name>`.')
         return []
     note, level, accuracy, valid, confirm = wizard([
-            'Description:',
-            'Optional level of importance:',
-            'Accuracy of this entry (default 0):',
-            'Is the entry valid?',
-            '... Use provided information to create new association?',
-        ])
+        'Description:',
+        'Optional level of importance:',
+        'Accuracy of this entry (default 0):',
+        'Is the entry valid?',
+        '... Use provided information to create new association?',
+    ])
     if negative(confirm):
         return []
     level = int(level) if level.isdigit() else None
@@ -569,7 +631,10 @@ def aaw_function(*_):
     if association_id:
         log.info('Created new association with id #%d' % association_id)
     return []
-add_command(Command('aaw', 'use wizard to add new association to current ring', 'aaw', aaw_function))
+
+
+add_command(Command(
+    'aaw', 'use wizard to add new association to current ring', 'aaw', aaw_function))
 
 
 def ad_function(*args):
@@ -580,7 +645,10 @@ def ad_function(*args):
         log.err('Association ID must be specified.')
         return []
     return []
-add_command(Command('ad <association_id>', 'delete whole association', 'ad', ad_function))
+
+
+add_command(Command('ad <association_id>',
+                    'delete whole association', 'ad', ad_function))
 
 
 def ada_function(*args):
@@ -596,7 +664,10 @@ def ada_function(*args):
         return []
     ensa.db.dissociate_associations(association_id, ids)
     return []
-add_command(Command('ada <association_id> <association_ids>', 'remove associations from an association', 'ada', ada_function))
+
+
+add_command(Command('ada <association_id> <association_ids>',
+                    'remove associations from an association', 'ada', ada_function))
 
 
 def adi_function(*args):
@@ -612,7 +683,10 @@ def adi_function(*args):
         return []
     ensa.db.dissociate_informations(association_id, ids)
     return []
-add_command(Command('adi <association_id> <information_ids>', 'remove information entries from an association', 'adi', adi_function))
+
+
+add_command(Command('adi <association_id> <information_ids>',
+                    'remove information entries from an association', 'adi', adi_function))
 
 
 def adl_function(*args):
@@ -628,7 +702,10 @@ def adl_function(*args):
         return []
     ensa.db.dissociate_locations(association_id, ids)
     return []
-add_command(Command('adl <association_id> <location_ids>', 'remove locations from an association', 'adl', adl_function))
+
+
+add_command(Command('adl <association_id> <location_ids>',
+                    'remove locations from an association', 'adl', adl_function))
 
 
 def adt_function(*args):
@@ -644,19 +721,21 @@ def adt_function(*args):
         return []
     ensa.db.dissociate_times(association_id, ids)
     return []
-add_command(Command('adt <association_id> <time_ids>', 'remove times from an association', 'adt', adt_function))
 
+
+add_command(Command('adt <association_id> <time_ids>',
+                    'remove times from an association', 'adt', adt_function))
 
 
 def ag_function(*args, data_function=lambda *_: [], id_type=0, prepend_times=False, hide_details=False, use_modified=True):
 
-    if id_type == 0: # ID sequence, parse it
+    if id_type == 0:  # ID sequence, parse it
         ids = ','.join(parse_sequence(','.join(args)))
-    elif id_type == 1: # list of words, join it with ',' 
+    elif id_type == 1:  # list of words, join it with ','
         ids = ','.join('\'%s\'' % arg for arg in args)
-    elif id_type == 2: # string, join it with ' '
+    elif id_type == 2:  # string, join it with ' '
         ids = ' '.join(args)
-    elif id_type ==3: # keep it as tuple
+    elif id_type == 3:  # keep it as tuple
         ids = args
 
     if not ids:
@@ -678,33 +757,45 @@ def ag_function(*args, data_function=lambda *_: [], id_type=0, prepend_times=Fal
             aresult.append('-------------------')
         """
         time = '%s  ' % times[0][1] if times and prepend_times else ''
-        aresult.append(('{grepignore}%s#A' % time)+format_association(*association, use_modified=use_modified))
+        aresult.append(('{grepignore}%s#A' % time) +
+                       format_association(*association, use_modified=use_modified))
         if not hide_details:
             info_lens = get_format_len_information(infos)
             time_lens = get_format_len_time(times)
             location_lens = get_format_len_location(locations)
             for info in infos:
-                aresult.append('    #I'+format_information(*info, *info_lens, use_modified=False))
+                aresult.append('    #I'+format_information(*info,
+                                                           *info_lens, use_modified=False))
             for time in times:
-                aresult.append('    #T'+format_time(*time, *time_lens, use_modified=False))
+                aresult.append('    #T'+format_time(*time, *
+                                                    time_lens, use_modified=False))
             for location in locations:
-                aresult.append('    #L'+format_location(*location, *location_lens, use_modified=False))
+                aresult.append('    #L'+format_location(*location,
+                                                        *location_lens, use_modified=False))
             for a in associations:
-                aresult.append('    #A'+format_association(*a, use_modified=False))
+                aresult.append(
+                    '    #A'+format_association(*a, use_modified=False))
         result.append(aresult)
     return result
+
+
 add_command(Command('ag', 'show associations', 'ag', lambda *_: []))
-add_command(Command('aga <association_ids>', 'show associations with specific ID', 'aga', lambda *args: ag_function(*args, data_function=lambda ids: ensa.db.get_associations_by_ids(ids), prepend_times=False)))
-add_command(Command('agl <location_ids>', 'show associations with specific location', 'aga', lambda *args: ag_function(*args, data_function=lambda ids: ensa.db.get_associations_by_location(ids), prepend_times=False)))
-add_command(Command('agt <time_ids>', 'show associations with specific time entry', 'agt', lambda *args: ag_function(*args, data_function=lambda ids: ensa.db.get_associations_by_time(ids), prepend_times=False)))
-add_command(Command('agi <information_ids>', 'show associations with specific information', 'agi', lambda *args: ag_function(*args, data_function=lambda ids: ensa.db.get_associations_by_information(ids), prepend_times=False)))
-add_command(Command('ags <codenames>', 'show associations for specific subject', 'ags', lambda *args: ag_function(*args, data_function=lambda codenames: ensa.db.get_associations_by_subject(codenames), id_type=1, prepend_times=False)))
-add_command(Command('agn <string>', 'show associations matching description', 'agn', lambda *args: ag_function(*args, data_function=lambda string: ensa.db.get_associations_by_note(string), id_type=2, prepend_times=False)))
-
-
+add_command(Command('aga <association_ids>', 'show associations with specific ID', 'aga', lambda *args: ag_function(*
+                                                                                                                    args, data_function=lambda ids: ensa.db.get_associations_by_ids(ids), prepend_times=False)))
+add_command(Command('agl <location_ids>', 'show associations with specific location', 'aga', lambda *args: ag_function(*
+                                                                                                                       args, data_function=lambda ids: ensa.db.get_associations_by_location(ids), prepend_times=False)))
+add_command(Command('agt <time_ids>', 'show associations with specific time entry', 'agt', lambda *args: ag_function(*
+                                                                                                                     args, data_function=lambda ids: ensa.db.get_associations_by_time(ids), prepend_times=False)))
+add_command(Command('agi <information_ids>', 'show associations with specific information', 'agi',
+                    lambda *args: ag_function(*args, data_function=lambda ids: ensa.db.get_associations_by_information(ids), prepend_times=False)))
+add_command(Command('ags <codenames>', 'show associations for specific subject', 'ags', lambda *args: ag_function(*args,
+                                                                                                                  data_function=lambda codenames: ensa.db.get_associations_by_subject(codenames), id_type=1, prepend_times=False)))
+add_command(Command('agn <string>', 'show associations matching description', 'agn', lambda *args: ag_function(*
+                                                                                                               args, data_function=lambda string: ensa.db.get_associations_by_note(string), id_type=2, prepend_times=False)))
 
 
 add_command(Command('am', 'modify association', 'im', lambda *args: []))
+
 
 def ame_function(*args):
     try:
@@ -716,8 +807,9 @@ def ame_function(*args):
     data = ensa.db.get_association(association_id)
     if not data:
         return []
-    mapped = dict(zip([None, 'level', 'accuracy', 'valid', 'note'], [(x if type(x)==bytearray else x) if x else '' for x in data]))
-    #print(mapped)
+    mapped = dict(zip([None, 'level', 'accuracy', 'valid', 'note'], [
+                  (x if type(x) == bytearray else x) if x else '' for x in data]))
+    # print(mapped)
     # write into file
     with tempfile.NamedTemporaryFile() as f:
         for k in sorted(filter(None, mapped.keys())):
@@ -730,7 +822,7 @@ def ame_function(*args):
     change_occured = False
     for line in changes.splitlines():
         k, _, v = line.partition(b': ')
-        if k not in mapped.keys(): # ingore unknown keys
+        if k not in mapped.keys():  # ingore unknown keys
             continue
         try:
             v = type(mapped[k])(v.strip())
@@ -764,13 +856,17 @@ def ame_function(*args):
         # update DB
         del mapped[None]
         mapped['association_id'] = association_id
-        #print(mapped)
+        # print(mapped)
         ensa.db.update_association(**mapped)
         log.info('Association %s successfully changed.' % association_id)
     else:
         log.info('No change has been done.')
     return []
-add_command(Command('ame <association_id>', 'modify association with editor', 'ame', ame_function))
+
+
+add_command(Command('ame <association_id>',
+                    'modify association with editor', 'ame', ame_function))
+
 
 def ama_function(*args):
     try:
@@ -786,7 +882,11 @@ def ama_function(*args):
     ensa.db.update_association_metadata(association_ids, accuracy=value)
     log.info('Accuracy updated.')
     return []
-add_command(Command('ama <association_ids> <value>', 'modify association accuracy', 'ama', ama_function))
+
+
+add_command(Command('ama <association_ids> <value>',
+                    'modify association accuracy', 'ama', ama_function))
+
 
 def aml_function(*args):
     try:
@@ -801,7 +901,11 @@ def aml_function(*args):
     ensa.db.update_association_metadata(association_ids, level=value)
     log.info('Level updated.')
     return []
-add_command(Command('aml <association_ids> [<value>]', 'modify association level', 'aml', aml_function))
+
+
+add_command(Command(
+    'aml <association_ids> [<value>]', 'modify association level', 'aml', aml_function))
+
 
 def amd_function(*args):
     try:
@@ -817,7 +921,10 @@ def amd_function(*args):
     ensa.db.update_association_metadata(association_ids, note=value)
     log.info('Note updated.')
     return []
-add_command(Command('amd <association_id> <value>', 'modify association description', 'amd', amd_function))
+
+
+add_command(Command('amd <association_id> <value>',
+                    'modify association description', 'amd', amd_function))
 
 
 def amv_function(*args):
@@ -834,13 +941,17 @@ def amv_function(*args):
     ensa.db.update_association_metadata(association_ids, valid=value)
     log.info('Validity updated.')
     return []
-add_command(Command('amv <association_ids> <value>', 'modify association validity', 'amv', amv_function))
+
+
+add_command(Command('amv <association_ids> <value>',
+                    'modify association validity', 'amv', amv_function))
 
 
 def amaw_function(*args):
     try:
         association_ids = [x for x in parse_sequence(args[0])]
-        associations = [x for x in ensa.db.get_associations() if str(x[0]) in association_ids]
+        associations = [x for x in ensa.db.get_associations()
+                        if str(x[0]) in association_ids]
         association_ids = [str(x[0]) for x in associations]
         #association_lens = get_format_len_association(associations)
     except:
@@ -860,13 +971,17 @@ def amaw_function(*args):
         if old != value:
             ensa.db.update_association_metadata(association_id, accuracy=value)
     return []
-add_command(Command('amaw <association_ids>', 'use wizard to modify association accuracy', 'amaw', amaw_function))
+
+
+add_command(Command('amaw <association_ids>',
+                    'use wizard to modify association accuracy', 'amaw', amaw_function))
 
 
 def amlw_function(*args):
     try:
         association_ids = [x for x in parse_sequence(args[0])]
-        associations = [x for x in ensa.db.get_associations() if str(x[0]) in association_ids]
+        associations = [x for x in ensa.db.get_associations()
+                        if str(x[0]) in association_ids]
         association_ids = [str(x[0]) for x in associations]
         #association_lens = get_format_len_association(associations)
     except:
@@ -891,13 +1006,17 @@ def amlw_function(*args):
         if old != value:
             ensa.db.update_association_metadata(association_id, level=value)
     return []
-add_command(Command('amlw <association_ids>', 'use wizard to modify association level', 'amlw', amlw_function))
+
+
+add_command(Command('amlw <association_ids>',
+                    'use wizard to modify association level', 'amlw', amlw_function))
 
 
 def amdw_function(*args):
     try:
         association_ids = [x for x in parse_sequence(args[0])]
-        associations = [x for x in ensa.db.get_associations() if str(x[0]) in association_ids]
+        associations = [x for x in ensa.db.get_associations()
+                        if str(x[0]) in association_ids]
         association_ids = [str(x[0]) for x in associations]
         #association_lens = get_format_len_association(associations)
     except:
@@ -913,15 +1032,19 @@ def amdw_function(*args):
         if old != value:
             ensa.db.update_association_metadata(association_id, note=value)
     return []
-add_command(Command('amdw <association_ids>', 'use wizard to modify association description', 'amdw', amdw_function))
+
+
+add_command(Command('amdw <association_ids>',
+                    'use wizard to modify association description', 'amdw', amdw_function))
 
 
 def amvw_function(*args):
     try:
         association_ids = [x for x in parse_sequence(args[0])]
-        associations = [x for x in ensa.db.get_associations() if str(x[0]) in association_ids]
+        associations = [x for x in ensa.db.get_associations()
+                        if str(x[0]) in association_ids]
         association_ids = [str(x[0]) for x in associations]
-        #association_lens = get_format_len_association(associations) # TODO
+        # association_lens = get_format_len_association(associations) # TODO
     except:
         log.debug_error()
         log.err('Association ID must be specified.')
@@ -937,16 +1060,21 @@ def amvw_function(*args):
             print('changing')
             ensa.db.update_association_metadata(association_id, valid=value)
     return []
-add_command(Command('amvw <association_ids>', 'use wizard to modify association validity', 'amvw', amvw_function))
 
+
+add_command(Command('amvw <association_ids>',
+                    'use wizard to modify association validity', 'amvw', amvw_function))
 
 
 """
 INFORMATION COMMANDS
 """
 # TODO list standard names in help
-add_command(Command('i', 'print information overview for current subject', 'i', lambda *_: ['TODO']))
-add_command(Command('ia', 'add information to current subject', 'ia', lambda *_: []))
+add_command(Command(
+    'i', 'print information overview for current subject', 'i', lambda *_: ['TODO']))
+add_command(
+    Command('ia', 'add information to current subject', 'ia', lambda *_: []))
+
 
 def iab_function(*args):
     try:
@@ -956,8 +1084,8 @@ def iab_function(*args):
             value = args[1]
             filename = args[2]
             information_id = ensa.db.create_information(
-                Database.INFORMATION_TEXT, 
-                name, 
+                Database.INFORMATION_TEXT,
+                name,
                 value)
         elif len(args) == 2:
             """add content to existing information"""
@@ -970,12 +1098,12 @@ def iab_function(*args):
         ensa.db.add_binary(information_id, filename)
         """add extension as keyword"""
         extension = filename.rpartition('.')[2].lower()
-        ensa.db.add_keyword(information_id, 
+        ensa.db.add_keyword(information_id,
                             'extension:%s' % extension)
         """try to guess file type"""
         if extension in ('jpg', 'png', 'bmp', 'gif'):
             ensa.db.add_keyword(information_id, 'image')
-        if extension in ('doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 
+        if extension in ('doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
                          'pps', 'ppsx', 'pdf', 'odt', 'txt'):
             ensa.db.add_keyword(information_id, 'document')
         # TODO more
@@ -984,10 +1112,13 @@ def iab_function(*args):
         log.debug_error()
         return None
     return None
-add_command(Command('iab (<id>|<name> <value>) <filename>', 
-                    'add binary information from uploads/ folder to current subject', 
-                    'iab', 
+
+
+add_command(Command('iab (<id>|<name> <value>) <filename>',
+                    'add binary information from uploads/ folder to current subject',
+                    'iab',
                     iab_function))
+
 
 def iac_function(*args):
     try:
@@ -1001,8 +1132,10 @@ def iac_function(*args):
         log.debug_error()
         return []
     return []
-    
-add_command(Command('iac <name> <information_ids>', 'add composite information to current subject', 'iac', iac_function))
+
+
+add_command(Command('iac <name> <information_ids>',
+                    'add composite information to current subject', 'iac', iac_function))
 
 
 def iat_function(*args):
@@ -1012,17 +1145,19 @@ def iat_function(*args):
         if not value:
             log.err('Value must be specified.')
             return []
-        information_id = ensa.db.create_information(Database.INFORMATION_TEXT, 
-                                                    name, 
+        information_id = ensa.db.create_information(Database.INFORMATION_TEXT,
+                                                    name,
                                                     value)
         return information_id
     except:
         log.debug_error()
         return None
     return None
-add_command(Command('iat <name> <value>', 
-                    'add textual information to current subject', 
-                    'iat', 
+
+
+add_command(Command('iat <name> <value>',
+                    'add textual information to current subject',
+                    'iat',
                     iat_function))
 
 
@@ -1041,7 +1176,10 @@ def iak_function(*args):
     for keyword in keywords:
         ensa.db.add_keyword(information_ids, keyword)
     return []
-add_command(Command('iak <information_ids> <keywords>', 'add keywords to information', 'iak', iak_function))
+
+
+add_command(Command('iak <information_ids> <keywords>',
+                    'add keywords to information', 'iak', iak_function))
 
 
 def id_function(*args):
@@ -1050,9 +1188,12 @@ def id_function(*args):
     except:
         log.err('ID of information must be specified.')
         return []
-    ensa.db.delete_information(information_id) # TODO range
+    ensa.db.delete_information(information_id)  # TODO range
     return []
-add_command(Command('id <information_id>', 'delete information of current subject', 'id', id_function))
+
+
+add_command(Command('id <information_id>',
+                    'delete information of current subject', 'id', id_function))
 
 
 def idk_function(*args):
@@ -1065,8 +1206,11 @@ def idk_function(*args):
     except:
         keywords = None
     ensa.db.delete_keywords(information_id, keywords)
-add_command(Command('idk <information_id> [<keyword>]', 'delete keywords from information', 'idk', idk_function))
-    
+
+
+add_command(Command('idk <information_id> [<keyword>]',
+                    'delete keywords from information', 'idk', idk_function))
+
 '''
 def igb_function(*args, no_composite_parts=True):
     result = []
@@ -1083,6 +1227,8 @@ def igb_function(*args, no_composite_parts=True):
 add_command(Command('igb', 'get all binary information for current subject/ring', 'igb', igb_function))
 add_command(Command('igbc', 'get all binary information (even composite parts) for current subject/ring', 'igbc', lambda *args: igb_function(args, no_composite_parts=False)))
 '''
+
+
 def ig_function(*args, info_type=Database.INFORMATION_ALL, no_composite_parts=True):
     result = []
     infos = ensa.db.get_informations(info_type, no_composite_parts)
@@ -1092,15 +1238,22 @@ def ig_function(*args, info_type=Database.INFORMATION_ALL, no_composite_parts=Tr
     if len(infos) == 1:
         ensa.variables['last'] = infos[0][0]
     info_lens = get_format_len_information(infos)
-    result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
+    result = [format_information(
+        *info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
     return result
-add_command(Command('ig', 'get all information for current subject/ring', 'ig', lambda *args: ig_function(*args)))
-add_command(Command('iga', 'get all information including composite parts for current subject/ring', 'igc', lambda *args: ig_function(*args, no_composite_parts=False)))
-# TODO igc - composite, igca - composite with values (tree) 
+
+
+add_command(Command('ig', 'get all information for current subject/ring',
+                    'ig', lambda *args: ig_function(*args)))
+add_command(Command('iga', 'get all information including composite parts for current subject/ring',
+                    'igc', lambda *args: ig_function(*args, no_composite_parts=False)))
+# TODO igc - composite, igca - composite with values (tree)
 #add_command(Command('igb', 'get all binary information for current subject/ring', 'igb', lambda *args: ig_function(*args, info_type=Database.INFORMATION_BINARY)))
 #add_command(Command('igba', 'get all binary information including composite parts for current subject/ring', 'igbc', lambda *args: ig_function(args, info_type=Database.INFORMATION_BINARY, no_composite_parts=False)))
-add_command(Command('igt', 'get all textual information for current subject/ring', 'igt', lambda *args: ig_function(*args, info_type=Database.INFORMATION_TEXT)))
-add_command(Command('igta', 'get all textual information including composite parts for current subject/ring', 'igtc', lambda *args: ig_function(args, info_type=Database.INFORMATION_TEXT, no_composite_parts=False)))
+add_command(Command('igt', 'get all textual information for current subject/ring',
+                    'igt', lambda *args: ig_function(*args, info_type=Database.INFORMATION_TEXT)))
+add_command(Command('igta', 'get all textual information including composite parts for current subject/ring',
+                    'igtc', lambda *args: ig_function(args, info_type=Database.INFORMATION_TEXT, no_composite_parts=False)))
 
 
 def igk_function(*args):
@@ -1110,12 +1263,16 @@ def igk_function(*args):
         return []
     if len(infos) == 1:
         ensa.variables['last'] = infos[0][0]
-    keywords = ensa.db.get_keywords_for_informations(','.join([str(x[0]) for x in infos]))
+    keywords = ensa.db.get_keywords_for_informations(
+        ','.join([str(x[0]) for x in infos]))
     info_lens = get_format_len_information(infos)
-    result = [format_information(*info, *info_lens, keywords=sorted(x[1] for x in keywords if x[0] == info[0]), use_codename=(ensa.current_subject is None)) for info in infos]
+    result = [format_information(*info, *info_lens, keywords=sorted(x[1] for x in keywords if x[0]
+                                                                    == info[0]), use_codename=(ensa.current_subject is None)) for info in infos]
     return result
-    
-add_command(Command('igk', 'get all information with keywords for current subject', 'igk', igk_function))
+
+
+add_command(Command(
+    'igk', 'get all information with keywords for current subject', 'igk', igk_function))
 
 
 def igbk_all_function(*args):
@@ -1129,9 +1286,13 @@ def igbk_all_function(*args):
     if len(infos) == 1:
         ensa.variables['last'] = infos[0][0]
     info_lens = get_format_len_information(infos)
-    result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
+    result = [format_information(
+        *info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
     return result
-add_command(Command('igbk= <keyword>', 'get information having all keywords', 'igbk=', igbk_all_function))
+
+
+add_command(Command('igbk= <keyword>',
+                    'get information having all keywords', 'igbk=', igbk_all_function))
 
 
 def igbk_or_function(*args):
@@ -1145,12 +1306,17 @@ def igbk_or_function(*args):
     if len(infos) == 1:
         ensa.variables['last'] = infos[0][0]
     info_lens = get_format_len_information(infos)
-    result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
+    result = [format_information(
+        *info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
     return result
-add_command(Command('igbk <keyword>', 'get information having any of keywords', 'igbk', igbk_or_function))
+
+
+add_command(Command('igbk <keyword>',
+                    'get information having any of keywords', 'igbk', igbk_or_function))
 
 
 add_command(Command('im', 'modify information', 'im', lambda *args: []))
+
 
 def ime_function(*args):
     try:
@@ -1169,11 +1335,12 @@ def ime_function(*args):
         elif data[2] == ensa.db.INFORMATION_BINARY:
             value_column = 'path'
         '''
-    #elif data[2] == ensa.db.INFORMATION_COMPOSITE: # TODO composite without edit support?
+    # elif data[2] == ensa.db.INFORMATION_COMPOSITE: # TODO composite without edit support?
     #    value_column = 'compounds'
     else:
         value_column = 'ERROR'
-    mapped = dict(zip([None, 'subject', None, 'name', 'level', 'accuracy', 'valid', 'note', value_column], [(x if type(x)==bytearray else x) if x is not None else '' for x in data]))
+    mapped = dict(zip([None, 'subject', None, 'name', 'level', 'accuracy', 'valid', 'note', value_column], [
+                  (x if type(x) == bytearray else x) if x is not None else '' for x in data]))
     print('Mapped before change:', mapped)
     # write into file
     with tempfile.NamedTemporaryFile() as f:
@@ -1187,7 +1354,7 @@ def ime_function(*args):
     change_occured = False
     for line in changes.splitlines():
         k, _, v = line.partition(': ')
-        if k not in mapped.keys(): # ingore unknown keys
+        if k not in mapped.keys():  # ingore unknown keys
             continue
         v = type(mapped[k])(v.strip())
         if mapped[k] != v:
@@ -1201,7 +1368,7 @@ def ime_function(*args):
                     mapped[k] = 0
                     #log.err('Accuracy must be a number.')
                     #change_occured = False
-                    #break
+                    # break
             elif k == 'valid':
                 mapped[k] = positive(v)
             elif k == 'level':
@@ -1243,13 +1410,17 @@ def ime_function(*args):
         mapped['information_id'] = information_id
         if 'subject_id' not in mapped.keys():
             mapped['subject_id'] = ensa.current_subject
-        #print(mapped)
+        # print(mapped)
         ensa.db.update_information(**mapped)
         log.info('Information %s successfully changed.' % information_id)
     else:
         log.info('No change has been done.')
     return []
-add_command(Command('ime <information_id>', 'modify information with editor', 'ime', ime_function))
+
+
+add_command(Command('ime <information_id>',
+                    'modify information with editor', 'ime', ime_function))
+
 
 def ima_function(*args):
     try:
@@ -1265,7 +1436,11 @@ def ima_function(*args):
     ensa.db.update_information_metadata(information_ids, accuracy=value)
     log.info('Accuracy updated.')
     return []
-add_command(Command('ima <information_ids> <value>', 'modify information accuracy', 'ima', ima_function))
+
+
+add_command(Command('ima <information_ids> <value>',
+                    'modify information accuracy', 'ima', ima_function))
+
 
 def iml_function(*args):
     try:
@@ -1280,7 +1455,11 @@ def iml_function(*args):
     ensa.db.update_information_metadata(information_ids, level=value)
     log.info('Level updated.')
     return []
-add_command(Command('iml <information_ids> [<value>]', 'modify information level', 'iml', iml_function))
+
+
+add_command(Command(
+    'iml <information_ids> [<value>]', 'modify information level', 'iml', iml_function))
+
 
 def imn_function(*args):
     try:
@@ -1296,7 +1475,10 @@ def imn_function(*args):
     ensa.db.update_information_metadata(information_ids, note=value)
     log.info('Note updated.')
     return []
-add_command(Command('imn <information_id> <value>', 'modify information note', 'imn', imn_function))
+
+
+add_command(Command('imn <information_id> <value>',
+                    'modify information note', 'imn', imn_function))
 
 
 def imv_function(*args):
@@ -1313,20 +1495,25 @@ def imv_function(*args):
     ensa.db.update_information_metadata(information_ids, valid=value)
     log.info('Validity updated.')
     return []
-add_command(Command('imv <information_ids> <value>', 'modify information validity', 'imv', imv_function))
+
+
+add_command(Command('imv <information_ids> <value>',
+                    'modify information validity', 'imv', imv_function))
 
 
 def imaw_function(*args):
     try:
         information_ids = [x for x in parse_sequence(args[0])]
-        informations = [x for x in ensa.db.get_informations() if str(x[0]) in information_ids]
+        informations = [x for x in ensa.db.get_informations()
+                        if str(x[0]) in information_ids]
         information_ids = [str(x[0]) for x in informations]
         information_lens = get_format_len_information(informations)
     except:
         log.err('Information ID must be specified.')
         return []
     for information_id, information in zip(information_ids, informations):
-        log.info(format_information(*information, *information_lens, use_modified=True))
+        log.info(format_information(*information, *
+                                    information_lens, use_modified=True))
         while True:
             value, = wizard(['   Accuracy for this entry:'])
             try:
@@ -1338,20 +1525,25 @@ def imaw_function(*args):
         if old != value:
             ensa.db.update_information_metadata(information_id, accuracy=value)
     return []
-add_command(Command('imaw <information_ids>', 'use wizard to modify information accuracy', 'imaw', imaw_function))
+
+
+add_command(Command('imaw <information_ids>',
+                    'use wizard to modify information accuracy', 'imaw', imaw_function))
 
 
 def imlw_function(*args):
     try:
         information_ids = [x for x in parse_sequence(args[0])]
-        informations = [x for x in ensa.db.get_informations() if str(x[0]) in information_ids]
+        informations = [x for x in ensa.db.get_informations()
+                        if str(x[0]) in information_ids]
         information_ids = [str(x[0]) for x in informations]
         information_lens = get_format_len_information(informations)
     except:
         log.err('Information ID must be specified.')
         return []
     for information_id, information in zip(information_ids, informations):
-        log.info(format_information(*information, *information_lens, use_modified=True))
+        log.info(format_information(*information, *
+                                    information_lens, use_modified=True))
         while True:
             value, = wizard(['   Level for this entry:'])
             if not value:
@@ -1368,20 +1560,25 @@ def imlw_function(*args):
         if old != value:
             ensa.db.update_information_metadata(information_id, level=value)
     return []
-add_command(Command('imlw <information_ids>', 'use wizard to modify information level', 'imlw', imlw_function))
+
+
+add_command(Command('imlw <information_ids>',
+                    'use wizard to modify information level', 'imlw', imlw_function))
 
 
 def imnw_function(*args):
     try:
         information_ids = [x for x in parse_sequence(args[0])]
-        informations = [x for x in ensa.db.get_informations() if str(x[0]) in information_ids]
+        informations = [x for x in ensa.db.get_informations()
+                        if str(x[0]) in information_ids]
         information_ids = [str(x[0]) for x in informations]
         information_lens = get_format_len_information(informations)
     except:
         log.err('Information ID must be specified.')
         return []
     for information_id, information in zip(information_ids, informations):
-        log.info(format_information(*information, *information_lens, use_modified=True))
+        log.info(format_information(*information, *
+                                    information_lens, use_modified=True))
         value, = wizard(['   Note for this entry:'])
         if not value:
             value = None
@@ -1389,21 +1586,26 @@ def imnw_function(*args):
         if old != value:
             ensa.db.update_information_metadata(information_id, note=value)
     return []
-add_command(Command('imnw <information_ids>', 'use wizard to modify informatio note', 'imnw', imnw_function))
+
+
+add_command(Command('imnw <information_ids>',
+                    'use wizard to modify informatio note', 'imnw', imnw_function))
 
 
 def imvw_function(*args):
     try:
         information_ids = [x for x in parse_sequence(args[0])]
-        informations = [x for x in ensa.db.get_informations() if str(x[0]) in information_ids]
+        informations = [x for x in ensa.db.get_informations()
+                        if str(x[0]) in information_ids]
         information_ids = [str(x[0]) for x in informations]
-        information_lens = get_format_len_information(informations) # TODO
+        information_lens = get_format_len_information(informations)  # TODO
     except:
         log.debug_error()
         log.err('Information ID must be specified.')
         return []
     for information_id, information in zip(information_ids, informations):
-        log.info(format_information(*information, *information_lens, use_modified=True))
+        log.info(format_information(*information, *
+                                    information_lens, use_modified=True))
         value, = wizard(['   Should this entry be valid?'])
         value = positive(value)
         old = positive(information[7])
@@ -1412,50 +1614,64 @@ def imvw_function(*args):
             print('changing')
             ensa.db.update_information_metadata(information_id, valid=value)
     return []
-add_command(Command('imvw <information_ids>', 'use wizard to modify information validity', 'imvw', imvw_function))
+
+
+add_command(Command('imvw <information_ids>',
+                    'use wizard to modify information validity', 'imvw', imvw_function))
 
 """
 KEYWORD COMMANDS
 """
 # other keyword methods are under Information
+
+
 def k_function(*args):
     return [x[0] for x in ensa.db.get_keywords()]
-add_command(Command('k', 'list keywords in current ring/subject', 'k', k_function))
+
+
+add_command(
+    Command('k', 'list keywords in current ring/subject', 'k', k_function))
 
 
 """
 LOCATION COMMANDS
 """
+
+
 def l_function(*_):
     locations = ensa.db.get_locations()
     if not locations:
         return []
     location_lens = get_format_len_location(locations)
+    '''
     # visualization testing # TODO move
     labels = [location[1] for location in locations]
     coords = [location[2:4] for location in locations]
-    get_map(coords, labels).savefig('files/tmp/map.png', bbox_inches='tight', pad_inches=0)
-
-        
-
-    return [format_location(*location, *location_lens, use_modified=True) 
+    get_map(coords, labels).savefig(
+        'files/tmp/map.png', bbox_inches='tight', pad_inches=0)
+    '''
+    return [format_location(*location, *location_lens, use_modified=True)
             for location in locations]
+
+
 add_command(Command('l', 'list locations for current ring', 'l', l_function))
-add_command(Command('la', 'add new location for current ring', 'la', lambda *_: ['TODO']))
+add_command(Command('la', 'add new location for current ring',
+                    'la', lambda *_: ['TODO']))
+
 
 def law_function(*_):
     if not ensa.current_ring:
         log.err('First select a ring with `rs <name>`.')
         return []
     name, lat, lon, accuracy, valid, note, confirm = wizard([
-            'Name of the place:',
-            'Latitude (e.g. -50.079795):',
-            'Longitude (e.g. -14.429710):',
-            'Accuracy of this entry (default 0):',
-            'Is the entry valid?',
-            'Optional comment:',
-            '... Use provided information to create new location?',
-        ])
+        'Name of the place:',
+        'Latitude (e.g. -50.079795):',
+        'Longitude (e.g. -14.429710):',
+        'Accuracy of this entry (default 0):',
+        'Is the entry valid?',
+        'Optional comment:',
+        '... Use provided information to create new location?',
+    ])
     if negative(confirm):
         return []
     try:
@@ -1466,16 +1682,20 @@ def law_function(*_):
         lon = None
     accuracy = int(accuracy) if accuracy.isdigit() else 0
     valid = not negative(valid)
-    location_id = ensa.db.create_location(name, lat, lon, accuracy, valid, note)
+    location_id = ensa.db.create_location(
+        name, lat, lon, accuracy, valid, note)
     if location_id:
         log.info('Created new location with id #%d' % location_id)
     else:
         log.err('Adding new location failed.')
     return []
-add_command(Command('law', 
-                    'use wizard to add new location to current ring', 
-                    'law', 
+
+
+add_command(Command('law',
+                    'use wizard to add new location to current ring',
+                    'law',
                     law_function))
+
 
 def ld_function(*args):
     try:
@@ -1485,13 +1705,16 @@ def ld_function(*args):
         log.debug_error()
         log.err('Correct location ID from this ring must be provided.')
     return []
-add_command(Command('ld <location_id>', 
-                    'delete location entry from current ring', 
-                    'ld', 
+
+
+add_command(Command('ld <location_id>',
+                    'delete location entry from current ring',
+                    'ld',
                     ld_function))
 
 
 add_command(Command('lm', 'modify location', 'lm', lambda *args: []))
+
 
 def lme_function(*args):
     try:
@@ -1503,14 +1726,16 @@ def lme_function(*args):
     data = ensa.db.get_location(location_id)
     if not data:
         return []
-    #print(data)
-    lat, _, lon = data[2].partition('(')[2].partition(' ') if data[2] else (None, None, None)
+    # print(data)
+    lat, _, lon = data[2].partition('(')[2].partition(
+        ' ') if data[2] else (None, None, None)
     if lon:
         lon = lon[:-1]
-    data = data[:2]+(lat,lon)+data[3:]
+    data = data[:2]+(lat, lon)+data[3:]
     # add labels
-    mapped = dict(zip([None, 'name', 'lat', 'lon', 'accuracy', 'valid', 'note'], [(x if type(x)==bytearray else x) if x else '' for x in data]))
-    #print(mapped)
+    mapped = dict(zip([None, 'name', 'lat', 'lon', 'accuracy', 'valid', 'note'], [
+                  (x if type(x) == bytearray else x) if x else '' for x in data]))
+    # print(mapped)
     # write into file
     with tempfile.NamedTemporaryFile() as f:
         for k in sorted(filter(None, mapped.keys())):
@@ -1523,7 +1748,7 @@ def lme_function(*args):
     change_occured = False
     for line in changes.splitlines():
         k, _, v = line.partition(': ')
-        if k not in mapped.keys(): # ingore unknown keys
+        if k not in mapped.keys():  # ingore unknown keys
             continue
         v = type(mapped[k])(v.strip())
         if mapped[k] != v:
@@ -1570,7 +1795,10 @@ def lme_function(*args):
     else:
         log.info('No change has been done.')
     return []
-add_command(Command('lme <location_id>', 'modify location with editor', 'lme', lme_function))
+
+
+add_command(Command('lme <location_id>',
+                    'modify location with editor', 'lme', lme_function))
 
 
 def lma_function(*args):
@@ -1587,7 +1815,11 @@ def lma_function(*args):
     ensa.db.update_location_metadata(location_ids, accuracy=value)
     log.info('Accuracy updated.')
     return []
-add_command(Command('lma <location_ids> <value>', 'modify location accuracy', 'lma', lma_function))
+
+
+add_command(Command('lma <location_ids> <value>',
+                    'modify location accuracy', 'lma', lma_function))
+
 
 def lmn_function(*args):
     try:
@@ -1603,7 +1835,10 @@ def lmn_function(*args):
     ensa.db.update_location_metadata(location_ids, note=value)
     log.info('Note updated.')
     return []
-add_command(Command('lmn <location_ids> <value>', 'modify location note', 'lmn', lmn_function))
+
+
+add_command(Command('lmn <location_ids> <value>',
+                    'modify location note', 'lmn', lmn_function))
 
 
 def lmv_function(*args):
@@ -1620,13 +1855,17 @@ def lmv_function(*args):
     ensa.db.update_location_metadata(location_ids, valid=value)
     log.info('Validity updated.')
     return []
-add_command(Command('lmv <location_ids> <value>', 'modify location validity', 'lmv', lmv_function))
+
+
+add_command(Command('lmv <location_ids> <value>',
+                    'modify location validity', 'lmv', lmv_function))
 
 
 def lmaw_function(*args):
     try:
         location_ids = [x for x in parse_sequence(args[0])]
-        locations = [x for x in ensa.db.get_locations() if str(x[0]) in location_ids]
+        locations = [x for x in ensa.db.get_locations() if str(x[0])
+                     in location_ids]
         location_ids = [str(x[0]) for x in locations]
         location_lens = get_format_len_location(locations)
     except:
@@ -1645,13 +1884,17 @@ def lmaw_function(*args):
         if old != value:
             ensa.db.update_location_metadata(location_id, accuracy=value)
     return []
-add_command(Command('lmaw <location_ids>', 'use wizard to modify location accuracy', 'lmaw', lmaw_function))
+
+
+add_command(Command('lmaw <location_ids>',
+                    'use wizard to modify location accuracy', 'lmaw', lmaw_function))
 
 
 def lmnw_function(*args):
     try:
         location_ids = [x for x in parse_sequence(args[0])]
-        locations = [x for x in ensa.db.get_locations() if str(x[0]) in location_ids]
+        locations = [x for x in ensa.db.get_locations() if str(x[0])
+                     in location_ids]
         location_ids = [str(x[0]) for x in locations]
         location_lens = get_format_len_location(locations)
     except:
@@ -1666,13 +1909,17 @@ def lmnw_function(*args):
         if old != value:
             ensa.db.update_location_metadata(location_id, note=value)
     return []
-add_command(Command('lmnw <location_ids>', 'use wizard to modify location note', 'lmnw', lmnw_function))
+
+
+add_command(Command('lmnw <location_ids>',
+                    'use wizard to modify location note', 'lmnw', lmnw_function))
 
 
 def lmvw_function(*args):
     try:
         location_ids = [x for x in parse_sequence(args[0])]
-        locations = [x for x in ensa.db.get_locations() if str(x[0]) in location_ids]
+        locations = [x for x in ensa.db.get_locations() if str(x[0])
+                     in location_ids]
         location_ids = [str(x[0]) for x in locations]
         location_lens = get_format_len_location(locations)
     except:
@@ -1686,14 +1933,17 @@ def lmvw_function(*args):
         if value ^ old:
             ensa.db.update_location_metadata(location_id, valid=value)
     return []
-add_command(Command('lmvw <location_ids>', 'use wizard to modify location validity', 'lmvw', lmvw_function))
 
+
+add_command(Command('lmvw <location_ids>',
+                    'use wizard to modify location validity', 'lmvw', lmvw_function))
 
 
 """
 OPTIONS COMMANDS
 """
-o_function = lambda *_: ['    %-30s  %s' % (k, (str(v[0] if v[1] != str else '\''+v[0]+'\'').replace('\n', '\\n').replace('\r', '\\r')) if k not in ensa.censore_keys else '*********') for k,v in ensa.config.items()]
+o_function = lambda *_: ['    %-30s  %s' % (k, (str(v[0] if v[1] != str else '\''+v[0]+'\'').replace(
+    '\n', '\\n').replace('\r', '\\r')) if k not in ensa.censore_keys else '*********') for k, v in ensa.config.items()]
 o_description = """Active Ensa configuration can be printed with `peo` and `o` command.
 
 Default configuration is located in source/ensa.py.
@@ -1703,6 +1953,8 @@ Configuration can be changed on the fly using the `os` command.
 add_command(Command('o', 'Ensa options (alias for `peo`)', 'o', o_function))
 
 # os
+
+
 def os_function(*args):
     try:
         key = args[0]
@@ -1715,7 +1967,10 @@ def os_function(*args):
         value = positive(value)
     ensa.config[key] = (typ(value), typ)
     return []
-add_command(Command('os <key> <value>', 'change Ensa configuration', 'os', os_function))
+
+
+add_command(Command('os <key> <value>',
+                    'change Ensa configuration', 'os', os_function))
 
 """
 PRINT COMMANDS
@@ -1723,7 +1978,7 @@ PRINT COMMANDS
 add_command(Command('p', 'print', 'p', lambda *_: []))
 
 
-# pe 
+# pe
 add_command(Command('pe', 'print ensa-related information', 'pe', lambda *_: []))
 
 
@@ -1733,14 +1988,14 @@ add_command(Command('peo', 'print ensa configuration', 'o', o_function))
 """
 Quit
 """
-add_command(Command('q', 'quit', '', lambda *_: [])) # solved in ensa
-
-
+add_command(Command('q', 'quit', '', lambda *_: []))  # solved in ensa
 
 
 """
 RING COMMANDS
 """
+
+
 def r_function(*args):
     rings = ensa.db.get_rings(name=(args[0] if args else None))
     """use ring name as last if only result"""
@@ -1749,11 +2004,14 @@ def r_function(*args):
     # TODO count subjects, show if encrypted, show notes, show if selected
     ring_lens = get_format_len_ring(rings)
     return [format_ring(*ring, *ring_lens) for ring in rings]
+
+
 add_command(Command('r [<name>]', 'print rings', 'r', r_function))
 
+
 def ra_function(*args):
-    
-    #name, encrypted, note, confirm = wizard([
+
+    # name, encrypted, note, confirm = wizard([
     encrypted = False
     wizard_questions = [
         'Name of the ring (e.g. Work):',
@@ -1788,14 +2046,18 @@ def ra_function(*args):
     ensa.variables['last'] = result
     ensa.current_ring, ensa.current_reference_date = ensa.db.select_ring(name)
     if ensa.current_reference_date == 'now':
-       ensa.current_reference_date = time.strftime('%Y-%m-%d')
+        ensa.current_reference_date = time.strftime('%Y-%m-%d')
     else:
-        ensa.current_reference_date = datetime.strptime(ensa.current_reference_date, '%Y-%m-%d')
+        ensa.current_reference_date = datetime.strptime(
+            ensa.current_reference_date, '%Y-%m-%d')
     if ensa.current_ring:
         log.info('Currently working with \'%s\' ring.' % name)
         log.set_prompt(key=name, symbol=')')
     return []
+
+
 add_command(Command('ra', 'add new ring', 'ra', ra_function))
+
 
 def rd_function(*args):
     if not args:
@@ -1815,7 +2077,10 @@ def rd_function(*args):
         log.err('No ring with that name exists.')
         return []
     return []
+
+
 add_command(Command('rd <ring>', 'delete ring', 'rd', rd_function))
+
 
 def rs_function(*args):
     try:
@@ -1825,11 +2090,13 @@ def rs_function(*args):
             log.set_prompt()
             return []
         name = args[0]
-        ensa.current_ring, ensa.current_reference_date = ensa.db.select_ring(name)
+        ensa.current_ring, ensa.current_reference_date = ensa.db.select_ring(
+            name)
         if ensa.current_reference_date == 'now':
-           ensa.current_reference_date = time.strftime('%Y-%m-%d')
+            ensa.current_reference_date = time.strftime('%Y-%m-%d')
         else:
-            ensa.current_reference_date = datetime.strptime(ensa.current_reference_date, '%Y-%m-%d')
+            ensa.current_reference_date = datetime.strptime(
+                ensa.current_reference_date, '%Y-%m-%d')
         if ensa.current_ring:
             ensa.current_subject = None
             log.info('Currently working with \'%s\' ring.' % name)
@@ -1838,10 +2105,23 @@ def rs_function(*args):
         log.err('Ring name must be specified.')
         log.debug_error()
     return []
+
+
 add_command(Command('rs <ring>', 'select a ring', 'rs', rs_function))
 
+"""rms - ring modify - standardize"""
 
-def rr_function(*args):
+
+def rms_function(*_):
+    ensa.db.standardize()
+    return []
+
+
+add_command(Command('rm', 'ring modification', 'rm', lambda *_: []))
+add_command(Command('rms', 'standardize ring data', 'rms', rms_function))
+
+
+def rmr_function(*args):
     try:
         reference_date = args[0].lower()
     except:
@@ -1859,24 +2139,33 @@ def rr_function(*args):
     if ensa.current_reference_date == 'now':
         ensa.current_reference_date = time.strftime('%Y-%m-%d')
     else:
-        ensa.current_reference_date = datetime.strptime(ensa.current_reference_date, '%Y-%m-%d')
+        ensa.current_reference_date = datetime.strptime(
+            ensa.current_reference_date, '%Y-%m-%d')
     return []
-add_command(Command('rr <now|YYYY-mm-dd>', 'set reference date for current ring', 'rr', rr_function))
+
+
+add_command(Command('rmr <now|YYYY-mm-dd>',
+                    'set reference date for current ring', 'rmr', rmr_function))
 
 
 """
 SUBJECT COMMANDS
 """
+
+
 def s_function(*args):
     codename = args[0] if args else None
     subjects = ensa.db.get_subjects(codename=codename)
     """ save codename if only one match"""
     if len(subjects) == 1:
         ensa.variables['last'] = subjects[0][0]
-    return ['%10s (#%d)  %20s  %s' 
-            % (codename, subject_id, created, note if note else '') 
+    return ['%10s (#%d)  %20s  %s'
+            % (codename, subject_id, created, note if note else '')
             for subject_id, codename, created, note in subjects]
+
+
 add_command(Command('s', 'list subjects in the current ring', 's', s_function))
+
 
 def sa_function(*args):
     try:
@@ -1888,38 +2177,39 @@ def sa_function(*args):
     #ensa.variables['last'] = str(subject_id)
     ensa.variables['last'] = codename
     if ensa.current_subject:
-        log.set_prompt(key='%s/%s' 
-                       % (ensa.db.get_ring_name(ensa.current_ring), 
-                          codename), 
+        log.set_prompt(key='%s/%s'
+                       % (ensa.db.get_ring_name(ensa.current_ring),
+                          codename),
                        symbol=']')
         log.info('Currently working with \'%s\' subject.' % codename)
     return []
-        
-add_command(Command('sa <codename>', 'add new subject in the current ring', 'sa', sa_function))
 
+
+add_command(Command('sa <codename>',
+                    'add new subject in the current ring', 'sa', sa_function))
 
 
 def sawp_function(*_):
     # general info
     i = {}
-    (codename, portrait_name, i['firstname'], i['middlename'], i['lastname'], 
-     i['sex'], i['y'], i['m'], i['d'], i['race'], i['religion'], 
-     i['politics'], i['orientation']) = wizard([
-        'Codename for the subject:',
-        'Name of portrait photo (in files/uploads/):',
-        'First name:',
-        'Middle name:',
-        'Last name:',
-        'Sex:',
-        'Year of birth:',
-        'Month of birth:',
-        'Day of birth:',
-        'Race:',
-        'Religion:',
-        'Politics:',
-        'Orientation:',
-    ])
-    
+    (codename, portrait_name, i['firstname'], i['middlename'], i['lastname'],
+     i['sex'], i['birth_year'], i['birth_month'], i['birth_day'], i['race'],
+     i['religion'], i['politics'], i['orientation']) = wizard([
+         'Codename for the subject:',
+         'Name of portrait photo (in files/uploads/):',
+         'First name:',
+         'Middle name:',
+         'Last name:',
+         'Sex:',
+         'Year of birth:',
+         'Month of birth:',
+         'Day of birth:',
+         'Race:',
+         'Religion:',
+         'Politics:',
+         'Orientation:',
+     ])
+
     if not codename:
         log.err('Codename must be specified.')
         return []
@@ -1935,8 +2225,8 @@ def sawp_function(*_):
             traceback.print_exc()
 
     if ensa.current_subject:
-        log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring), 
-                                                            codename), 
+        log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring),
+                                      codename),
                        symbol=']')
         log.info('Currently working with \'%s\' subject.' % codename)
 
@@ -1952,40 +2242,40 @@ def sawp_function(*_):
         if value:
             information_ids.append(ensa.db.create_information(
                 Database.INFORMATION_TEXT, name, value))
-    ensa.db.add_keyword(','.join(str(x) 
-                        for x in filter(None, information_ids)), 
+    ensa.db.add_keyword(','.join(str(x)
+                                 for x in filter(None, information_ids)),
                         'general')
-    
+
     # address
     log.newline()
     while True:
         i = {}
         add_address, = wizard(['Add address entry?'])
         if positive(add_address):
-            (i['country'], i['province'], i['city'], i['street'], 
+            (i['country'], i['province'], i['city'], i['street'],
              i['street_number'], i['postal'], valid, lat, lon) = wizard([
-                'Country:',
-                'Province:',
-                'City:',
-                'Street:',
-                'Street number:',
-                'Postal code:',
-                'Is the address currently valid?',
-                'Latitude (e.g. -50.079795):',
-                'Longitude (e.g. -14.429710):',
-            ])
+                 'Country:',
+                 'Province:',
+                 'City:',
+                 'Street:',
+                 'Street number:',
+                 'Postal code:',
+                 'Is the address currently valid?',
+                 'Latitude (e.g. -50.079795):',
+                 'Longitude (e.g. -14.429710):',
+             ])
             valid = positive(valid)
-            information_ids = filter(None, 
-                [ensa.db.create_information(Database.INFORMATION_TEXT, 
-                                            name, 
-                                            value, 
-                                            valid=valid) 
-                 for name,value in i.items() if value])
+            information_ids = filter(None,
+                                     [ensa.db.create_information(Database.INFORMATION_TEXT,
+                                                                 name,
+                                                                 value,
+                                                                 valid=valid)
+                                      for name, value in i.items() if value])
             if information_ids:
                 address_id = ensa.db.create_information(
-                    Database.INFORMATION_COMPOSITE, 
-                    'address', 
-                    ','.join(str(x) for x in information_ids), 
+                    Database.INFORMATION_COMPOSITE,
+                    'address',
+                    ','.join(str(x) for x in information_ids),
                     valid=valid)
             try:
                 lat = float(lat)
@@ -1995,13 +2285,13 @@ def sawp_function(*_):
                 lon = float(lon)
             except:
                 lon = None
-            location_id = ensa.db.create_location('%s\'s home' 
+            location_id = ensa.db.create_location('%s\'s home'
                                                   % codename.title(),
                                                   lat,
                                                   lon,
                                                   valid=valid)
-            association_id = ensa.db.create_association(valid=valid, 
-                                                        note='%s\'s home' 
+            association_id = ensa.db.create_association(valid=valid,
+                                                        note='%s\'s home'
                                                         % codename.title())
             ensa.db.associate_information(association_id, address_id)
             ensa.db.associate_location(association_id, location_id)
@@ -2013,28 +2303,29 @@ def sawp_function(*_):
             '''
         else:
             break
-        
+
     # likes, dislikes, skills, traits
     for category, question in (
             ('nickname', 'Nickname for %s:' % codename),
             ('identifier', 'Unique %s\'s identifier:' % codename),
-            ('likes', '%s likes:' % codename.title()), 
-            ('dislikes', '%s dislikes:' % codename.title()), 
+            ('likes', '%s likes:' % codename.title()),
+            ('dislikes', '%s dislikes:' % codename.title()),
             ('skill', '%s\'s skill:' % codename.title()),
             ('trait', '%s\'s trait:' % codename.title()),
             ('asset', '%s\'s asset:' % codename.title()),
             ('medical', '%s\'s medical condition:' % codename.title()),
-            ):
+    ):
         log.newline()
         while True:
             value, = wizard([
                 question,
             ])
             if value:
-                ensa.db.create_information(Database.INFORMATION_TEXT, category, value)
+                ensa.db.create_information(
+                    Database.INFORMATION_TEXT, category, value)
             else:
                 break
-    
+
     """relationships"""
     log.newline()
     while True:
@@ -2046,27 +2337,23 @@ def sawp_function(*_):
             log.err('No such subject exists.')
             continue
         valid, relationship, level, accuracy,  = wizard(
-        [
-            'Is the relationship still valid?',
-            'Who is %s to %s?' % (codename, acq),
-            'What is the relationship level?',
-            'How accurate is the relationship definition?',
-        ])
+            [
+                'Is the relationship still valid?',
+                'Who is %s to %s?' % (codename, acq),
+                'What is the relationship level?',
+                'How accurate is the relationship definition?',
+            ])
         valid = positive(valid)
-        association_id = ensa.db.create_association(level=level, 
-                                                    accuracy=accuracy, 
-                                                    valid=valid, 
-                                                    note = ('%s-%s %s' 
-                                                            % (codename, 
-                                                               acq, 
-                                                               relationship)))
+        association_id = ensa.db.create_association(level=level,
+                                                    accuracy=accuracy,
+                                                    valid=valid,
+                                                    note=('%s-%s %s'
+                                                          % (codename,
+                                                             acq,
+                                                             relationship)))
         ensa.db.associate_subject(association_id, [codename, acq])
         # TODO bugged somehow
 
-
-
-
-    
     # work
     # probably creating company as new subject and associate employees to it is better approach
     """
@@ -2100,14 +2387,18 @@ def sawp_function(*_):
                 if information_ids:
                     ensa.db.create_information(Database.INFORMATION_COMPOSITE, 'address', ','.join(str(x) for x in information_ids))
         """
-
+    ensa.db.standardize()
+    return []
 
 
 add_command(Command('saw', 'subject wizards', 'saw', lambda *_: []))
-add_command(Command('sawp', 'use wizard to create a Person subject', 'sawp', sawp_function))
+add_command(
+    Command('sawp', 'use wizard to create a Person subject', 'sawp', sawp_function))
 # TODO `sawc`
 
 """subject - add relationship"""
+
+
 def sar_function(*args):
     try:
         acquaintance = args[0]
@@ -2117,16 +2408,18 @@ def sar_function(*args):
         return []
     codename = ensa.db.get_subject_codename(ensa.current_subject)
     as_note = '%s-%s %s' % (codename, acquaintance, relationship)
-    association_id = ensa.db.create_association( 
-        accuracy=ensa.config['interaction.default_accuracy'][0], 
-        valid=True, 
+    association_id = ensa.db.create_association(
+        accuracy=ensa.config['interaction.default_accuracy'][0],
+        valid=True,
         note=as_note)
-    ensa.db.associate_subject(association_id, [codename, 
+    ensa.db.associate_subject(association_id, [codename,
                                                acquaintance])
     return []
 
-add_command(Command('sar <codename> <relationship>', 'add relationship to a subject', 'sar', sar_function))
-    
+
+add_command(Command('sar <codename> <relationship>',
+                    'add relationship to a subject', 'sar', sar_function))
+
 
 def sd_function(*args):
     if not args:
@@ -2137,55 +2430,70 @@ def sd_function(*args):
             raise AttributeError
         if ensa.current_subject == subject_id:
             ensa.current_subject = None
-            log.set_prompt(key=ensa.db.get_ring_name(ensa.current_ring), symbol=')')
+            log.set_prompt(key=ensa.db.get_ring_name(
+                ensa.current_ring), symbol=')')
         ensa.db.delete_subject(subject_id)
     except:
         log.debug_error()
         log.err('No ring with that name exists.')
         return []
     return []
-    
-add_command(Command('sd <codename>', 'delete subject from the current ring', 'sd', sd_function))
+
+
+add_command(Command('sd <codename>',
+                    'delete subject from the current ring', 'sd', sd_function))
+
 
 def srp_function(*_):
+    ensa.db.standardize()
     if not ensa.current_subject:
         log.err('A subject must be selected.')
         return []
     codename = ensa.db.get_subject_codename(ensa.current_subject)
     print('Generating Person report for', codename)
-    
+
     infos = ensa.db.get_informations(no_composite_parts=False)
     """add keywords"""
-    infos = [i + ([x[1] for x in ensa.db.get_keywords_for_informations(i[0])],) 
+    infos = [i + ([x[1] for x in ensa.db.get_keywords_for_informations(i[0])],)
              for i in infos]
     person_report(infos, 'files/tmp/%s.pdf' % codename)
     print('Report is saved as files/tmp/%s.pdf.' % codename)
-add_command(Command('sr <codename>', 'subject report generation', 'sr', lambda *_: []))
-add_command(Command('srp', 'generate Person report of the current subject', 'srp', srp_function))
+
+
+add_command(Command('sr <codename>',
+                    'subject report generation', 'sr', lambda *_: []))
+add_command(Command(
+    'srp', 'generate Person report of the current subject', 'srp', srp_function))
 
 
 def ss_function(*args):
     if not args:
         ensa.current_subject = None
         log.info('Currently working outside subject.')
-        log.set_prompt(key=ensa.db.get_ring_name(ensa.current_ring), symbol=')')
+        log.set_prompt(key=ensa.db.get_ring_name(
+            ensa.current_ring), symbol=')')
         return []
     try:
         codename = args[0]
         ensa.current_subject = ensa.db.select_subject(codename)
         if ensa.current_subject:
             log.info('Currently working with \'%s\' subject.' % codename)
-            log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring), codename), symbol=']')
+            log.set_prompt(
+                key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring), codename), symbol=']')
     except:
         log.err('Subject codename must be specified.')
         log.debug_error()
     return []
+
+
 add_command(Command('ss <codename>', 'select a subject', 'ss', ss_function))
 
 
 """
 TIME COMMANDS
 """
+
+
 def t_function(*_):
     times = ensa.db.get_times()
     if not times:
@@ -2193,20 +2501,23 @@ def t_function(*_):
     time_lens = get_format_len_time(times)
     return [format_time(*time, *time_lens, use_modified=True)
             for time in times]
+
+
 add_command(Command('t', 'list time entries for current ring', 't', t_function))
+
 
 def taw_function(*_):
     if not ensa.current_ring:
         log.err('First select a ring with `rs <name>`.')
         return []
     date, time, accuracy, valid, note, confirm = wizard([
-            'Date (YYYY-mm-dd):',
-            'Time (HH:MM:SS):',
-            'Accuracy of this entry (default 0):',
-            'Is the entry valid?',
-            'Optional comment:',
-            '... Use provided information to create new time?',
-        ])
+        'Date (YYYY-mm-dd):',
+        'Time (HH:MM:SS):',
+        'Accuracy of this entry (default 0):',
+        'Is the entry valid?',
+        'Optional comment:',
+        '... Use provided information to create new time?',
+    ])
     if negative(confirm):
         return []
     accuracy = int(accuracy) if accuracy.isdigit() else 0
@@ -2215,14 +2526,17 @@ def taw_function(*_):
     if time_id:
         log.info('Created new time entry with id #%d' % time_id)
     return []
-add_command(Command('ta', 
-                    'add time entry to current ring', 
-                    'ta', 
-                    lambda *_: [])) # TODO?
-add_command(Command('taw', 
-                    'use wizard to add new time entry to current ring', 
-                    't', 
+
+
+add_command(Command('ta',
+                    'add time entry to current ring',
+                    'ta',
+                    lambda *_: []))  # TODO?
+add_command(Command('taw',
+                    'use wizard to add new time entry to current ring',
+                    't',
                     taw_function))
+
 
 def td_function(*args):
     try:
@@ -2232,40 +2546,70 @@ def td_function(*args):
         log.debug_error()
         log.err('Correct time ID from this ring must be provided.')
     return []
-add_command(Command('td <time_id>', 
-                    'delete time entry from current ring', 
-                    'td', 
+
+
+add_command(Command('td <time_id>',
+                    'delete time entry from current ring',
+                    'td',
                     td_function))
 
 
-
 add_command(Command('tl', 'timelines', 'tl', lambda *_: []))
+
+
 def tli_function(*args):
     return ag_function(*args, data_function=lambda ids: ensa.db.get_timeline_by_information(ids), prepend_times=True, hide_details=True, use_modified=False)
-add_command(Command('tli <information_ids>', 'show timelines for given informations', 'tli', tli_function))
+
+
+add_command(Command('tli <information_ids>',
+                    'show timelines for given informations', 'tli', tli_function))
+
+
 def tliv_function(*args):
     return ag_function(*args, data_function=lambda ids: ensa.db.get_timeline_by_information(ids), prepend_times=True, use_modified=False)
-add_command(Command('tliv <information_ids>', 'show timelines for given informations (verbose)', 'tli', tliv_function))
+
+
+add_command(Command('tliv <information_ids>',
+                    'show timelines for given informations (verbose)', 'tli', tliv_function))
+
 
 def tll_function(*args):
     return ag_function(*args, data_function=lambda ids: ensa.db.get_timeline_by_location(ids), prepend_times=True, hide_details=True, use_modified=False)
-add_command(Command('tll <location_ids>', 'show timelines for given locations', 'tll', tll_function))
+
+
+add_command(Command('tll <location_ids>',
+                    'show timelines for given locations', 'tll', tll_function))
+
 
 def tllv_function(*args):
     return ag_function(*args, data_function=lambda ids: ensa.db.get_timeline_by_location(ids), prepend_times=True, use_modified=False)
-add_command(Command('tllv <location_ids>', 'show timelines for given locations (verbose)', 'tll', tllv_function))
+
+
+add_command(Command('tllv <location_ids>',
+                    'show timelines for given locations (verbose)', 'tll', tllv_function))
+
 
 def tls_function(*args):
     return ag_function(*args, data_function=lambda codenames: ensa.db.get_timeline_by_subject(codenames), id_type=1, prepend_times=True, hide_details=True, use_modified=False)
-add_command(Command('tls <codename>', 'show timelines for given subjects', 'tls', tls_function))
+
+
+add_command(Command('tls <codename>',
+                    'show timelines for given subjects', 'tls', tls_function))
+
+
 def tlsv_function(*args):
     return ag_function(*args, data_function=lambda codenames: ensa.db.get_timeline_by_subject(codenames), id_type=1, prepend_times=True, use_modified=False)
-add_command(Command('tlsv <codename>', 'show timelines for given subjects (verbose)', 'tls', tlsv_function))
+
+
+add_command(Command('tlsv <codename>',
+                    'show timelines for given subjects (verbose)', 'tls', tlsv_function))
+
 
 def tlt_function(*args, hide_details=False, use_modified=True):
     start = None
     end = None
-    formats = {'dt': '%Y-%m-%d %H:%M:%S', 'd': '%Y-%m-%d', 't': '%H:%M:%S', 't2': '%H:%M'}
+    formats = {'dt': '%Y-%m-%d %H:%M:%S',
+               'd': '%Y-%m-%d', 't': '%H:%M:%S', 't2': '%H:%M'}
     # supported: t-t, d-, d-d, dt-, dt-t, dt-d, dt-dt
     # try treat start as time
     for f in ('t', 't2'):
@@ -2297,7 +2641,7 @@ def tlt_function(*args, hide_details=False, use_modified=True):
                     end = datetime.strptime(args[1], formats['d'])
                     print('d-d')
                 except:
-                    raise ValueError # so start must be dt
+                    raise ValueError  # so start must be dt
         except:
             # start must be datetime
             try:
@@ -2305,7 +2649,7 @@ def tlt_function(*args, hide_details=False, use_modified=True):
             except:
                 log.err('Date range format is not supported (DT- fail).')
                 return []
-            if len(args)==2:
+            if len(args) == 2:
                 print('dt-')
                 end = ensa.current_reference_date
             else:
@@ -2322,27 +2666,28 @@ def tlt_function(*args, hide_details=False, use_modified=True):
                             end = '%s %s' % (str(start)[:10], str(end)[-8:])
                             print('dt-t')
                         except:
-                            log.err('Date range format is not supported (DT-x fail).')
+                            log.err(
+                                'Date range format is not supported (DT-x fail).')
                             return []
-    #print(start)
-    #print(end)
-    return ag_function(start, 
-                       end, 
-                       data_function=lambda dates: 
-                       ensa.db.get_timeline_by_range(*dates), id_type=3, 
-                       prepend_times=True, 
-                       hide_details=hide_details, 
+    # print(start)
+    # print(end)
+    return ag_function(start,
+                       end,
+                       data_function=lambda dates:
+                       ensa.db.get_timeline_by_range(*dates), id_type=3,
+                       prepend_times=True,
+                       hide_details=hide_details,
                        use_modified=use_modified)
 
-add_command(Command('tlt <start> [<end>]', 'show timelines for given date range', 'tlt', lambda *args: tlt_function(*args, hide_details=True, use_modified=False)))
-add_command(Command('tltv <start> [<end>]', 'show timelines for given date range (verbose)', 'tltv', lambda *args: tlt_function(*args, use_modified=False)))
 
-
-
-
+add_command(Command('tlt <start> [<end>]', 'show timelines for given date range',
+                    'tlt', lambda *args: tlt_function(*args, hide_details=True, use_modified=False)))
+add_command(Command('tltv <start> [<end>]', 'show timelines for given date range (verbose)',
+                    'tltv', lambda *args: tlt_function(*args, use_modified=False)))
 
 
 add_command(Command('tm', 'modify time', 'tm', lambda *args: []))
+
 
 def tme_function(*args):
     try:
@@ -2355,10 +2700,11 @@ def tme_function(*args):
     if not data:
         return []
     d, _, t = data[1].partition(' ')
-    data = data[:1]+(d,t)+data[2:]
+    data = data[:1]+(d, t)+data[2:]
     # add labels
-    mapped = dict(zip([None, 'date', 'time', 'accuracy', 'valid', 'note'], [(x if type(x)==bytearray else x) if x else '' for x in data]))
-    #print(mapped)
+    mapped = dict(zip([None, 'date', 'time', 'accuracy', 'valid', 'note'], [
+                  (x if type(x) == bytearray else x) if x else '' for x in data]))
+    # print(mapped)
     # write into file
     with tempfile.NamedTemporaryFile() as f:
         for k in sorted(filter(None, mapped.keys())):
@@ -2371,7 +2717,7 @@ def tme_function(*args):
     change_occured = False
     for line in changes.splitlines():
         k, _, v = line.partition(': ')
-        if k not in mapped.keys(): # ingore unknown keys
+        if k not in mapped.keys():  # ingore unknown keys
             continue
         v = type(mapped[k])(v.strip())
         if mapped[k] != v:
@@ -2427,13 +2773,16 @@ def tme_function(*args):
         mapped['datetime'] = '%s %s' % (mapped['date'], mapped['time'])
         del mapped['date']
         del mapped['time']
-        #print(mapped)
+        # print(mapped)
         ensa.db.update_time(**mapped)
         log.info('Time entry %s successfully changed.' % time_id)
     else:
         log.info('No change has been done.')
     return []
-add_command(Command('tme <time_id>', 'modify time entry with editor', 'tme', tme_function))
+
+
+add_command(Command('tme <time_id>',
+                    'modify time entry with editor', 'tme', tme_function))
 
 
 def tma_function(*args):
@@ -2450,7 +2799,11 @@ def tma_function(*args):
     ensa.db.update_time_metadata(time_ids, accuracy=value)
     log.info('Accuracy updated.')
     return []
-add_command(Command('tma <location_ids> <value>', 'modify time accuracy', 'tma', tma_function))
+
+
+add_command(Command('tma <location_ids> <value>',
+                    'modify time accuracy', 'tma', tma_function))
+
 
 def tmn_function(*args):
     try:
@@ -2466,7 +2819,10 @@ def tmn_function(*args):
     ensa.db.update_time_metadata(time_ids, note=value)
     log.info('Note updated.')
     return []
-add_command(Command('tmn <time_ids> <value>', 'modify time note', 'tmn', tmn_function))
+
+
+add_command(Command('tmn <time_ids> <value>',
+                    'modify time note', 'tmn', tmn_function))
 
 
 def tmv_function(*args):
@@ -2483,7 +2839,10 @@ def tmv_function(*args):
     ensa.db.update_time_metadata(time_ids, valid=value)
     log.info('Validity updated.')
     return []
-add_command(Command('tmv <time_ids> <value>', 'modify time validity', 'tmv', tmv_function))
+
+
+add_command(Command('tmv <time_ids> <value>',
+                    'modify time validity', 'tmv', tmv_function))
 
 
 def tmaw_function(*args):
@@ -2508,7 +2867,10 @@ def tmaw_function(*args):
         if old != value:
             ensa.db.update_time_metadata(time_id, accuracy=value)
     return []
-add_command(Command('tmaw <time_ids>', 'use wizard to modify time accuracy', 'tmaw', tmaw_function))
+
+
+add_command(Command('tmaw <time_ids>',
+                    'use wizard to modify time accuracy', 'tmaw', tmaw_function))
 
 
 def tmnw_function(*args):
@@ -2529,7 +2891,10 @@ def tmnw_function(*args):
         if old != value:
             ensa.db.update_time_metadata(time_id, note=value)
     return []
-add_command(Command('tmnw <time_ids>', 'use wizard to modify time note', 'tmnw', tmnw_function))
+
+
+add_command(Command('tmnw <time_ids>',
+                    'use wizard to modify time note', 'tmnw', tmnw_function))
 
 
 def tmvw_function(*args):
@@ -2549,28 +2914,22 @@ def tmvw_function(*args):
         if value ^ old:
             ensa.db.update_time_metadata(time_id, valid=value)
     return []
-add_command(Command('tmvw <time_ids>', 'use wizard to modify time validity', 'tmvw', tmvw_function))
+
+
+add_command(Command('tmvw <time_ids>',
+                    'use wizard to modify time validity', 'tmvw', tmvw_function))
+
 
 def v_function():
     try:
-        max_key_len = max(len(k) for k,v in ensa.variables.items())
+        max_key_len = max(len(k) for k, v in ensa.variables.items())
     except:
         return []
     for key, value in ensa.variables.items():
         print('    %*s: %s' % (max_key_len, key, value))
 
-add_command(Command('v', 
-                    'show variables', 
-                    'v', 
+
+add_command(Command('v',
+                    'show variables',
+                    'v',
                     v_function))
-
-
-
-
-
-
-
-
-
-
-
