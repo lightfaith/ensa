@@ -679,7 +679,9 @@ def adi_function(*args):
         log.err('Association ID must be specified.')
         return []
     try:
-        ids = ','.join(parse_sequence(','.join(args[1:])))
+        ids = parse_sequence(','.join(args[1:]))
+        if not ids:
+            raise ValueError
     except:
         log.err('Information ID must be specified.')
         return []
@@ -752,13 +754,6 @@ def ag_function(*args, data_function=lambda *_: [], id_type=0, prepend_times=Fal
     for association, infos, times, locations, associations in data:
         aresult = []
 
-        """
-        if prepend_times:
-            aresult.append('')
-            for time in times:
-                aresult.append(time[1])
-            aresult.append('-------------------')
-        """
         time = '%s  ' % times[0][1] if times and prepend_times else ''
         aresult.append(('{grepignore}%s#A' % time) +
                        format_association(*association, use_modified=use_modified))
@@ -2504,11 +2499,12 @@ def srp_function(*_):
     codename = ensa.db.get_subject_codename(ensa.current_subject)
     log.info('Generating Person report for %s...' % codename)
 
-    infos = ensa.db.get_informations(no_composite_parts=False)
-    """add keywords"""
-    infos = [i + ([x[1] for x in ensa.db.get_keywords_for_informations(i[0])],)
-             for i in infos]
-    person_report(infos, 'files/tmp/%s.pdf' % codename)
+    #infos = ensa.db.get_informations(no_composite_parts=False)
+    #"""add keywords"""
+    # infos = [i + ([x[1] for x in ensa.db.get_keywords_for_informations(i[0])],)
+    #         for i in infos]
+    #person_report(infos, 'files/tmp/%s.pdf' % codename)
+    person_report(codename, 'files/tmp/%s.pdf' % codename)
     log.info('Report is saved as files/tmp/%s.pdf.' % codename)
 
 

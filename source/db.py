@@ -375,13 +375,13 @@ class Database():
             os.remove('files/binary/%d' % information_id)
         log.info('Information deleted.')
 
-    def get_informations(self, info_type=None, no_composite_parts=False):
+    def get_informations(self, info_type=None, no_composite_parts=False, force_no_current_subject=False):
         # if not self.subject_ok():
         #    return []
         if info_type is None:
             info_type = Database.INFORMATION_ALL
         result = []
-        if ensa.current_subject:
+        if ensa.current_subject and not force_no_current_subject:
             if no_composite_parts:
                 infos_nodata = self.query((
                     "SELECT I.information_id, I.subject_id, S.codename, "
@@ -1132,14 +1132,14 @@ class Database():
             association_ids = str(association_ids)
         elif type(association_ids) in (tuple, list):
             association_ids = ','.join(association_ids)
-        query = ("SELECT association_id, ring_id, level, accuracy, "
+        query = ("SELECT DISTINCT association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
                  "FROM Association "
                  "WHERE association_id IN("+association_ids+")")
         return self.get_associations_by_X(query)
 
     def get_associations_by_note(self, string):
-        query = ("SELECT association_id, ring_id, level, accuracy, "
+        query = ("SELECT DISTINCT association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
                  "FROM Association "
                  "WHERE note LIKE '%"+string+"%'")
@@ -1150,7 +1150,7 @@ class Database():
             location_ids = str(location_ids)
         elif type(location_ids) in (tuple, list):
             location_ids = ','.join(location_ids)
-        query = ("SELECT A.association_id, ring_id, level, accuracy, "
+        query = ("SELECT DISTINCT A.association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
                  "FROM Association A INNER JOIN AL "
                  "     ON A.association_id = AL.association_id "
@@ -1162,7 +1162,7 @@ class Database():
             time_ids = str(time_ids)
         elif type(time_ids) in (tuple, list):
             time_ids = ','.join(time_ids)
-        query = ("SELECT A.association_id, ring_id, level, accuracy, "
+        query = ("SELECT DISTINCT A.association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
                  "FROM Association A INNER JOIN AT "
                  "     ON A.association_id = AT.association_id "
@@ -1174,7 +1174,7 @@ class Database():
             information_ids = str(information_ids)
         elif type(information_ids) in (tuple, list):
             information_ids = ','.join(information_ids)
-        query = ("SELECT A.association_id, ring_id, level, accuracy, "
+        query = ("SELECT DISTINCT A.association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
                  "FROM Association A INNER JOIN AI "
                  "     ON A.association_id = AI.association_id "
@@ -1184,7 +1184,7 @@ class Database():
     def get_associations_by_subject(self, codenames):
         if type(codenames) in (tuple, list):
             codenames = "','".join(codenames)
-        query = ("SELECT A.association_id, A.ring_id, A.level, A.accuracy, "
+        query = ("SELECT DISTINCT A.association_id, A.ring_id, A.level, A.accuracy, "
                  "       A.valid, A.modified, A.note "
                  "FROM Association A "
                  "     INNER JOIN AI "
@@ -1201,7 +1201,7 @@ class Database():
             location_ids = str(location_ids)
         elif type(location_ids) in (tuple, list):
             location_ids = ','.join(str(i) for i in location_ids)
-        query = ("SELECT A.association_id, A.ring_id, A.level, A.accuracy, "
+        query = ("SELECT DISTINCT A.association_id, A.ring_id, A.level, A.accuracy, "
                  "       A.valid, A.modified, A.note "
                  "FROM Association A "
                  "     INNER JOIN AL "
@@ -1219,7 +1219,7 @@ class Database():
             information_ids = str(information_ids)
         elif type(information_ids) in (tuple, list):
             information_ids = ','.join(str(i) for i in information_ids)
-        query = ("SELECT A.association_id, A.ring_id, A.level, A.accuracy, "
+        query = ("SELECT DISTINCT A.association_id, A.ring_id, A.level, A.accuracy, "
                  "       A.valid, A.modified, A.note "
                  "FROM Association A "
                  "     INNER JOIN AI "
@@ -1235,7 +1235,7 @@ class Database():
     def get_timeline_by_subject(self, codenames):
         if type(codenames) in (tuple, list):
             codenames = "','".join(codenames)
-        query = ("SELECT A.association_id, A.ring_id, A.level, A.accuracy, "
+        query = ("SELECT DISTINCT A.association_id, A.ring_id, A.level, A.accuracy, "
                  "       A.valid, A.modified, A.note "
                  "FROM Association A "
                  "     INNER JOIN AI "
@@ -1253,7 +1253,7 @@ class Database():
         return self.get_associations_by_X(query)
 
     def get_timeline_by_range(self, start, end):
-        query = ("SELECT A.association_id, A.ring_id, A.level, A.accuracy, "
+        query = ("SELECT DISTINCT A.association_id, A.ring_id, A.level, A.accuracy, "
                  "       A.valid, A.modified, A.note "
                  "FROM Association A "
                  "     INNER JOIN AT "
@@ -1273,6 +1273,10 @@ class Database():
                    {'r': ensa.current_ring})
 
     def dissociate_associations(self, association_id, association_ids):
+        if type(association_ids) == int:
+            association_ids = str(association_ids)
+        elif type(association_ids) in (tuple, list):
+            association_ids = ','.join(str(x) for x in association_ids)
         if not self.ring_ok():
             return
         self.query(("DELETE FROM AA "
@@ -1293,6 +1297,10 @@ class Database():
                     'r': ensa.current_ring})
 
     def dissociate_informations(self, association_id, information_ids):
+        if type(information_ids) == int:
+            information_ids = str(information_ids)
+        elif type(information_ids) in (tuple, list):
+            information_ids = ','.join(str(x) for x in information_ids)
         if not self.ring_ok():
             return
         self.query(("DELETE FROM AI "
@@ -1313,6 +1321,10 @@ class Database():
                     'r': ensa.current_ring})
 
     def dissociate_locations(self, association_id, location_ids):
+        if type(location_ids) == int:
+            location_ids = str(location_ids)
+        elif type(location_ids) in (tuple, list):
+            location_ids = ','.join(str(x) for x in location_ids)
         if not self.ring_ok():
             return []
         self.query(("DELETE FROM AL "
@@ -1333,6 +1345,10 @@ class Database():
                     'r': ensa.current_ring})
 
     def dissociate_times(self, association_id, time_ids):
+        if type(time_ids) == int:
+            time_ids = str(time_ids)
+        elif type(time_ids) in (tuple, list):
+            time_ids = ','.join(str(x) for x in time_ids)
         if not self.ring_ok():
             return []
         self.query(("DELETE FROM AT "
@@ -1519,23 +1535,33 @@ class Database():
                                 {'r': ensa.current_ring})
         return result
 
-    def get_keywords_for_informations(self, information_ids):
+    def get_keywords_for_informations(self, information_ids, force_no_current_subject=False):
         if not self.subject_ok():
             return []
         if type(information_ids) == int:
             information_ids = str(information_ids)
         elif type(information_ids) in (tuple, list):
             information_ids = ','.join(information_ids)
-        result = self.query(("SELECT IK.information_id, K.keyword "
-                             "FROM IK INNER JOIN Keyword K "
-                             "     ON IK.keyword_id = K.keyword_id "
-                             "WHERE IK.information_id IN "
-                             "      (SELECT information_id "
-                             "       FROM Information "
-                             "       WHERE information_id IN "
-                             "           ("+information_ids+") "
-                             "       AND subject_id = :s)"),
-                            {'s': ensa.current_subject})
+        if force_no_current_subject:
+            result = self.query(("SELECT IK.information_id, K.keyword "
+                                 "FROM IK INNER JOIN Keyword K "
+                                 "     ON IK.keyword_id = K.keyword_id "
+                                 "WHERE IK.information_id IN "
+                                 "      (SELECT information_id "
+                                 "       FROM Information "
+                                 "       WHERE information_id IN "
+                                 "           ("+information_ids+")) "))
+        else:
+            result = self.query(("SELECT IK.information_id, K.keyword "
+                                 "FROM IK INNER JOIN Keyword K "
+                                 "     ON IK.keyword_id = K.keyword_id "
+                                 "WHERE IK.information_id IN "
+                                 "      (SELECT information_id "
+                                 "       FROM Information "
+                                 "       WHERE information_id IN "
+                                 "           ("+information_ids+") "
+                                 "       AND subject_id = :s)"),
+                                {'s': ensa.current_subject})
         return result
 
     def get_informations_for_keywords_or(self, keywords):
