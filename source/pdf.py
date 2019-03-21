@@ -187,7 +187,7 @@ def person_report(codename, filename):
     codename_id = ensa.db.select_subject(codename)
     infos = ensa.db.get_informations(
         no_composite_parts=False, force_no_current_subject=True)
-    #import pdb
+    # import pdb
     # pdb.set_trace()
     infos = [i + ([x[1] for x in ensa.db.get_keywords_for_informations(i[0], force_no_current_subject=True)],)
              for i in infos]
@@ -210,7 +210,7 @@ def person_report(codename, filename):
 
     entries = []
 
-    #infos_dict = {info[4]: info for info in infos}
+    # infos_dict = {info[4]: info for info in infos}
     """TITLE"""
     entries.append(Paragraph(
         '<para align=center spaceAfter=20>Person Report</para>',
@@ -598,8 +598,8 @@ def person_report(codename, filename):
             # rows.append(text, photo))
             rows.append(Table([[photo], [center_par(text)]], style=TableStyle(
                 [('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                 #('GRID', (0, 0), (-1, -1), 0.5, 'black'),
-                 #('BACKGROUND', (0, 0), (-1, -1), 'cornflowerblue'),
+                 # ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
+                 # ('BACKGROUND', (0, 0), (-1, -1), 'cornflowerblue'),
                  ])))
         info_columns = 5
         ci_rows = codename_rows + information_rows
@@ -647,7 +647,7 @@ def person_report(codename, filename):
                 location_map.savefig(
                     f.name + '.png', bbox_inches='tight', pad_inches=0)
                 location_map = Image(f.name + '.png')
-                #location_map._restrictSize(10*cm, 10*cm)
+                # location_map._restrictSize(10*cm, 10*cm)
                 location_map._restrictSize(7*cm, 7*cm)
         if location_strings:
             location_row = [
@@ -671,13 +671,14 @@ def person_report(codename, filename):
         event_tables.append(
             Table([[Paragraph('%s - %s (#%d)' % (event_time, event_name, event_id), styles['Heading3'])]]
                   + [[Table([[r for r in ci_rows][i:i+info_columns] for i in range(0, len(ci_rows), info_columns)], style=TableStyle([
-                      #('GRID', (0, 0), (-1, -1), 0.5, 'black'),
+                      # ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
                   ]))]]
                   + [location_row]
                   + [[r] for r in time_rows],
-                  style=TableStyle([
-                      ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
-                  ]))
+                  # style=TableStyle([
+                  #    ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
+                  # ])
+                  )
         )
 
     if event_tables:
@@ -686,7 +687,8 @@ def person_report(codename, filename):
             Table([[et] for et in event_tables],
                   colWidths=[16*cm],
                   style=TableStyle([
-                      ('GRID', (0, 0), (-1, -1), 0.5, 'gray'),
+                      #('GRID', (0, 0), (-1, -1), 0.5, 'gray'),
+                      ('LINEBELOW', (0, 0), (-1, -1), 0.5, 'gray'),
                   ])
                   ),
         ]))
