@@ -16,7 +16,7 @@ from source import log
 from source.docs import doc
 from source.pdf import *
 from source.map import *
-#from source.protocols import protocols
+# from source.protocols import protocols
 from source.lib import *
 from source.db import Database
 from datetime import datetime
@@ -67,8 +67,8 @@ def run_command(fullcommand):
                       else r'\%s' % modifier)
     log.debug_command('  Fullcmd: \'%s\'' % (fullcommand))
 
-    """ 
-    replace variables / create new 
+    """
+    replace variables / create new
     """
     variable_setting = False
     """ first check if we are setting"""
@@ -89,8 +89,8 @@ def run_command(fullcommand):
                 print('It is index.')
                 try:
                     value = list(ensa.variables.items())[-int(name)][1]
-                    fullcommand = re.sub(regex_modifier + name, 
-                                         value, 
+                    fullcommand = re.sub(regex_modifier + name,
+                                         value,
                                          fullcommand)
                 except:
                     log.err('Non-existent variable index used!')
@@ -321,7 +321,7 @@ def get_format_len_ring(rings):
 def get_format_len_time(times):
     return (
         max([0]+[len('%d' % t[0]) for t in times]),
-        #max([0]+[len('%s' % t[1]) for t in times]),
+        # max([0]+[len('%s' % t[1]) for t in times]),
     )
 
 
@@ -397,9 +397,9 @@ def format_location(location_id, name, lat, lon, accuracy, valid, modified, note
     # if gps:
     #    lat, _, lon = gps[6:-1].partition(' ')
     '''
-    lat = '%c%d %d\' %.3f "' % (('N' if lat > 0 else 'S',) 
+    lat = '%c%d %d\' %.3f "' % (('N' if lat > 0 else 'S',)
                                + lib.degree_to_dms(lat))
-    lon = '%c%d %d\' %.3f"' % (('E' if lon > 0 else 'W',) 
+    lon = '%c%d %d\' %.3f"' % (('E' if lon > 0 else 'W',)
                                + lib.degree_to_dms(lon))
     '''
     if type(lat) == str:
@@ -408,8 +408,8 @@ def format_location(location_id, name, lat, lon, accuracy, valid, modified, note
         lon = float(lon)
     lat = '%.6f\u00b0 %c' % (abs(lat), 'N' if lat > 0 else 'S')
     lon = '%.6f\u00b0 %c' % (abs(lon), 'E' if lon > 0 else 'W')
-    #lat = lat+'N' if float(lat)>0 else lat[1:]+'S'
-    #lon = lon+'E' if float(lon)>0 else lon[1:]+'W'
+    # lat = lat+'N' if float(lat)>0 else lat[1:]+'S'
+    # lon = lon+'E' if float(lon)>0 else lon[1:]+'W'
     gps = '(%s %s)' % (lat, lon)
     color = log.COLOR_NONE
     if not valid:
@@ -447,8 +447,8 @@ def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modi
         id_len,
         time_id,
         dateutil.parser.parse(time).strftime('%Y-%m-%d %H:%M:%S'),
-        #datetime.strptime(time).strftime('%Y-%m-%d %H:%M:%S'),
-        #time if time else '',
+        # datetime.strptime(time).strftime('%Y-%m-%d %H:%M:%S'),
+        # time if time else '',
         accuracy,
         ', mod '+modified if use_modified else '',
         ', invalid' if not valid else '',
@@ -577,7 +577,7 @@ def aas_function(*args):
         log.err('Association ID must be specified.')
         return []
     try:
-        #codenames = ','.join(['\'%s\'' % codename for codename in args[1:]])
+        # codenames = ','.join(['\'%s\'' % codename for codename in args[1:]])
         codenames = args[1:]
         if not codenames:
             raise AttributeError
@@ -747,7 +747,7 @@ def ag_function(*args, data_function=lambda *_: [], id_type=0, prepend_times=Fal
         log.err('Identifier must be specified.')
         return []
     result = []
-    #data = ensa.db.get_associations_by_ids(ids)
+    # data = ensa.db.get_associations_by_ids(ids)
     data = data_function(ids)
     if not data:
         return []
@@ -830,7 +830,7 @@ def ame_function(*args):
             else:
                 raise
         if mapped[k] != v:
-            #print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
+            # print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
             change_occured = True
             # check validity and save valid changes
             if k == 'accuracy':
@@ -954,12 +954,12 @@ def amaw_function(*args):
         associations = [x for x in ensa.db.get_associations()
                         if str(x[0]) in association_ids]
         association_ids = [str(x[0]) for x in associations]
-        #association_lens = get_format_len_association(associations)
+        # association_lens = get_format_len_association(associations)
     except:
         log.err('Association ID must be specified.')
         return []
     for association_id, association in zip(association_ids, associations):
-        #log.info(format_association(*association, *association_lens, use_modified=True))
+        # log.info(format_association(*association, *association_lens, use_modified=True))
         log.info(format_association(*association, use_modified=True))
         while True:
             value, = wizard(['   Accuracy for this entry:'])
@@ -984,12 +984,12 @@ def amlw_function(*args):
         associations = [x for x in ensa.db.get_associations()
                         if str(x[0]) in association_ids]
         association_ids = [str(x[0]) for x in associations]
-        #association_lens = get_format_len_association(associations)
+        # association_lens = get_format_len_association(associations)
     except:
         log.err('Association ID must be specified.')
         return []
     for association_id, association in zip(association_ids, associations):
-        #log.info(format_association(*association, *association_lens, use_modified=True))
+        # log.info(format_association(*association, *association_lens, use_modified=True))
         log.info(format_association(*association, use_modified=True))
         while True:
             value, = wizard(['   Level for this entry:'])
@@ -1019,12 +1019,12 @@ def amdw_function(*args):
         associations = [x for x in ensa.db.get_associations()
                         if str(x[0]) in association_ids]
         association_ids = [str(x[0]) for x in associations]
-        #association_lens = get_format_len_association(associations)
+        # association_lens = get_format_len_association(associations)
     except:
         log.err('Association ID must be specified.')
         return []
     for association_id, association in zip(association_ids, associations):
-        #log.info(format_association(*association, *association_lens, use_modified=True))
+        # log.info(format_association(*association, *association_lens, use_modified=True))
         log.info(format_association(*association, use_modified=True))
         value, = wizard(['   Note for this entry:'])
         if not value:
@@ -1051,7 +1051,7 @@ def amvw_function(*args):
         log.err('Association ID must be specified.')
         return []
     for association_id, association in zip(association_ids, associations):
-        #log.info(format_association(*association, *association_lens, use_modified=True))
+        # log.info(format_association(*association, *association_lens, use_modified=True))
         log.info(format_association(*association, use_modified=True))
         value, = wizard(['   Should this entry be valid?'])
         value = positive(value)
@@ -1166,7 +1166,7 @@ def iak_function(*args):
     if not ensa.current_subject:
         log.err('You must choose a subject with `ss` command.')
     try:
-        information_ids = ','.join(parse_sequence(args[0]))
+        information_ids = parse_sequence(args[0])
     except:
         log.err('Information ID must be specified.')
         return []
@@ -1215,7 +1215,7 @@ add_command(Command('idk <information_id> [<keyword>]',
 '''
 def igb_function(*args, no_composite_parts=True):
     result = []
-    infos = ensa.db.get_informations(Database.INFORMATION_BINARY, 
+    infos = ensa.db.get_informations(Database.INFORMATION_BINARY,
                                      no_composite_parts)
     if not infos:
         return []
@@ -1223,10 +1223,13 @@ def igb_function(*args, no_composite_parts=True):
     if len(infos) == 1:
         ensa.variables['last'] = infos[0][0]
     info_lens = get_format_len_information(infos)
-    result = [format_information(*info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
+    result = [format_information(
+        *info, *info_lens, use_codename=(ensa.current_subject is None)) for info in infos]
     return result
-add_command(Command('igb', 'get all binary information for current subject/ring', 'igb', igb_function))
-add_command(Command('igbc', 'get all binary information (even composite parts) for current subject/ring', 'igbc', lambda *args: igb_function(args, no_composite_parts=False)))
+add_command(Command(
+    'igb', 'get all binary information for current subject/ring', 'igb', igb_function))
+add_command(Command('igbc', 'get all binary information (even composite parts) for current subject/ring',
+            'igbc', lambda *args: igb_function(args, no_composite_parts=False)))
 '''
 
 
@@ -1249,8 +1252,8 @@ add_command(Command('ig', 'get all information for current subject/ring',
 add_command(Command('iga', 'get all information including composite parts for current subject/ring',
                     'igc', lambda *args: ig_function(*args, no_composite_parts=False)))
 # TODO igc - composite, igca - composite with values (tree)
-#add_command(Command('igb', 'get all binary information for current subject/ring', 'igb', lambda *args: ig_function(*args, info_type=Database.INFORMATION_BINARY)))
-#add_command(Command('igba', 'get all binary information including composite parts for current subject/ring', 'igbc', lambda *args: ig_function(args, info_type=Database.INFORMATION_BINARY, no_composite_parts=False)))
+# add_command(Command('igb', 'get all binary information for current subject/ring', 'igb', lambda *args: ig_function(*args, info_type=Database.INFORMATION_BINARY)))
+# add_command(Command('igba', 'get all binary information including composite parts for current subject/ring', 'igbc', lambda *args: ig_function(args, info_type=Database.INFORMATION_BINARY, no_composite_parts=False)))
 add_command(Command('igt', 'get all textual information for current subject/ring',
                     'igt', lambda *args: ig_function(*args, info_type=Database.INFORMATION_TEXT)))
 add_command(Command('igta', 'get all textual information including composite parts for current subject/ring',
@@ -1365,7 +1368,7 @@ def ime_function(*args):
             else:
                 raise
         if mapped[k] != v:
-            #print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
+            # print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
             change_occured = True
             # check validity and save valid changes
             if k == 'accuracy':
@@ -1373,8 +1376,8 @@ def ime_function(*args):
                     mapped[k] = int(v)
                 else:
                     mapped[k] = 0
-                    #log.err('Accuracy must be a number.')
-                    #change_occured = False
+                    # log.err('Accuracy must be a number.')
+                    # change_occured = False
                     # break
             elif k == 'valid':
                 mapped[k] = positive(v)
@@ -1767,7 +1770,7 @@ def lme_function(*args):
             else:
                 raise
         if mapped[k] != v:
-            #print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
+            # print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
             change_occured = True
             # check validity and save valid changes
             if k == 'accuracy':
@@ -1775,8 +1778,8 @@ def lme_function(*args):
                     mapped[k] = int(v)
                 else:
                     mapped[k] = 0
-                    #log.err('Accuracy must be a number.')
-                    #change_occured = False
+                    # log.err('Accuracy must be a number.')
+                    # change_occured = False
                     # break
             elif k == 'valid':
                 mapped[k] = positive(v)
@@ -2031,7 +2034,7 @@ def ra_function(*args):
     encrypted = False
     wizard_questions = [
         'Name of the ring (e.g. Work):',
-        #'Should the ring be encrypted (default: no)?',
+        # 'Should the ring be encrypted (default: no)?',
         'Optional comment:',
         '... Use provided information to create new ring?',
     ]
@@ -2190,7 +2193,7 @@ def sa_function(*args):
         log.err('You must specify codename.')
         return []
     subject_id = ensa.db.create_subject(codename)
-    #ensa.variables['last'] = str(subject_id)
+    # ensa.variables['last'] = str(subject_id)
     ensa.variables['last'] = codename
     if ensa.current_subject:
         log.set_prompt(key='%s/%s'
@@ -2203,6 +2206,149 @@ def sa_function(*args):
 
 add_command(Command('sa <codename>',
                     'add new subject in the current ring', 'sa', sa_function))
+
+
+def sawo_function(*_):
+    i = {}
+    (codename, logo_name, i['name'], i['identifier'], i['business'], i['website'], i['account']) = wizard([
+        'Codename for the subject:',
+        'Name of logo image (in files/uploads/):',
+        'Organization name:',
+        'Identifier:',
+        'Business type:',
+        'Website:',
+        'Banking account number:',
+    ])
+    if not codename:
+        log.err('Codename must be specified.')
+        return []
+    codename_id = ensa.db.create_subject(codename)
+    info_codename_id = [i[0] for i in ensa.db.get_informations(
+    ) if i[4] == 'codename' and i[10] == codename][0]
+    ensa.db.add_keyword(info_codename_id, 'organization')
+
+    if not codename_id:
+        log.err('Subject could not be created.')
+        return []
+
+    if logo_name:
+        try:
+            ensa.db.add_binary(ensa.db.select_subject(codename), logo_name)
+        except:
+            traceback.print_exc()
+
+    if ensa.current_subject:
+        log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring),
+                                      codename),
+                       symbol=']')
+        log.info('Currently working with \'%s\' subject.' % codename)
+
+    information_ids = []
+    for name, value in i.items():
+        if value:
+            information_ids.append(ensa.db.create_information(
+                Database.INFORMATION_TEXT, name, value))
+    ensa.db.add_keyword(filter(None, information_ids), 'general')
+    # addresses
+    log.newline()
+    while True:
+        i = {}
+        add_address, = wizard(['Add address entry?'])
+        if not positive(add_address):
+            break
+        (location_name, i['country'], i['province'], i['city'], i['street'],
+         i['street_number'], i['postal'], valid, lat, lon) = wizard([
+             'Bureau name:',
+             'Country:',
+             'Province:',
+             'City:',
+             'Street:',
+             'Street number:',
+             'Postal code:',
+             'Is the address currently valid?',
+             'Latitude (e.g. -50.079795):',
+             'Longitude (e.g. -14.429710):',
+         ])
+        valid = positive(valid)
+        information_ids = filter(None,
+                                 [ensa.db.create_information(Database.INFORMATION_TEXT,
+                                                             name,
+                                                             value,
+                                                             valid=valid)
+                                  for name, value in i.items() if value])
+        if information_ids:
+            address_id = ensa.db.create_information(
+                Database.INFORMATION_COMPOSITE,
+                'address',
+                information_ids,
+                valid=valid)
+        try:
+            lat = float(lat)
+        except:
+            lat = None
+        try:
+            lon = float(lon)
+        except:
+            lon = None
+        location_id = ensa.db.create_location('%s\'s address (%s)'
+                                              % (codename.title(), location_name),
+                                              lat,
+                                              lon,
+                                              valid=valid)
+        association_id = ensa.db.create_association(valid=valid,
+                                                    note='%s\'s home'
+                                                    % codename.title())
+        ensa.db.associate_information(association_id, address_id)
+        ensa.db.associate_location(association_id, location_id)
+
+    # CEO association (other bosses are mere employees)
+    employment_id = ensa.db.create_association(
+        note=('%s\'s employees' % (codename.title())))
+    ensa.db.associate_subject(employment_id, codename)
+
+    while True:
+        employee, = wizard(['CEO codename:'])
+        if not employee:
+            break
+        employee_id = ensa.db.select_subject(employee)
+        if not employee_id:
+            log.err('No such subject exists.')
+            continue
+        ensa.current_subject = employee_id
+        association_id = ensa.db.create_association(
+            note=('%s\'s CEO' % (codename.title())))
+        job_id = ensa.db.create_information(
+            Database.INFORMATION_TEXT, 'position', 'CEO', level=10, accuracy=10)
+        ensa.db.associate_subject(association_id, codename)
+        ensa.db.associate_information(association_id, job_id)
+        ensa.db.associate_information(employment_id, job_id)
+        break
+
+    # employees
+    """relationships"""
+    log.newline()
+    while True:
+        employee, = wizard(['Employee codename:'])
+        if not employee:
+            break
+        employee_id = ensa.db.select_subject(employee)
+        if not employee_id:
+            log.err('No such subject exists.')
+            continue
+        valid, position,  = wizard(
+            [
+                'Is the employment still valid?',
+                'What is %s\'s position?' % (employee),
+            ])
+        valid = not negative(valid)
+        ensa.current_subject = employee_id
+        job_id = ensa.db.create_information(
+            Database.INFORMATION_TEXT, 'position', position, level=10, accuracy=10)
+        ensa.db.associate_information(employment_id, job_id)
+    # business partners (organizations)
+    # TODO
+
+    ensa.current_subject = codename_id
 
 
 def sawp_function(*_):
@@ -2229,22 +2375,25 @@ def sawp_function(*_):
     if not codename:
         log.err('Codename must be specified.')
         return []
-    codename_id = ensa.db.create_subject(codename)
-    if not codename_id:
+    subject_id = ensa.db.create_subject(codename)
+    if not subject_id:
         log.err('Subject could not be created.')
         return []
-
-    if portrait_name:
-        try:
-            ensa.db.add_binary(ensa.db.select_subject(codename), portrait_name)
-        except:
-            traceback.print_exc()
 
     if ensa.current_subject:
         log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring),
                                       codename),
                        symbol=']')
         log.info('Currently working with \'%s\' subject.' % codename)
+
+    info_codename_id = [i[0] for i in ensa.db.get_informations(
+    ) if i[4] == 'codename' and i[10] == codename][0]
+    ensa.db.add_keyword(info_codename_id, 'person')
+    if portrait_name:
+        try:
+            ensa.db.add_binary(info_codename_id, portrait_name)
+        except:
+            traceback.print_exc()
 
     if i['sex'].lower() in ('m', 'male', 'boy', 'man'):
         i['sex'] = 'male'
@@ -2258,68 +2407,59 @@ def sawp_function(*_):
         if value:
             information_ids.append(ensa.db.create_information(
                 Database.INFORMATION_TEXT, name, value))
-    ensa.db.add_keyword(','.join(str(x)
-                                 for x in filter(None, information_ids)),
-                        'general')
+    ensa.db.add_keyword(filter(None, information_ids), 'general')
 
     # address
     log.newline()
     while True:
         i = {}
         add_address, = wizard(['Add address entry?'])
-        if positive(add_address):
-            (i['country'], i['province'], i['city'], i['street'],
-             i['street_number'], i['postal'], valid, lat, lon) = wizard([
-                 'Country:',
-                 'Province:',
-                 'City:',
-                 'Street:',
-                 'Street number:',
-                 'Postal code:',
-                 'Is the address currently valid?',
-                 'Latitude (e.g. -50.079795):',
-                 'Longitude (e.g. -14.429710):',
-             ])
-            valid = positive(valid)
-            information_ids = filter(None,
-                                     [ensa.db.create_information(Database.INFORMATION_TEXT,
-                                                                 name,
-                                                                 value,
-                                                                 valid=valid)
-                                      for name, value in i.items() if value])
-            if information_ids:
-                address_id = ensa.db.create_information(
-                    Database.INFORMATION_COMPOSITE,
-                    'address',
-                    #','.join(str(x) for x in information_ids),
-                    information_ids,
-                    valid=valid)
-            try:
-                lat = float(lat)
-            except:
-                lat = None
-            try:
-                lon = float(lon)
-            except:
-                lon = None
-            location_id = ensa.db.create_location('%s\'s home'
-                                                  % codename.title(),
-                                                  lat,
-                                                  lon,
-                                                  valid=valid)
-            association_id = ensa.db.create_association(valid=valid,
-                                                        note='%s\'s home'
-                                                        % codename.title())
-            ensa.db.associate_information(association_id, address_id)
-            ensa.db.associate_location(association_id, location_id)
-            '''
-            except:
-                traceback.print_exc()
-                log.err('Cannot set Address as Location, '
-                        'keeping as Information.')
-            '''
-        else:
+        if not positive(add_address):
             break
+        (i['country'], i['province'], i['city'], i['street'],
+         i['street_number'], i['postal'], valid, lat, lon) = wizard([
+             'Country:',
+             'Province:',
+             'City:',
+             'Street:',
+             'Street number:',
+             'Postal code:',
+             'Is the address currently valid?',
+             'Latitude (e.g. -50.079795):',
+             'Longitude (e.g. -14.429710):',
+         ])
+        valid = positive(valid)
+        information_ids = filter(None,
+                                 [ensa.db.create_information(Database.INFORMATION_TEXT,
+                                                             name,
+                                                             value,
+                                                             valid=valid)
+                                  for name, value in i.items() if value])
+        if information_ids:
+            address_id = ensa.db.create_information(
+                Database.INFORMATION_COMPOSITE,
+                'address',
+                # ','.join(str(x) for x in information_ids),
+                information_ids,
+                valid=valid)
+        try:
+            lat = float(lat)
+        except:
+            lat = None
+        try:
+            lon = float(lon)
+        except:
+            lon = None
+        location_id = ensa.db.create_location('%s\'s home'
+                                              % codename.title(),
+                                              lat,
+                                              lon,
+                                              valid=valid)
+        association_id = ensa.db.create_association(valid=valid,
+                                                    note='%s\'s home'
+                                                    % codename.title())
+        ensa.db.associate_information(association_id, address_id)
+        ensa.db.associate_location(association_id, location_id)
 
     # likes, dislikes, skills, traits
     for category, question in (
@@ -2360,7 +2500,7 @@ def sawp_function(*_):
                 'What is the relationship level?',
                 'How accurate is the relationship definition?',
             ])
-        valid = positive(valid)
+        valid = not negative(valid)
         association_id = ensa.db.create_association(level=level,
                                                     accuracy=accuracy,
                                                     valid=valid,
@@ -2369,10 +2509,7 @@ def sawp_function(*_):
                                                              acq,
                                                              relationship)))
         ensa.db.associate_subject(association_id, [codename, acq])
-        # TODO bugged somehow
 
-    # work
-    # probably creating company as new subject and associate employees to it is better approach
     """
     log.newline()
     while True:
@@ -2410,8 +2547,9 @@ def sawp_function(*_):
 
 add_command(Command('saw', 'subject wizards', 'saw', lambda *_: []))
 add_command(
+    Command('sawo', 'use wizard to create an Organization subject', 'sawo', sawo_function))
+add_command(
     Command('sawp', 'use wizard to create a Person subject', 'sawp', sawp_function))
-# TODO `sawc`
 
 
 """subject - add credentials"""
@@ -2492,6 +2630,7 @@ add_command(Command('sd <codename>',
 
 
 def srp_function(*_):
+    # TODO just one `sr` command, decide by codename keyword
     ensa.db.standardize()
     if not ensa.current_subject:
         log.err('A subject must be selected.')
@@ -2499,11 +2638,11 @@ def srp_function(*_):
     codename = ensa.db.get_subject_codename(ensa.current_subject)
     log.info('Generating Person report for %s...' % codename)
 
-    #infos = ensa.db.get_informations(no_composite_parts=False)
-    #"""add keywords"""
+    # infos = ensa.db.get_informations(no_composite_parts=False)
+    # """add keywords"""
     # infos = [i + ([x[1] for x in ensa.db.get_keywords_for_informations(i[0])],)
     #         for i in infos]
-    #person_report(infos, 'files/tmp/%s.pdf' % codename)
+    # person_report(infos, 'files/tmp/%s.pdf' % codename)
     person_report(codename, 'files/tmp/%s.pdf' % codename)
     log.info('Report is saved as files/tmp/%s.pdf.' % codename)
 
@@ -2765,7 +2904,7 @@ def tme_function(*args):
     change_occured = False
     # ingore unknown keys
     for line in changes.splitlines():
-        #import pdb
+        # import pdb
         # pdb.set_trace()
         k, _, v = line.partition(': ')
         # ingore unknown keys
@@ -2779,7 +2918,7 @@ def tme_function(*args):
             else:
                 raise
         if mapped[k] != v:
-            #print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
+            # print('value of', k, '-', v, type(v), 'does not match the original', mapped[k], type(mapped[k]))
             change_occured = True
             # check validity and save valid changes
             if k == 'accuracy':
@@ -2787,8 +2926,8 @@ def tme_function(*args):
                     mapped[k] = int(v)
                 else:
                     mapped[k] = 0
-                    #log.err('Accuracy must be a number.')
-                    #change_occured = False
+                    # log.err('Accuracy must be a number.')
+                    # change_occured = False
                     # break
             elif k == 'valid':
                 mapped[k] = positive(v)

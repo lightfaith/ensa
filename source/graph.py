@@ -20,9 +20,9 @@ def get_relationship_color(relationship):
         'child': 'red',
         'grandparent': 'brown',
         'grandchild': 'brown',
-        'partner': 'pink',
-        'colleague': 'green',
-        '': '',
+        'partner': 'magenta',
+        'colleague': 'darkgreen',
+        'enemy': 'red',
     }
     return colors.get(relationship) or 'black'
     if relationship == 'friend':
@@ -54,7 +54,7 @@ def get_relationship_graph(codename, acquaintances, relationships):
                b,
                label=relationship + ' ' * 10,
                color=get_relationship_color(relationship),
-               penwidth=str((level or 1) * accuracy / 20),
+               penwidth=str((level or 1) * (accuracy or 1) / 20),
                fontsize=edge_fontsize,
                style='solid' if valid else 'dotted')
     # g.view()

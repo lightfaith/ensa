@@ -141,7 +141,7 @@ class Database():
         etc.
         """
         """ address without location """
-        # sawp and sawc should control that, otherwise we cannot guess
+        # sawp and sawo should control that, otherwise we cannot guess
         # the name properly...
         """ convert birth_* and others to Time entry """
         informations = self.get_informations()
@@ -331,7 +331,7 @@ class Database():
                 '''
 
             elif info_type == Database.INFORMATION_COMPOSITE:
-                if type(value) in (tuple, list):
+                if type(value) in (filter, tuple, list):
                     value = ','.join(str(v) for v in value)
                 self.query(("INSERT INTO Composite(information_id, part_id) "
                             "SELECT :i, information_id "
@@ -886,8 +886,8 @@ class Database():
             return None
         if type(information_ids) == int:
             information_ids = str(information_ids)
-        if type(information_ids) in (tuple, list):
-            information_ids = ','.join(information_ids)
+        if type(information_ids) in (filter, tuple, list):
+            information_ids = ','.join(str(x) for x in information_ids)
         try:
             ring_id = self.query(("SELECT ring_id "
                                   "FROM Association "
@@ -929,8 +929,8 @@ class Database():
             return None
         if type(location_ids) == int:
             location_ids = str(location_ids)
-        if type(location_ids) in (tuple, list):
-            location_ids = ','.join(location_ids)
+        if type(location_ids) in (filter, tuple, list):
+            location_ids = ','.join(str(x) for x in location_ids)
         try:
             ring_id = self.query(("SELECT ring_id "
                                   "FROM Association "
@@ -968,7 +968,7 @@ class Database():
     def associate_subject(self, association_id, codenames):
         if not self.ring_ok():
             return None
-        if type(codenames) in (tuple, list):
+        if type(codenames) in (filter, tuple, list):
             codenames = "','".join(codenames)
         try:
             ring_id = self.query(("SELECT ring_id "
@@ -1014,7 +1014,7 @@ class Database():
             return None
         if type(time_ids) == int:
             time_ids = str(time_ids)
-        if type(time_ids) in (tuple, list):
+        if type(time_ids) in (filter, tuple, list):
             time_ids = ','.join(str(x) for x in time_ids)
         try:
             ring_id = self.query(("SELECT ring_id "
@@ -1130,8 +1130,8 @@ class Database():
     def get_associations_by_ids(self, association_ids):
         if type(association_ids) == int:
             association_ids = str(association_ids)
-        elif type(association_ids) in (tuple, list):
-            association_ids = ','.join(association_ids)
+        elif type(association_ids) in (filter, tuple, list):
+            association_ids = ','.join(str(x) for x in association_ids)
         query = ("SELECT DISTINCT association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
                  "FROM Association "
@@ -1148,8 +1148,8 @@ class Database():
     def get_associations_by_location(self, location_ids):
         if type(location_ids) == int:
             location_ids = str(location_ids)
-        elif type(location_ids) in (tuple, list):
-            location_ids = ','.join(location_ids)
+        elif type(location_ids) in (filter, tuple, list):
+            location_ids = ','.join(str(x) for x in location_ids)
         query = ("SELECT DISTINCT A.association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
                  "FROM Association A INNER JOIN AL "
@@ -1160,8 +1160,8 @@ class Database():
     def get_associations_by_time(self, time_ids):
         if type(time_ids) == int:
             time_ids = str(time_ids)
-        elif type(time_ids) in (tuple, list):
-            time_ids = ','.join(time_ids)
+        elif type(time_ids) in (filter, tuple, list):
+            time_ids = ','.join(str(x) for x in time_ids)
         query = ("SELECT DISTINCT A.association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
                  "FROM Association A INNER JOIN AT "
@@ -1172,8 +1172,8 @@ class Database():
     def get_associations_by_information(self, information_ids):
         if type(information_ids) == int:
             information_ids = str(information_ids)
-        elif type(information_ids) in (tuple, list):
-            information_ids = ','.join(information_ids)
+        elif type(information_ids) in (filter, tuple, list):
+            information_ids = ','.join(str(x) for x in information_ids)
         query = ("SELECT DISTINCT A.association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
                  "FROM Association A INNER JOIN AI "
@@ -1182,7 +1182,7 @@ class Database():
         return self.get_associations_by_X(query)
 
     def get_associations_by_subject(self, codenames):
-        if type(codenames) in (tuple, list):
+        if type(codenames) in (filter, tuple, list):
             codenames = "','".join(codenames)
         query = ("SELECT DISTINCT A.association_id, A.ring_id, A.level, A.accuracy, "
                  "       A.valid, A.modified, A.note "
@@ -1199,7 +1199,7 @@ class Database():
     def get_timeline_by_location(self, location_ids):
         if type(location_ids) == int:
             location_ids = str(location_ids)
-        elif type(location_ids) in (tuple, list):
+        elif type(location_ids) in (filter, tuple, list):
             location_ids = ','.join(str(i) for i in location_ids)
         query = ("SELECT DISTINCT A.association_id, A.ring_id, A.level, A.accuracy, "
                  "       A.valid, A.modified, A.note "
@@ -1217,7 +1217,7 @@ class Database():
     def get_timeline_by_information(self, information_ids):
         if type(information_ids) == int:
             information_ids = str(information_ids)
-        elif type(information_ids) in (tuple, list):
+        elif type(information_ids) in (filter, tuple, list):
             information_ids = ','.join(str(i) for i in information_ids)
         query = ("SELECT DISTINCT A.association_id, A.ring_id, A.level, A.accuracy, "
                  "       A.valid, A.modified, A.note "
@@ -1233,7 +1233,7 @@ class Database():
         return self.get_associations_by_X(query)
 
     def get_timeline_by_subject(self, codenames):
-        if type(codenames) in (tuple, list):
+        if type(codenames) in (filter, tuple, list):
             codenames = "','".join(codenames)
         query = ("SELECT DISTINCT A.association_id, A.ring_id, A.level, A.accuracy, "
                  "       A.valid, A.modified, A.note "
@@ -1275,7 +1275,7 @@ class Database():
     def dissociate_associations(self, association_id, association_ids):
         if type(association_ids) == int:
             association_ids = str(association_ids)
-        elif type(association_ids) in (tuple, list):
+        elif type(association_ids) in (filter, tuple, list):
             association_ids = ','.join(str(x) for x in association_ids)
         if not self.ring_ok():
             return
@@ -1299,7 +1299,7 @@ class Database():
     def dissociate_informations(self, association_id, information_ids):
         if type(information_ids) == int:
             information_ids = str(information_ids)
-        elif type(information_ids) in (tuple, list):
+        elif type(information_ids) in (filter, tuple, list):
             information_ids = ','.join(str(x) for x in information_ids)
         if not self.ring_ok():
             return
@@ -1323,7 +1323,7 @@ class Database():
     def dissociate_locations(self, association_id, location_ids):
         if type(location_ids) == int:
             location_ids = str(location_ids)
-        elif type(location_ids) in (tuple, list):
+        elif type(location_ids) in (filter, tuple, list):
             location_ids = ','.join(str(x) for x in location_ids)
         if not self.ring_ok():
             return []
@@ -1347,7 +1347,7 @@ class Database():
     def dissociate_times(self, association_id, time_ids):
         if type(time_ids) == int:
             time_ids = str(time_ids)
-        elif type(time_ids) in (tuple, list):
+        elif type(time_ids) in (filter, tuple, list):
             time_ids = ','.join(str(x) for x in time_ids)
         if not self.ring_ok():
             return []
@@ -1470,8 +1470,8 @@ class Database():
             return
         if type(information_ids) == int:
             information_ids = str(information_ids)
-        elif type(information_ids) in (tuple, list):
-            information_ids = ','.join(information_ids)
+        elif type(information_ids) in (filter, tuple, list):
+            information_ids = ','.join(str(x) for x in information_ids)
         keyword_id = self.get_keyword_id(keyword)
         self.query(("INSERT INTO IK(information_id, keyword_id) "
                     "SELECT information_id, :k "
@@ -1540,8 +1540,8 @@ class Database():
             return []
         if type(information_ids) == int:
             information_ids = str(information_ids)
-        elif type(information_ids) in (tuple, list):
-            information_ids = ','.join(information_ids)
+        elif type(information_ids) in (filter, tuple, list):
+            information_ids = ','.join(str(x) for x in information_ids)
         if force_no_current_subject:
             result = self.query(("SELECT IK.information_id, K.keyword "
                                  "FROM IK INNER JOIN Keyword K "

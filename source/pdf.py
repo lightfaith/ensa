@@ -4,6 +4,7 @@ This module is responsible for generating PDF reports of provided data.
 """
 from datetime import datetime
 import os
+import pdb
 import tempfile
 from dateutil.relativedelta import relativedelta
 import traceback
@@ -65,7 +66,7 @@ def get_level_sort(infos):
 
 def get_valid(infos, key, codename_id=None):
     if codename_id:
-        return [i for i in infos if i[7] == 1 and i[4] == key and i[1] == codename_id]
+        return [i for i in infos if i[1] == codename_id and i[7] == 1 and i[4] == key]
     else:
         return [i for i in infos if i[7] == 1 and i[4] == key]
 
@@ -79,21 +80,21 @@ def get_valid_by_level(infos, key, codename_id=None):
 
 def get_valid_by_ids(infos, ids, codename_id=None):
     if codename_id:
-        return [i for i in infos if i[7] == 1 and i[0] in ids and i[1] == codename_id]
+        return [i for i in infos if i[1] == codename_id and i[7] == 1 and i[0] in ids]
     else:
         return [i for i in infos if i[7] == 1 and i[0] in ids]
 
 
 def get_valid_by_keyword(infos, keyword, codename_id=None):
     if codename_id:
-        return [i for i in infos if i[7] == 1 and keyword in i[11] and i[1] == codename_id]
+        return [i for i in infos if i[1] == codename_id and i[7] == 1 and keyword in i[11]]
     else:
         return [i for i in infos if i[7] == 1 and keyword in i[11]]
 
 
 def get_by_keyword(infos, keyword, codename_id=None):
     if codename_id:
-        return [i for i in infos if keyword in i[11] and i[1] == codename_id]
+        return [i for i in infos if i[1] == codename_id and keyword in i[11]]
     else:
         return [i for i in infos if keyword in i[11]]
 
@@ -185,9 +186,11 @@ horoscope = [
 # def person_report(infos, filename):
 def person_report(codename, filename):
     codename_id = ensa.db.select_subject(codename)
+    # pdb.set_trace()
+    # info_codename_id = [x[0] for x in get_valid(
+    #    infos, 'codename') if x[10] == codename][0]
     infos = ensa.db.get_informations(
         no_composite_parts=False, force_no_current_subject=True)
-    # import pdb
     # pdb.set_trace()
     infos = [i + ([x[1] for x in ensa.db.get_keywords_for_informations(i[0], force_no_current_subject=True)],)
              for i in infos]
@@ -241,7 +244,7 @@ def person_report(codename, filename):
             orientation_symbol = ''
     except:
         orientation_symbol = ''
-    # '''
+    '''
     # racial_modifiers = '\U0001f3fb\U0001f3fc\U0001f3fd\U0001f3fe\U0001f3ff'
     # http://unicode.org/charts/nameslist/n_2600.html
     # http://xahlee.info/comp/unicode_plants_flowers.html
@@ -251,6 +254,10 @@ def person_report(codename, filename):
                     + '\U0001f464\U0001f468'  # people
                     + '\U0001f30b\U0001fb5b\U0001f5fa\U0001f30d\U0001f30e\U0001f30f'  # locations
                     + '\U0001f4d1\U0001f4f0\U0001f4da\U0001f4dd\U0001f4dc\U0001f4c3\U0001f4c4'  # informations
+                    + '\U0001f418\U0001f98f\U0001f42b\U0001f427\U0001f40b\U0001f420\U0001f42c\U0001f426\U0001f428\U0001f405\U0001f406\U0001f40e\U0001f981\U0001f98a\U0001f42f\U0001f412'  # animals
+                    + '\U0001f4e6\U0001f4bc'  # items
+                    + '\u26bf\U0001f5dd\U0001f511\U0001f50f\U0001f510\U0001f512\U0001f513'  # security
+                    + '\U0001f3e2\U0001f3ed\U0001f3e0\U0001f3d8\U0001f3db'  # buildings
                     + ''.join(set(religion_symbols.values()))
                     + ''.join(set(horoscope_symbols.values()))
                     + ''.join(set(politics_symbols.values())))
@@ -268,11 +275,10 @@ def person_report(codename, filename):
         politics = ''
 
     codename_tuple = get_valid(infos, 'codename', codename_id)[0]
-    codename_id = codename_tuple[0]
-    codename = codename_tuple[10]
+    info_codename_id = codename_tuple[0]
+    # codename = codename_tuple[10]
 
     """Birth, death"""
-    # import pdb
     # pdb.set_trace()
     time_events = {}
     for event in ['birth', 'death']:
@@ -367,7 +373,7 @@ def person_report(codename, filename):
         ('Website', list(par('<link href="%s">%s</link>' % (i[10], i[10]))
                          for i in get_valid(infos, 'website', codename_id))),
     ])
-    portrait_path = 'files/binary/%d' % codename_id
+    portrait_path = 'files/binary/%d' % info_codename_id
     if os.path.isfile(portrait_path):
         portrait = Image(portrait_path)
     else:
@@ -441,21 +447,24 @@ def person_report(codename, filename):
                                 f.name + '.png', bbox_inches='tight', pad_inches=0)
                             address_map = Image(f.name + '.png')
                             address_map._restrictSize(12*cm, 12*cm)
-            entries.append(Table([[[Paragraph('Address', styles['Heading2'])]
-                                   + [par(line) for line in address_lines],
-                                   address_map]],
-                                 style=TableStyle([
-                                     ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                                 ]),
-                                 colWidths=[5.5*cm, 12*cm],
-                                 ))
+            if address_lines:
+                entries.append(Table([[[Paragraph('Address', styles['Heading2'])]
+                                       + [par(line) for line in address_lines],
+                                       address_map]],
+                                     style=TableStyle([
+                                         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                                     ]),
+                                     colWidths=[5.5*cm, 12*cm],
+                                     ))
     except:
         traceback.print_exc()
         address = ['']
 
     """Social Network"""
+    # TODO add colleagues
+    # OR in standardize()? but probably not...
     relationships = [
-        r for r in ensa.db.get_associations_by_information(codename_id)
+        r for r in ensa.db.get_associations_by_information(info_codename_id)
         if len([info for info in r[1] if info[4] == 'codename']) == 2
         and (r[0][6].lower().startswith('%s-%s '
                                         % (r[1][0][10], r[1][1][10]))
@@ -464,7 +473,7 @@ def person_report(codename, filename):
              )
     ]
 
-    # prepare dict as (codename, codename): (relationship, level, accuracy)
+    # prepare dict as (codename, codename): (relationship, level, accuracy, validity)
     relationships = [((r[1][0][10],
                        r[1][1][10]),
                       (r[0][6].partition(' ')[2],
@@ -472,6 +481,33 @@ def person_report(codename, filename):
                        r[0][3],
                        bool(r[0][4])))
                      for r in relationships]
+
+    # pick all colleagues, add relationships
+    job_infos = [i for i in infos if i[4] ==
+                 'position' and i[1] == codename_id]
+    colleagues = [i for a in ensa.db.get_associations_by_information(
+        [i[0] for i in job_infos]) for i in a[1]]
+    # get original infos with keywords etc.
+    colleagues = [i for i in infos if i[0] in [c[0] for c in colleagues]]
+    colleagues_used = []
+    for colleague in colleagues:
+        if colleague[1] == codename_id:
+            continue
+        if 'organization' in colleague[11]:
+            continue
+        colleague_codename = ensa.db.get_subject_codename(colleague[1])
+        # TODO average with own?
+        level = colleague[5]
+        accuracy = colleague[6]
+        valid = bool(colleague[7])
+        if (colleague[1], valid) in colleagues_used:
+            continue
+        colleagues_used.append((colleague[1], valid))
+        relationships.append(
+            ((codename, colleague_codename), ('colleague', level, accuracy, valid)))
+
+    # print(colleagues)
+
     acquaintances = set(sum([k for k, _ in relationships], ()))
     acquaintances.remove(codename)
     # create network, load as image
@@ -485,7 +521,99 @@ def person_report(codename, filename):
                   styles['Heading2']), network]))
 
     """Job"""
-    entries.append(Paragraph('Job', styles['Heading2']))
+    organization_list = []  # for later map drawing
+    # pdb.set_trace()
+    jobs = [a for a in ensa.db.get_associations_by_subject(
+        codename) if a[0][6].endswith('employees')]
+    job_tables = []
+    # for j in jobs:
+    #    print(j)
+    for job in jobs:
+        # pdb.set_trace()
+        # skip invalid
+        if not job[0][4]:
+            print('INVALID')
+            continue
+        job_id = job[0][0]
+
+        # find the organization
+        try:
+            info_organization = [i for i in infos if i[0] in [
+                i2[0] for i2 in job[1]] if 'organization' in i[11]][0]
+            organization_list.append(info_organization[10])
+            organization_id = ensa.db.select_subject(info_organization[10])
+        except:
+            traceback.print_exc()
+            log.warn(
+                'Found employee association without organization (#%d).' % job_id)
+            continue
+
+        information_row = []
+        positions = [i for i in job[1] if i[1] ==
+                     codename_id and i[4] == 'position']
+        # print(positions, organization)
+        # pdb.set_trace()
+        try:
+            organization_name = get_valid(infos, 'name', organization_id)[0]
+            # organization_websites = get_valid(
+            #    infos, 'website', organization_id)
+            # organization_identifiers = get_valid(
+            #    infos, 'identifier', organization_id)
+            # organization_accounts = get_valid(
+            #    infos, 'account', organization_id)
+            # TODO time entries in future - won't be possible with 'employees' association, TODO separate employments?
+            # address, map - not here, just in organization report
+        except:
+            traceback.print_exc()
+            continue
+
+        try:
+            logo_path = 'files/binary/%d' % organization_id
+            logo = Image(logo_path)
+            logo._restrictSize(3*cm, 2*cm)
+        except:
+            logo = None
+
+        information_row.append(
+            Paragraph(organization_name[10], styles['Heading3']))
+        information_row.append(logo)
+        # for identifier in organization_identifiers:
+        #    information_row.append(par(identifier[10]))
+        for position in positions:
+            information_row.append(par(position[10]))
+        # for website in organization_websites:
+        #    information_row.append(website[10])
+        # for account in organization_accounts:
+        #    information_row.append(account[10])
+
+        # add the complete job entry
+        for position in positions:
+            job_tables.append(
+                Table([
+                    [logo, Paragraph(organization_name[10],
+                                     styles['Heading3'])],
+                    ['', ''],  # TODO times
+                    ['', position[10]],
+                ],
+                    colWidths=[4*cm, 12*cm],
+                    style=TableStyle([
+                        ('SPAN', (0, 0), (0, -1)),
+                        # ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+                        # ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
+                    ])
+                )
+            )
+    if job_tables:
+        entries.append(KeepTogether([
+            Paragraph('Job', styles['Heading2']),
+            Table([[jt] for jt in job_tables],
+                  colWidths=[16*cm],
+                  style=TableStyle([
+                      # ('GRID', (0, 0), (-1, -1), 0.5, 'gray'),
+                      ('LINEBELOW', (0, 0), (-1, -1), 0.5, 'gray'),
+                  ])
+                  ),
+        ]))
 
     """Credentials"""
     # get valid credentials for systems
@@ -504,24 +632,23 @@ def person_report(codename, filename):
     if credentials:
         entries.append(KeepTogether([
             Paragraph('Credentials', styles['Heading2']),
-            Table([[Paragraph('Valid credentials', styles['Heading3']), '']] + [[*c] for c in credentials],
+            Table(credentials,
                   colWidths=[4*cm, 12*cm],
                   style=TableStyle([
-                      ('SPAN', (0, 0), (1, 0)),
-                      # ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
+                      ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
                   ])
                   )
         ]))
     # get all usernames, passwords (even invalid)
     usernames = [i[10]
-                 for i in infos if i[4] == 'username' and i[1] == codename_id]
+                 for i in infos if i[1] == codename_id and i[4] == 'username']
     if usernames:
         entries.append(KeepTogether([
             Paragraph('Usernames', styles['Heading3']),
             Table([[u] for u in usernames], colWidths=[16*cm])]))
 
     passwords = [i[10]
-                 for i in infos if i[4] == 'password' and i[1] == codename_id]
+                 for i in infos if i[1] == codename_id and i[4] == 'password']
     if passwords:
         entries.append(KeepTogether([
             Paragraph('Passwords', styles['Heading3']),
@@ -563,7 +690,18 @@ def person_report(codename, filename):
         event_time = event[2][0][1]
         event_name = event[0][6]
         event_id = event[0][0]
-        # first codenames (prefer with image); \U0001f464
+
+        # first times if not the main time; \u23f0 or \U0001f4c6
+        time_rows = []
+        for time in event[2]:  # TODO [1:]: # TODO but maybe not...
+            description = ('%s (%s)' %
+                           (time[5], time[1])) if time[5] else ('%s' % time[1])
+            if not time[3]:
+                description = '<strike>%s</strike>' % description
+            time_rows.append(
+                par('\U0001f4c6 %s' % description))
+
+        # then codenames (prefer with image); \U0001f464
         # then informations (prefer with image); \U001f4dd
         codename_rows = []
         information_rows = []
@@ -577,8 +715,16 @@ def person_report(codename, filename):
             except:
                 photo = None
             if info[4] == 'codename':
-                # TODO differentiate by symbol between person, company, animal, item, etc. by informations
-                symbol = '\U0001f464'
+                if 'person' in info[11]:
+                    symbol = '\U0001f464'
+                elif 'organization' in info[11]:
+                    symbol = '\U0001f3ed'
+                elif 'animal' in info[11]:
+                    symbol = '\U0001f418'
+                elif 'item' in info[11]:
+                    symbol = '\U0001f4e6'
+                else:
+                    symbol = ''
                 rows = codename_rows
             else:
                 symbol = '\U0001f4dd &lt;%s&gt; %s:' % (
@@ -601,7 +747,7 @@ def person_report(codename, filename):
                  # ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
                  # ('BACKGROUND', (0, 0), (-1, -1), 'cornflowerblue'),
                  ])))
-        info_columns = 5
+        info_columns = 4
         ci_rows = codename_rows + information_rows
         if len(ci_rows) < info_columns:
             ci_rows += [''] * (info_columns - len(ci_rows))
@@ -657,24 +803,16 @@ def person_report(codename, filename):
         else:
             location_row = []
 
-        # then times if not the main time; \u23f0 or \U0001f4c6
-        time_rows = []
-        for time in event[2]:  # TODO [1:]: # TODO but maybe not...
-            description = ('%s (%s)' %
-                           (time[5], time[1])) if time[5] else ('%s' % time[1])
-            if not time[3]:
-                description = '<strike>%s</strike>' % description
-            time_rows.append(
-                par('\U0001f4c6 %s' % description))
-
+        # pdb.set_trace()
         # add the complete timeline entry
         event_tables.append(
             Table([[Paragraph('%s - %s (#%d)' % (event_time, event_name, event_id), styles['Heading3'])]]
-                  + [[Table([[r for r in ci_rows][i:i+info_columns] for i in range(0, len(ci_rows), info_columns)], style=TableStyle([
-                      # ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
-                  ]))]]
-                  + [location_row]
-                  + [[r] for r in time_rows],
+                  + [[r] for r in time_rows]
+                  + [[Table(
+                      [[r for r in ci_rows][i:i+info_columns] for i in range(0, len(ci_rows), info_columns)], style=TableStyle([
+                          # ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
+                      ]))]]
+                  + [location_row],
                   # style=TableStyle([
                   #    ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
                   # ])
@@ -682,21 +820,22 @@ def person_report(codename, filename):
         )
 
     if event_tables:
-        entries.append(KeepTogether([
-            Paragraph('Timeline', styles['Heading2']),
+        entries.append(Paragraph('Timeline', styles['Heading2']))
+        entries.append(
             Table([[et] for et in event_tables],
                   colWidths=[16*cm],
                   style=TableStyle([
-                      #('GRID', (0, 0), (-1, -1), 0.5, 'gray'),
+                      # ('GRID', (0, 0), (-1, -1), 0.5, 'gray'),
                       ('LINEBELOW', (0, 0), (-1, -1), 0.5, 'gray'),
                   ])
                   ),
-        ]))
+        )
 
     """ big map of all associated locations """
     # TODO (also with comments?)
     coords = []
-    location_associations = ensa.db.get_associations_by_subject(codename)
+    location_associations = ensa.db.get_associations_by_subject(
+        organization_list + [codename])
     for association in location_associations:
         for location in association[3]:
             location_name = location[1]
