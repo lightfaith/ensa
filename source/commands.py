@@ -2296,7 +2296,7 @@ def sawo_function(*_):
                                               lon,
                                               valid=valid)
         association_id = ensa.db.create_association(valid=valid,
-                                                    note='%s\'s home'
+                                                    note='%s\'s address'
                                                     % codename.title())
         ensa.db.associate_information(association_id, address_id)
         ensa.db.associate_location(association_id, location_id)
@@ -2482,6 +2482,30 @@ def sawp_function(*_):
                     Database.INFORMATION_TEXT, category, value)
             else:
                 break
+    """job"""
+    while True:
+        organization, = wizard(['Organization codename:'])
+        if not organization:
+            break
+        organization_id = ensa.db.select_subject(organization)
+        if not organization_id:
+            log.err('No such subject exists.')
+            continue
+        valid, position, = wizard(
+            [
+                'Is the membership still valid?',
+                'What is %s\'s position?' % (codename),
+            ])
+        valid = not negative(valid)
+        job_id = ensa.db.create_information(
+            Database.INFORMATION_TEXT, 'position', position, level=10, accuracy=10)
+        try:
+            employment_id = [
+                a for a in ensa.db.get_associations_by_subject(organization) if a[0][6] == '%s\'s employees' % organization.title()][0][0][0]
+            ensa.db.associate_information(employment_id, job_id)
+        except:
+            traceback.print_exc()
+            log.err('No employee association for the given organization.')
 
     """relationships"""
     log.newline()
