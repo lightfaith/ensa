@@ -16,21 +16,38 @@ def get_relationship_color(relationship):
         'friend': 'lightblue',
         'sibling': 'orange',
         'spouse': 'purple',
-        'parent': 'red',
-        'child': 'red',
-        'grandparent': 'brown',
-        'grandchild': 'brown',
+        'parent': 'brown',
+        'child': 'brown',
+        'stepparent': 'chocolate',
+        'stepchild': 'chocolate',
+        'grandparent': 'brown4',
+        'grandchild': 'brown4',
         'partner': 'magenta',
+        'lover': 'maroon',
         'colleague': 'darkgreen',
+        'lord': 'springgreen',
+        'liege': 'springgreen',
         'enemy': 'red',
+        'killer': 'firebrick4',
+        'victim': 'firebrick4',
     }
     return colors.get(relationship) or 'black'
-    if relationship == 'friend':
-        return 'blue'
-    elif relationship == 'spouse':
-        return 'purple'
-    else:
-        return 'black'
+
+
+opposites = {
+    'parent': 'child',
+    'child': 'parent',
+    'stepparent': 'stepchild',
+    'stepchild': 'stepparent',
+    'grandparent': 'grandchild',
+    'grandchild': 'grandparent',
+    'lord': 'liege',
+    'liege': 'lord',
+    'killer': 'victim',
+    'victim': 'killer',
+    'captor': 'captive',
+    'captive': 'captor',
+}
 
 
 def get_relationship_graph(codename, acquaintances, relationships):
@@ -42,7 +59,8 @@ def get_relationship_graph(codename, acquaintances, relationships):
                      (relationship:str, level:int, accuracy:int, valid:bool))
     """
     path = os.path.join(tempfile.mkdtemp(), 'network')
-    g = gv.Graph(filename=path, format='png')
+    g = gv.Graph(filename=path, format='png', engine='circo')
+    g = gv.Graph(filename=path, format='png', engine='sfdp')
     # g.node(codename)
     node_fontsize = '10'
     edge_fontsize = '8'
@@ -50,10 +68,15 @@ def get_relationship_graph(codename, acquaintances, relationships):
     for node in acquaintances:
         g.node(node, fontsize=node_fontsize)
     for (a, b), (relationship, level, accuracy, valid) in relationships:
+        print(a, b, relationship, valid)
+        """swap relationship if necessary"""
+        if codename == a:
+            relationship = opposites.get(relationship) or relationship
         g.edge(a,
                b,
                label=relationship + ' ' * 10,
                color=get_relationship_color(relationship),
+               alpha='0.8',
                penwidth=str((level or 1) * (accuracy or 1) / 20),
                fontsize=edge_fontsize,
                style='solid' if valid else 'dotted')

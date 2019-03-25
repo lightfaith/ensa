@@ -1,0 +1,707 @@
+#
+# This is a list of commands to create sample Game of Thrones Information Database.
+#
+# First, create GOT Ring.
+#
+
+
+
+#########################
+# delete if exists...
+rd GOT
+ra GOT
+Game of Thrones ring for testing
+y
+#########################
+
+
+
+#
+# Now add some known locations.
+#
+
+
+
+#########################
+law
+Kraster's Keep
+
+
+10
+y
+
+y
+$krasters_keep = $last
+#########################
+law
+Castle Black
+
+
+10
+y
+Headquarters of the Night's Watch
+y
+$castle_black = $last
+#########################
+law
+Winterfell
+
+
+10
+y
+Home of House Stark
+y
+$winterfell = $last
+#########################
+law
+King's landing
+
+
+10
+y
+Capital of the Realm
+y
+$kings_landing = $last
+#########################
+law
+Moat Cailin
+
+
+10
+y
+
+y
+$moat_cailin = $last
+#########################
+law
+The Twins
+
+
+10
+y
+Home of House Frey
+y
+$twins = $last
+#########################
+law
+The Eyrie
+
+
+10
+y
+Home of House Arryn, unpenetrable
+y
+$eyrie = $last
+#########################
+law
+Crossroads Inn
+
+
+10
+y
+
+y
+$crossroads_inn = $last
+#########################
+law
+Riverrun
+
+
+10
+y
+Home of House Tully
+y
+$riverrun = $last
+#########################
+law
+Lannisport
+
+
+10
+y
+
+y
+$lannisport = $last
+#########################
+law
+Casterly Rock
+
+
+10
+y
+Home of House Lannister
+y
+$casterly_rock = $last
+#########################
+law
+Dragonstone
+
+
+10
+y
+Home of House Barratheon
+y
+$dragonstone = $last
+#########################
+law
+Highgarden
+
+
+10
+y
+Home of House Tyrell
+y
+$highgarden = $last
+#########################
+law
+Old Town
+
+
+10
+y
+The Citadel is here
+y
+$old_town = $last
+#########################
+law
+Sunspear
+
+
+10
+y
+Home of House Martell
+y
+$old_town = $last
+#########################
+law
+Braavos
+
+
+10
+y
+
+y
+$braavos = $last
+#########################
+law
+Lorath
+
+
+10
+y
+
+y
+$lorath = $last
+#########################
+law
+Norvos
+
+
+10
+y
+
+y
+$norvos = $last
+#########################
+law
+Pentos
+
+
+10
+y
+
+y
+$pentos = $last
+#########################
+law
+Qohor
+
+
+10
+y
+
+y
+$qohor = $last
+#########################
+law
+Vaes Dothrak
+
+
+10
+y
+
+y
+$vaes_dothrak = $last
+#########################
+law
+Myr
+
+
+10
+y
+
+y
+$myr = $last
+#########################
+law
+Tyrosh
+
+
+10
+y
+
+y
+$tyrosh = $last
+#########################
+law
+Lys
+
+
+10
+y
+
+y
+$lys = $last
+#########################
+law
+Volantis
+
+
+10
+y
+
+y
+$volantis = $last
+#########################
+law
+Valyria
+
+
+10
+y
+
+y
+$valyria = $last
+#########################
+law
+Meereen
+
+
+10
+y
+
+y
+$meereen = $last
+#########################
+law
+Yunkai
+
+
+10
+y
+
+y
+$yunkai = $last
+#########################
+law
+Astapor
+
+
+10
+y
+
+y
+$astapor = $last
+#########################
+law
+Qarth
+
+
+10
+y
+
+y
+$qarth = $last
+#########################
+law
+Asshai
+
+
+10
+y
+
+y
+$asshai = $last
+#########################
+
+
+
+#
+# Time for defining times!
+#
+
+
+
+#
+# add people
+#
+
+# races: first men, andal, thenn, dothraki, valyrian, rhoynar (->dornishmen)
+#########################
+sa ned
+ig
+# store id of the codename information
+$id = $last
+iab $id ned.jpg
+iak $id person
+iat firstname Eddard
+iat lastname Stark
+iat sex male
+iat orientation heterosexual
+iat trait brave
+iat trait honorable
+iat trait just
+iat asset Ice (sword)
+iat race first men
+#########################
+sa arya
+ig
+$id = $last
+iab $id arya.jpg
+iak $id person
+iat firstname Arya
+iat lastname Stark
+iat sex female
+iat trait brave
+iat trait fast
+iat trait stubborn
+iat asset Needle (sword)
+iat asset Braavosi coin
+iat race first men
+sar ned parent 10
+#########################
+sa sansa
+ig
+$id = $last
+iab $id sansa.jpg
+iak $id person
+iat firstname Sansa
+iat lastname Stark
+iat sex female
+iat trait stupid
+iat trait pretty
+iat orientation heterosexual
+iat race first men
+sar ned parent 10
+sar arya sibling 10 8
+#########################
+sa robb
+ig
+$id = $last
+iab $id robb.jpg
+iak $id person
+iat firstname Robb
+iat lastname Stark
+iat sex male
+iat trait brave
+iat trait inexperienced
+iat orientation heterosexual
+iat race first men
+sar ned parent 10
+sar arya sibling 10
+sar sansa sibling 10
+#########################
+sa brandon
+ig
+$id = $last
+iab $id brandon.jpg
+iak $id person
+iat firstname Brandon
+iat lastname Stark
+iat sex male
+iat trait brave
+iat skill warg
+iat skill greenseer
+iat skill climbing
+iat medical lame
+sar ned parent 10
+sar arya sibling 10
+sar sansa sibling 10
+sar robb sibling 10
+#########################
+sa rickon
+ig
+$id = $last
+iab $id rickon.jpg
+iak $id person
+iat firstname Rickon
+iat lastname Stark
+iat sex male
+sar ned parent 10
+sar arya sibling 10
+sar sansa sibling 10
+sar robb sibling 10
+sar brandon sibling 10
+#########################
+sa catelyn
+ig
+$id = $last
+iab $id catelyn.jpg
+iak $id person
+iat firstname Catelyn
+iat lastname Stark
+iat lastname Tully
+imv $last false
+iat sex female
+iat trait brave
+iat trait smart
+iat orientation heterosexual
+iat race first men
+sar ned spouse 10
+sar sansa child 10
+sar arya child 10
+sar robb child 10
+sar brandon child 10
+sar rickon child 10
+#########################
+sa john
+ig
+$id = $last
+iab $id john.png
+iak $id person
+iat firstname John
+iat lastname Snow
+iat sex male
+iat trait brave
+iat trait strong
+iat trait just
+iat trait fair
+iat orientation heterosexual
+iat race first men
+iat race valyrian
+sar ned parent 10 10
+# TODO not working for some reason
+imv $last false
+sar ned stepparent 10
+sar arya sibling 0 10
+sar sansa sibling 0
+sar robb sibling 0 10
+sar brandon sibling 0 
+sar rickon sibling 0
+sar catelyn stepparent 10 0
+#########################
+sa rodrick
+ig
+$id = $last
+iab $id rodrick.jpg
+iak $id person
+iat firstname Rodrick
+iat lastname Cassel
+iat sex male
+iat trait brave
+iat trait loyal
+iat trait stubborn
+iat trait strong
+sar ned lord 10
+sar catelyn lord 10
+sar bran friend 10
+sar rickon friend 10
+#########################
+sa jory
+ig
+$id = $last
+iab $id jory.jpg
+iak $id person
+iat firstname jory
+iat lastname Cassel
+iat sex male
+iat trait brave
+sar ned lord 10
+sar catelyn lord 10
+sar rodrick uncle 10
+#########################
+sa luwin
+ig
+$id = $last
+iab $id luwin.jpg
+iak $id person
+iat firstname Luwin
+iat sex male
+iat title maester
+iat trait loyal
+iat trait wise
+sar ned lord 10
+sar catelyn lord 10
+sar ned friend 10
+sar catelyn friend 10
+sar brandon friend 10
+sar rickon friend 10
+########################
+sa hodor
+ig 
+$id = $last
+iab $id hodor.jpg
+iak $id person
+iat firstname Wylis
+iat nickname Hodor
+iat sex male
+iat trait loyal
+iat trait strong
+iat medical dimwit
+sar ned lord 10
+sar catelyn lord 10
+sar brandon lord 10
+sar brandon friend 10
+sar rickon friend 10
+########################
+sa roose
+ig 
+$id = $last
+iab $id roose.jpg
+iak $id person
+iat firstname Roose
+iat lastname Bolton
+iat sex male
+iat orientation heterosexual
+iat trait smart
+iat trait greedy
+sar ned lord 10
+sar robb lord 10 0
+sar catelyn lord 10 0
+sar brandon enemy 10
+sar sansa enemy 10
+sar john enemy 10
+sar arya enemy 10
+sar robb victim 10
+########################
+sa ramsay
+ig
+$id = $last
+iab $id ramsay.jpg
+iak $id person
+iat firstname Ramsay
+iat lastname Snow
+imv $last false
+iat lastname Bolton
+iat sex male
+iat trait smart
+iat trait sadistic
+iat trait masochistic
+iat trait psychopathic
+iat trait cruel
+iat orientation heterosexual
+sar roose parent 10 7
+sar sansa spouse 10 3
+sar sansa captive 10
+sar sansa enemy 10
+sar john enemy 10
+sar rickon enemy 10
+sar rickon victim 10
+########################
+sa myranda
+ig
+$id = $last
+iab $id myranda.jpg
+iak $id person
+iat firstname Myranda
+iat sex female
+iat trait jealous
+iat trait cruel
+iat trait psychopatic
+iat trait sadistic
+iat trait masochistic
+iat trait smart
+iat trait pretty
+iat trait naive
+iat trait horny
+sar roose lord 10
+sar ramsay lord 10
+sar ramsay lover 10
+sar sansa enemy 10
+########################
+sa jojen
+ig
+$id = $last
+iab $id jojen.jpg
+iak $id person
+iat firstname Jojen
+iat lastname Reed
+iat sex male
+iat skill warg
+iat trait smart
+iat trait brave
+iat trait weak
+sar brandon friend 10
+sar brandon lord 10
+sar rickon friend 10
+sar hodor friend 10
+########################
+sa myra
+ig
+$id = $last
+iab $id myra.jpg
+iak $id person
+iat firstname Myra
+iat lastname Reed
+iat sex female
+iat trait strong
+iat trait brave
+sar jojen sibling 10
+sar brandon friend 10
+sar brandon lord 10
+sar rickon friend 10
+sar hodor friend 10
+########################
+
+
+#
+# add animals/monsters
+#
+
+
+#
+# do person reports
+#
+#########################
+ss ned
+sr
+ss arya
+sr
+ss sansa
+sr
+ss robb
+sr
+ss brandon
+sr
+ss rickon
+sr
+ss catelyn
+sr
+ss john
+sr
+ss rodrick
+sr
+ss jory
+sr
+ss luwin
+sr
+ss hodor
+sr
+ss roose
+sr
+ss ramsay
+sr
+ss myranda
+sr
+ss jojen
+sr
+ss myra
+sr
+#########################
+
+
+
+
+
+
+

@@ -2,10 +2,21 @@
 """
 General-purpose stuff is defined here.
 """
-import os, sys, signal, io, time
+import os
+import sys
+import signal
+import io
+import time
+import pdb
 from source import ensa
 from source import db
 from source import log
+'''
+mypdb = pdb.Pdb(stdin=open('/tmp/fifo_stdin', 'r'),
+                stdout=open('/tmp/fifo_stdout', 'w'))
+pdb.set_trace = mypdb.set_trace
+'''
+
 
 def positive(x):
     if type(x) in [bytes, bytearray]:
@@ -16,6 +27,7 @@ def positive(x):
         return True
     return False
 
+
 def negative(x):
     if type(x) in [bytes, bytearray]:
         x = x.decode()
@@ -25,6 +37,7 @@ def negative(x):
         return True
     return False
 
+
 def quitstring(x):
     if type(x) != str:
         return False
@@ -33,15 +46,18 @@ def quitstring(x):
         return True
     return False
 
+
 def exit_program(signal, frame):
-    if signal == -1: # immediate termination due to -h or bad parameter
+    if signal == -1:  # immediate termination due to -h or bad parameter
         sys.exit(0)
 
-    log.newline() # newline
+    log.newline()  # newline
     sys.exit(0 if signal is None else 1)
+
 
 # run exit program on SIGINT
 signal.signal(signal.SIGINT, exit_program)
+
 
 def reload_config():
     log.info('Loading config file...')
@@ -73,24 +89,26 @@ def reload_config():
             log.debug_config('  parsed: %s = %s (%s)' % (k, v, str(type(v))))
 
 
-
 def hexdump(data):
     # prints data as with `hexdump -C` command
     result = []
     line_count = 0
     for chunk in chunks(data, 16):
-        hexa = ' '.join(''.join(get_colored_printable_hex(b) for b in byte) for byte in [chunk[start:start+2] for start in range(0, 16, 2)])
-        
+        hexa = ' '.join(''.join(get_colored_printable_hex(b) for b in byte)
+                        for byte in [chunk[start:start+2] for start in range(0, 16, 2)])
+
         # add none with coloring - for layout
-        if len(hexa)<199:
+        if len(hexa) < 199:
             hexa += (log.COLOR_NONE+'  '+log.COLOR_NONE)*(16-len(chunk))
 
-        result.append(log.COLOR_DARK_GREEN + '%08x' % (line_count*16) + log.COLOR_NONE +'  %-160s' % (hexa) + ' |' + ''.join(get_colored_printable(b) for b in chunk) + '|')
+        result.append(log.COLOR_DARK_GREEN + '%08x' % (line_count*16) + log.COLOR_NONE +
+                      '  %-160s' % (hexa) + ' |' + ''.join(get_colored_printable(b) for b in chunk) + '|')
         line_count += 1
-    #if result: # if request matches and response not, 2 headers are printed...
+    # if result: # if request matches and response not, 2 headers are printed...
     #    result.insert(0, '{grepignore}-offset-   0 1  2 3  4 5  6 7  8 9  A B  C D  E F   0123456789ABCDEF')
-    
+
     return result
+
 
 '''
 def degree_to_dms(value):
@@ -102,4 +120,3 @@ def degree_to_dms(value):
 def dms_to_degree(degrees, minutes, seconds):
     return degrees + minutes/60 + seconds/3600
 '''
-

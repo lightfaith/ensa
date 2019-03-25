@@ -107,3 +107,4 @@ venv.bak/
 nogit/
 .*.swp
 files/tmp/
+files/uploads_backup/

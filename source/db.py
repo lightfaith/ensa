@@ -77,12 +77,14 @@ class Database():
 
     def get_rings(self, name=None):
         if name:
-            return self.query(("SELECT ring_id, name, password, "
-                               "       reference_date, note "
-                               "FROM Ring "
-                               "WHERE name LIKE '%"+name+"%'"))
-        return self.query("SELECT ring_id, name, password, reference_date, note "
-                          "FROM Ring")
+            result = self.query(("SELECT ring_id, name, password, "
+                                 "       reference_date, note "
+                                 "FROM Ring "
+                                 "WHERE name LIKE '%"+name+"%'"))
+        else:
+            result = self.query("SELECT ring_id, name, password, reference_date, note "
+                                "FROM Ring")
+        return result
 
     def create_ring(self, name, password, note):
         try:
@@ -192,6 +194,7 @@ class Database():
 ###########################################
 # Subject methods
 ###########################################
+
 
     def create_subject(self, codename, note=None):
         if not self.ring_ok():
@@ -566,7 +569,6 @@ class Database():
 ###########################################
 # Location methods
 ###########################################
-
 
     def create_location(self,
                         name,
