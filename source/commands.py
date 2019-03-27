@@ -61,6 +61,7 @@ Function to run commands, apply filters etc.
 
 
 def run_command(fullcommand):
+    ensa.history.append(fullcommand)
     """only comment or nothing? skip"""
     if fullcommand.startswith('#') or not fullcommand.strip():
         return
@@ -283,7 +284,9 @@ def parse_sequence(sequence):
 def wizard(questions):
     for q in questions:
         log.question('%s ' % (q), new_line=False)
-        yield input()
+        line = input()
+        ensa.history.append(line)
+        yield line
 
 
 """
@@ -473,6 +476,10 @@ TEST COMMANDS
 
 def test_function(*args):
     result = []
+    # DUMP written commands, including empty newlines
+    # TODO set up proper command for this
+    for command in ensa.history:
+        print(command)
     return result
 
 
@@ -1103,17 +1110,7 @@ def iab_function(*args):
         with open('files/uploads/%s' % filename, 'rb') as f:
             pass
         ensa.db.add_binary(information_id, filename)
-        """add extension as keyword"""
-        extension = filename.rpartition('.')[2].lower()
-        ensa.db.add_keyword(information_id,
-                            'extension:%s' % extension)
-        """try to guess file type"""
-        if extension in ('jpg', 'png', 'bmp', 'gif'):
-            ensa.db.add_keyword(information_id, 'image')
-        if extension in ('doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
-                         'pps', 'ppsx', 'pdf', 'odt', 'txt'):
-            ensa.db.add_keyword(information_id, 'document')
-        # TODO more
+
         ensa.variables['last'] = information_id
         return information_id
     except:
@@ -1185,7 +1182,7 @@ def iak_function(*args):
         return []
     for keyword in keywords:
         ensa.db.add_keyword(information_ids, keyword)
-    #ensa.variables['last'] = information_id
+    # ensa.variables['last'] = information_id
     return []
 
 
@@ -2246,7 +2243,7 @@ def sawo_function(*_):
 
     if logo_name:
         try:
-            ensa.db.add_binary(ensa.db.select_subject(codename), logo_name)
+            ensa.db.add_binary(info_codename_id, logo_name)
         except:
             traceback.print_exc()
 
@@ -2313,7 +2310,7 @@ def sawo_function(*_):
                                                     % codename.title())
         ensa.db.associate_information(association_id, address_id)
         ensa.db.associate_location(association_id, location_id)
-
+    '''
     # CEO association
     employment_id = ensa.db.create_association(
         note=('%s\'s employees' % (codename.title())))
@@ -2358,6 +2355,55 @@ def sawo_function(*_):
         job_id = ensa.db.create_information(
             Database.INFORMATION_TEXT, 'position', position, level=10, accuracy=10)
         ensa.db.associate_information(employment_id, job_id)
+    '''
+    # employees
+    while True:
+        employee, = wizard([
+            'Employee codename:',
+        ])
+        if not employee:
+            break
+        employee_id = ensa.db.select_subject(employee)
+        if not employee_id:
+            log.err('No such subject exists.')
+            continue
+
+        position, start, end = wizard([
+            'Position:',
+            'Start date (YYYY-mm-dd):',
+            'End date (YYYY-mm-dd):',
+        ])
+        employment_id = ensa.db.create_association(
+            note=('%s-%s employee' % (codename, employee)), level=10, accuracy=10)
+        ensa.db.associate_subject(employment_id, codename)
+        ensa.current_subject = employee_id
+        job_id = ensa.db.create_information(
+            Database.INFORMATION_TEXT, 'position', position, level=10, accuracy=10)
+        ensa.db.associate_information(employment_id, job_id)
+
+        if start:
+            start_time = ensa.db.create_time(
+                start, '00:00:00', note='%s\'s start date as employee of %s' % (employee, codename))
+            if start_time:
+                ensa.db.associate_time(employment_id, start_time)
+            else:
+                log.err('Start date is wrong.')
+        if end:
+            # TODO compare with reference date
+            #valid = (datetime.strptime(end, '%Y-%m-%d') >= datetime.now())
+            end_time = ensa.db.create_time(
+                end, '00:00:00', note='%s\'s end date as employee of %s' % (employee, codename))
+            if end_time:
+                ensa.db.associate_time(employment_id, end_time)
+            else:
+                log.err('End date is wrong.')
+        '''
+        else:
+            valid, = wizard(['Is the employment still valid?'])
+            valid = not negative(valid)
+        ensa.db.update_association_metadata(employment_id, valid=valid)
+        '''
+
     # business partners (organizations)
     # TODO
 
@@ -2485,6 +2531,7 @@ def sawp_function(*_):
             ('trait', '%s\'s trait:' % codename.title()),
             ('asset', '%s\'s asset:' % codename.title()),
             ('medical', '%s\'s medical condition:' % codename.title()),
+            ('quotation', '%s\'s quotation:' % codename.title()),
     ):
         log.newline()
         while True:
@@ -2505,21 +2552,33 @@ def sawp_function(*_):
         if not organization_id:
             log.err('No such subject exists.')
             continue
-        valid, position, = wizard(
+        position, start, end = wizard(
             [
-                'Is the membership still valid?',
                 'What is %s\'s position?' % (codename),
+                'Start date (YYYY-mm-dd):',
+                'End date (YYYY-mm-dd):',
             ])
-        valid = not negative(valid)
+        employment_id = ensa.db.create_association(
+            note=('%s-%s employee' % (organization, codename)), level=10, accuracy=10)
         job_id = ensa.db.create_information(
             Database.INFORMATION_TEXT, 'position', position, level=10, accuracy=10)
-        try:
-            employment_id = [
-                a for a in ensa.db.get_associations_by_subject(organization) if a[0][6] == '%s\'s employees' % organization.title()][0][0][0]
-            ensa.db.associate_information(employment_id, job_id)
-        except:
-            traceback.print_exc()
-            log.err('No employee association for the given organization.')
+        ensa.db.associate_subject(employment_id, organization)
+        ensa.db.associate_information(employment_id, job_id)
+
+        if start:
+            start_time = ensa.db.create_time(
+                start, '00:00:00', note='%s\'s start date as employee of %s' % (codename, organization))
+            if start_time:
+                ensa.db.associate_time(employment_id, start_time)
+            else:
+                log.err('Start date is wrong.')
+        if end:
+            end_time = ensa.db.create_time(
+                end, '00:00:00', note='%s\'s end date as employee of %s' % (codename, organization))
+            if end_time:
+                ensa.db.associate_time(employment_id, end_time)
+            else:
+                log.err('End date is wrong.')
 
     """relationships"""
     log.newline()
@@ -2675,12 +2734,14 @@ def sr_function(*_):
         if report_type in keywords:
             log.info('Generating %s report for %s...' %
                      (report_type.title(), codename))
-            function(codename, 'files/tmp/%s.pdf' % codename)
+            filename = 'files/tmp/%s_%s.pdf' % (
+                ensa.db.get_ring_name(ensa.current_ring), codename)
+            function(codename, filename)
             report_created = True
-            log.info('Report is saved as files/tmp/%s.pdf.' % codename)
+            log.info('Report is saved as %s.' % filename)
         break
     if not report_created:
-        log.err('Only %s reports are supported.' % ', '.join(supported.keys()))
+        log.err('Only %s reports are supported.' % '|'.join(supported.keys()))
     return []
 
 

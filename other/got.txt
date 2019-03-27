@@ -346,13 +346,14 @@ $asshai = $last
 # add people
 #
 
-# races: first men, andal, thenn, dothraki, valyrian, rhoynar (->dornishmen)
+#########################
+# NORTH
 #########################
 sa ned
 ig
 # store id of the codename information
 $id = $last
-iab $id ned.jpg
+iab $id got_ned.jpg
 iak $id person
 iat firstname Eddard
 iat lastname Stark
@@ -367,7 +368,7 @@ iat race first men
 sa arya
 ig
 $id = $last
-iab $id arya.jpg
+iab $id got_arya.jpg
 iak $id person
 iat firstname Arya
 iat lastname Stark
@@ -383,10 +384,11 @@ sar ned parent 10
 sa sansa
 ig
 $id = $last
-iab $id sansa.jpg
+iab $id got_sansa.jpg
 iak $id person
 iat firstname Sansa
 iat lastname Stark
+iat nickname Alayne
 iat sex female
 iat trait stupid
 iat trait pretty
@@ -398,11 +400,13 @@ sar arya sibling 10 8
 sa robb
 ig
 $id = $last
-iab $id robb.jpg
+iab $id got_robb.jpg
 iak $id person
 iat firstname Robb
 iat lastname Stark
 iat sex male
+iat nickname King in the North
+iat nickname The Young Wolf
 iat trait brave
 iat trait inexperienced
 iat orientation heterosexual
@@ -414,7 +418,7 @@ sar sansa sibling 10
 sa brandon
 ig
 $id = $last
-iab $id brandon.jpg
+iab $id got_brandon.jpg
 iak $id person
 iat firstname Brandon
 iat lastname Stark
@@ -432,7 +436,7 @@ sar robb sibling 10
 sa rickon
 ig
 $id = $last
-iab $id rickon.jpg
+iab $id got_rickon.jpg
 iak $id person
 iat firstname Rickon
 iat lastname Stark
@@ -446,7 +450,7 @@ sar brandon sibling 10
 sa catelyn
 ig
 $id = $last
-iab $id catelyn.jpg
+iab $id got_catelyn.jpg
 iak $id person
 iat firstname Catelyn
 iat lastname Stark
@@ -467,11 +471,13 @@ sar rickon child 10
 sa john
 ig
 $id = $last
-iab $id john.png
+iab $id got_john.png
 iak $id person
 iat firstname John
 iat lastname Snow
 iat sex male
+iat nickname King in the North
+iat nickname bastard
 iat trait brave
 iat trait strong
 iat trait just
@@ -480,8 +486,7 @@ iat orientation heterosexual
 iat race first men
 iat race valyrian
 sar ned parent 10 10
-# TODO not working for some reason
-imv $last false
+amv $last false
 sar ned stepparent 10
 sar arya sibling 0 10
 sar sansa sibling 0
@@ -493,7 +498,7 @@ sar catelyn stepparent 10 0
 sa rodrick
 ig
 $id = $last
-iab $id rodrick.jpg
+iab $id got_rodrick.jpg
 iak $id person
 iat firstname Rodrick
 iat lastname Cassel
@@ -510,7 +515,7 @@ sar rickon friend 10
 sa jory
 ig
 $id = $last
-iab $id jory.jpg
+iab $id got_jory.jpg
 iak $id person
 iat firstname jory
 iat lastname Cassel
@@ -523,7 +528,7 @@ sar rodrick uncle 10
 sa luwin
 ig
 $id = $last
-iab $id luwin.jpg
+iab $id got_luwin.jpg
 iak $id person
 iat firstname Luwin
 iat sex male
@@ -540,7 +545,7 @@ sar rickon friend 10
 sa hodor
 ig 
 $id = $last
-iab $id hodor.jpg
+iab $id got_hodor.jpg
 iak $id person
 iat firstname Wylis
 iat nickname Hodor
@@ -557,7 +562,7 @@ sar rickon friend 10
 sa roose
 ig 
 $id = $last
-iab $id roose.jpg
+iab $id got_roose.jpg
 iak $id person
 iat firstname Roose
 iat lastname Bolton
@@ -577,7 +582,7 @@ sar robb victim 10
 sa ramsay
 ig
 $id = $last
-iab $id ramsay.jpg
+iab $id got_ramsay.jpg
 iak $id person
 iat firstname Ramsay
 iat lastname Snow
@@ -596,12 +601,13 @@ sar sansa captive 10
 sar sansa enemy 10
 sar john enemy 10
 sar rickon enemy 10
+sar rickon captive 10
 sar rickon victim 10
 ########################
 sa myranda
 ig
 $id = $last
-iab $id myranda.jpg
+iab $id got_myranda.jpg
 iak $id person
 iat firstname Myranda
 iat sex female
@@ -622,7 +628,7 @@ sar sansa enemy 10
 sa jojen
 ig
 $id = $last
-iab $id jojen.jpg
+iab $id got_jojen.jpg
 iak $id person
 iat firstname Jojen
 iat lastname Reed
@@ -639,7 +645,7 @@ sar hodor friend 10
 sa myra
 ig
 $id = $last
-iab $id myra.jpg
+iab $id got_myra.jpg
 iak $id person
 iat firstname Myra
 iat lastname Reed
@@ -652,11 +658,534 @@ sar brandon lord 10
 sar rickon friend 10
 sar hodor friend 10
 ########################
+sa talisa
+ig
+$id = $last
+iab $id got_talisa.jpg
+iak $id person
+iat firstname Talisa
+iat lastname Maegyr
+imv $last false
+iat lastname Stark
+iat sex female
+iat orientation heterosexual
+iat race valyrian
+iat skill healing
+iat trait good
+sar robb spouse 10
+########################
+# THE VALE
+########################
+sa jon
+ig
+$id = $last
+iak $id person
+iat firstname Jon
+iat lastname Arryn
+iat sex male
+iat race andal
+sar ned friend 10
+sar ned foster 10
+aml $last false
+########################
+sa lysa
+ig
+$id = $last
+iab $id got_lysa.jpg
+iak $id person
+iat firstname Lysa
+iat lastname Arryn
+iat lastname Tully
+imv $last false
+iat sex female
+iat orientation heterosexual
+iat race first men
+iat trait protective
+iat medical insane
+sar jon spouse 10 5
+amv $last false
+sar catelyn sibling 10 5
+########################
+sa robin
+ig
+$id = $last
+iab $id got_robin.jpg
+iak $id person
+iat firstname Robin
+iat lastname Arryn
+iat sex male
+iat race andal
+iat trait dependent
+iat trait weak
+iat trait hot-tempered
+sar jon parent 10
+sar lysa parent 10
+sar sansa cousin 10
+########################
+sa yohn
+ig
+$id = $last
+iab $id got_yohn.png
+iak $id person
+iat firstname Yohn
+iat lastname Royce
+iat sex male
+iat trait brave
+iat trait loyal
+iat race andal
+iat nickname Bronze Yohn
+sar jon lord 10
+amv $last false
+sar robin lord 10
+sar lysa lord 10
+########################
+sa anya
+ig
+$id = $last
+iab $id got_anya.jpg
+iak $id person
+iat firstname Anya
+iat lastname Waynwood
+iat sex female
+iat race andal
+iat trait firm
+sar jon lord 10
+amv $last false
+sar robin lord 10
+sar lysa lord 10
+########################
+sa littlefinger
+ig
+$id = $last
+iab $id got_littlefinger.png
+iak $id person
+iat firstname Petyr
+iat lastname Baelish
+iat nickname Littlefinger
+iat sex male
+iat orientation heterosexual
+iat trait untrustworthy
+iat trait slimy
+iat trait smart
+iat skill persuasion
+iml $last 10
+iat skill finance
+iat position Master of Coin
+iat position spymaster
+iat asset Valyrian dagger
+iat asset King's Landing brothel
+iat quotation Chaos isn't a pit. Chaos is a ladder.
+sar jon lord 10
+amv last False
+sar lysa lord 10
+amv $last false
+sar lysa lover 10
+amv $last false
+sar lysa spouse 10
+amv $last false
+sar lysa killer 10
+sar robin lord 10
+sar robin stepchild 10
+sar catelyn friend 10
+sar catelyn love 10
+sar ned enemy 10
+sar sansa friend 10 8
+amv $last false
+sar sansa enemy 10
+sar ramsay enemy 10
+sar roose enemy 10
+sar arya killer 5
+########################
+# races: first men, andal, thenn, dothraki, valyrian, rhoynar (->dornishmen)
+# Riverlands
+########################
+sa edmure
+ig
+$id = $last
+iab $id got_edmure.png
+iak $id person
+iat firstname Edmure
+iat lastname Tully
+iat sex male
+iat orientation heterosexual
+iat race first men
+iat trait weak
+sar catelyn sibling 10
+sar lysa sibling 10
+sar robb nephew 10
+sar robb ally 10
+########################
+sa hoster
+ig 
+$id = $last
+iak $id person
+iat firstname Hoster
+iat lastname Tully
+iat sex male
+iat race first men
+sar catelyn child 10
+sar lysa child 10
+sar edmure child 10
+sar edmure liege 10
+########################
+sa brynden
+ig
+$id = $last
+iab $id got_brynden.png
+iak $id person
+iat firstname Brynden
+iat lastname Tully
+iat nickname the Blackfish
+iat race firstname
+iat sex male
+iat trait brave
+iat trait stubborn
+sar hoster sibling 10
+sar hoster lord 10
+########################
+sa walder
+ig
+$id = $last
+iab $id got_walder.jpg
+iak $id person
+iat firstname Walder
+iat lastname Frey
+iat nickname Late Lord Frey
+iat sex male
+iat orientation heterosexual
+iat race andal
+iat trait proud
+iat trait unpopular
+iat trait perverted
+iat trait vengeful
+iat trait untrustworthy
+sar hoster lord 10
+sar catelyn friend 10 5
+amv $last false
+sar catelyn enemy 10
+sar robb enemy 10
+sar roose friend 10 6
+sar arya killer 10
+sar arya enemy 10
+sar talisa enemy 10
+########################
+sa roslin
+ig
+$id = $last
+iab $id got_roslin.jpg
+iak $id person
+iat firstname Roslin
+iat lastname Frey
+imv $last false
+iat lastname Tully
+iat sex female
+iat orientation heterosexual
+iat race andal
+iat trait pretty
+iat trait submissive
+sar walder parent 10
+sar edmure spouse 10
+########################
+sa walda
+ig
+$id = $last
+iab $id got_walda.jpg
+iak $id person
+iat firstname Walda
+iat lastname Frey
+imv $last false
+iat lastname Bolton
+iat nickname Fat Walda
+iat sex female
+iat race andal
+iat trait fat
+iat trait nice
+sar walder grandparent 10
+sar roose spouse 10
+sar ramsay stepchild 10
+sar ramsay killer 10
+########################
+sa black_walder
+ig
+$id = $last
+iab $id got_black_walder.png
+iak $id person
+iat firstname Walder
+iat lastname Rivers
+iat nickname Black Walder
+iat sex male
+iat race andal
+iat trait unscrupulous
+sar walder parent 10
+sar roslin sister 10
+sar catelyn victim 10
+sar edmure enemy 10
+sar brynden enemy 10
+sar arya killer 10
+########################
+sa lothar
+ig
+$id = $last
+iab $id got_lothar.jpg
+iak $id person
+iat sex male
+iat race andal
+iat trait unscrupulous
+sar walder parent 10
+sar black_walder brother 10
+sar roslin sister 10
+sar talisa victim 10
+sar edmure enemy 10
+sar brynden enemy 10
+sar arya killer 10
+########################
+# King's lands
+########################
+sa mad_king
+########################
+sa robert
+########################
+sa barristan
+########################
+sa pycelle
+########################
+sa varys
+########################
+sa high_sparrow
+########################
+sa qyburn
+########################
+sa tywin
+########################
+sa jamie
+########################
+sa cersei
+########################
+sa tyrion
+########################
+sa joffrey
+########################
+sa myrcella
+########################
+sa tommen
+########################
+sa hound
+########################
+sa mountain
+########################
+sa meryn
+########################
+sa janos
+########################
+sa beric
+########################
+sa thoros
+########################
+sa gendry
+########################
+sa hot_pie
+########################
+sa rose
+########################
+sa shae
+########################
+sa ilyn
+########################
+sa bronn
+########################
+sa podrick
+########################
+sa lancel
+########################
+# Barratheons
+########################
+sa stannis
+########################
+sa selyse
+########################
+sa shireen
+########################
+sa davos
+########################
+sa melisandra
+########################
+sa matthos
+iat lastname Seaworth
+########################
+sa renly
+########################
+sa margaery
+########################
+sa loras
+########################
+sa mace
+########################
+sa olenna
+########################
+sa randyll
+########################
+# Dorne
+########################
+sa doran
+########################
+sa oberyn
+########################
+sa elia 
+########################
+sa ellaria
+########################
+# Ironborn
+########################
+sa balon
+########################
+sa euron
+########################
+sa theon
+########################
+sa yara
+########################
+# Night's Watch
+########################
+sa aemon
+########################
+sa joer
+########################
+sa alliser
+########################
+sa pypar 
+########################
+sa olly
+########################
+sa edd
+########################
+sa grenn
+########################
+sa qhorin
+########################
+# Wildlings
+########################
+sa craster
+########################
+sa gilly
+########################
+sa tormund
+########################
+sa osha
+########################
+sa mance
+########################
+sa ygritte
+########################
+sa orell
+########################
+sa styr
+########################
+sa wunwun
+########################
+# White Walkers
+########################
+sa night_king
+########################
+########################
+# Children
+########################
+sa third_eye_raven
+########################
+sa leaf
+########################
+########################
+# Essos
+########################
+sa illyrio
+########################
+sa daenerys
+########################
+sa viserys
+########################
+sa drogo
+########################
+sa mago
+########################
+sa qotho
+########################
+sa rakharo
+########################
+sa mirri_maz_duur
+########################
+sa jorah
+########################
+sa doreah
+########################
+sa irri
+########################
+sa jhiqui
+########################
+sa rhaego
+########################
+sa xaro
+########################
+sa pyat
+########################
+sa kraznys
+########################
+sa missandei
+########################
+sa grey_worm
+########################
+sa razdal
+########################
+sa mero
+sa nickname Titan's bastard
+########################
+sa prendahl
+########################
+sa daario
+########################
+sa hizdahr
+########################
+
+########################
+########################
+########################
+########################
+########################
+########################
+########################
+########################
+########################
+########################
+
+
 
 
 #
 # add animals/monsters
 #
+#########################
+sa grey_wind
+#########################
+sa ghost
+#########################
+sa lady
+#########################
+sa nymeria
+#########################
+sa summer
+#########################
+sa shaggydog
+#########################
+sa drogon
+#########################
+sa rhaegal
+#########################
+sa viserion
+#########################
+sa balerion
+#########################
+sa vhaghar
+#########################
+sa meraxes
+#########################
 
 
 #
@@ -697,8 +1226,40 @@ ss jojen
 sr
 ss myra
 sr
-#########################
+ss talisa
+sr
 
+ss jon
+sr
+ss lysa
+sr
+ss robin
+sr
+ss yohn
+sr
+ss anya
+sr
+ss littlefinger
+sr
+
+ss edmure
+sr
+ss hoster
+sr
+ss brynden
+sr
+ss walder
+sr
+ss roslin
+sr
+ss walda
+sr
+ss black_walder
+sr
+#########################
+ss
+ig~codename
+v
 
 
 

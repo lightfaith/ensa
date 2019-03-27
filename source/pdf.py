@@ -197,6 +197,7 @@ def person_report(codename, filename):
 
     images = get_valid_by_keyword(infos, 'image')
     own_images = get_valid_by_keyword(infos, 'image', codename_id)
+    print(own_images)
     composites = [i for i in infos if i[3] == Database.INFORMATION_COMPOSITE]
     own_composites = [i for i in infos if i[3] ==
                       Database.INFORMATION_COMPOSITE and i[1] == codename_id]
@@ -304,18 +305,24 @@ def person_report(codename, filename):
             try:
                 month = get_valid(infos, '%s_month' %
                                   event, codename_id)[0][10]
+                real_month = month
             except:
-                month = '1'
+                month = '01'
+                real_month = '??'
             try:
                 day = get_valid(infos, '%s_day' % event, codename_id)[0][10]
+                real_day = day
             except:
-                day = '0'
+                day = '01'
+                real_day = '??'
             if year:  # at least
                 event_str = '-'.join(filter(None, [year, month, day]))
                 try:
                     event_value = datetime.strptime(event_str, '%Y-%m-%d')
                 except:
                     pass
+                event_str = '-'.join(filter(None,
+                                            [year, real_month, real_day]))
 
         if event_str:
             time_events[event] = (event_str, event_value)
@@ -324,14 +331,18 @@ def person_report(codename, filename):
     birth_sign = ''
     if 'birth' in time_events.keys():
         # and also get the zodiac sign
-        for i in range(len(horoscope)):
-            sign, m, d_limit = horoscope[i]
-            if time_events['birth'][1].month == m:
-                if time_events['birth'][1].day < d_limit:
-                    birth_sign = horoscope_symbols[sign]
-                else:
-                    birth_sign = horoscope_symbols[horoscope[(i+1) % 12][0]]
-                break
+        if '?' not in time_events['birth'][0]:
+            for i in range(len(horoscope)):
+                sign, m, d_limit = horoscope[i]
+                if time_events['birth'][1].month == m:
+                    if time_events['birth'][1].day < d_limit:
+                        birth_sign = horoscope_symbols[sign]
+                    else:
+                        birth_sign = horoscope_symbols[horoscope[(
+                            i+1) % 12][0]]
+                    break
+        else:
+            birth_sign = ''
 
         if 'death' in time_events.keys():
             age = relativedelta(
@@ -461,21 +472,32 @@ def person_report(codename, filename):
         address = ['']
 
     """Social Network"""
+    emblem_categories = [('person', '\U0001f464'),
+                         ('organization', '\U0001f3ed'),
+                         ('animal', '\U0001f418'),
+                         ('item', '\U0001f4e6'),
+                         ]
     # TODO add colleagues
-    # OR in standardize()? but probably not...
+    # pdb.set_trace()
     relationships = [
-        r for r in ensa.db.get_associations_by_information(info_codename_id)
-        if len([info for info in r[1] if info[4] == 'codename']) == 2
+        # r for r in ensa.db.get_associations_by_information(info_codename_id)
+        r for r in ensa.db.get_associations_by_subject(codename)
+        if len([info for info in r[1] if info[4] in ('codename', 'position')]) == 2
         and (r[0][6].lower().startswith('%s-%s '
-                                        % (r[1][0][10], r[1][1][10]))
+                                        % (ensa.db.get_subject_codename(r[1][0][1]), ensa.db.get_subject_codename(r[1][1][1])))
              or r[0][6].lower().startswith('%s-%s '
-                                           % (r[1][1][10], r[1][0][10]))
+                                           % (ensa.db.get_subject_codename(r[1][1][1]), ensa.db.get_subject_codename(r[1][0][1])))
              )
     ]
-
+    #print('relationships:', relationships)
+    '''
+    emblems = {}
+    for r in relationships:
+        print(r[0][6])
+    '''
     # prepare dict as (codename, codename): (relationship, level, accuracy, validity)
-    relationships = [((r[1][0][10],
-                       r[1][1][10]),
+    relationships = [((ensa.db.get_subject_codename(r[1][0][1]),
+                       ensa.db.get_subject_codename(r[1][1][1])),
                       (r[0][6].partition(' ')[2],
                        r[0][2],
                        r[0][3],
@@ -483,10 +505,19 @@ def person_report(codename, filename):
                      for r in relationships]
 
     # pick all colleagues, add relationships
+    jobs = [a for a in ensa.db.get_associations_by_subject(
+        codename) if a[0][6].endswith('employee')]
+    companies = [info[0] for job in jobs for info in job[1]]
+    colleagues = [i for a in ensa.db.get_associations_by_information(companies)
+                  if a[0][6].endswith('employee') for i in a[1]]
+    #print('companies:', companies)
+    #print('col:', colleagues)
+    '''
     job_infos = [i for i in infos if i[4] ==
                  'position' and i[1] == codename_id]
     colleagues = [i for a in ensa.db.get_associations_by_information(
         [i[0] for i in job_infos]) for i in a[1]]
+    '''
     # get original infos with keywords etc.
     colleagues = [i for i in infos if i[0] in [c[0] for c in colleagues]]
     colleagues_used = []
@@ -507,34 +538,55 @@ def person_report(codename, filename):
             ((codename, colleague_codename), ('colleague', level, accuracy, valid)))
 
     # print(colleagues)
-
     acquaintances = set(sum([k for k, _ in relationships], ()))
-    acquaintances.remove(codename)
-    # create network, load as image
-    network = None
-    network_str = get_relationship_graph(
-        codename, acquaintances, relationships)
-    network = Image(network_str)
-    network._restrictSize(17*cm, 30*cm)
-    entries.append(KeepTogether([
-        Paragraph('Social Network',
-                  styles['Heading2']), network]))
+    if acquaintances:
+        '''
+        """find emblems for each acquaintance"""
+        emblems = {}
+        for acq_info in [i for i in infos if i[4] == 'codename' and i[10] in acquaintances]:
+            for category, emblem in emblem_categories:
+                if category in acq_info[11]:
+                    emblems[acq_info[10]] = emblem
+                    break
+        '''
+        acquaintances.remove(codename)
+        # create network, load as image
+        network = None
+        network_str = get_relationship_graph(
+            codename, acquaintances, relationships)
+        # codename, acquaintances, relationships, emblems)
+        network = Image(network_str)
+        network._restrictSize(17*cm, 30*cm)
+        entries.append(KeepTogether([
+            Paragraph('Social Network',
+                      styles['Heading2']), network]))
 
     """Job"""
     organization_list = []  # for later map drawing
     # pdb.set_trace()
     jobs = [a for a in ensa.db.get_associations_by_subject(
-        codename) if a[0][6].endswith('employees')]
+        codename) if a[0][6].endswith('employee')]
+    # TODO sort by start time desc
     job_tables = []
     # for j in jobs:
     #    print(j)
     for job in jobs:
         # pdb.set_trace()
         # skip invalid
-        if not job[0][4]:
-            print('INVALID')
-            continue
+        # if not job[0][4]:
+        #    print('INVALID')
+        #    continue
         job_id = job[0][0]
+        try:
+            start_date = [x[1].partition(' ')[0]
+                          for x in job[2] if 'start date as employee' in x[5]][0]
+        except:
+            start_date = None
+        try:
+            end_date = [x[1].partition(
+                ' ')[0] for x in job[2] if 'end date as employee' in x[5]][0]
+        except:
+            end_date = None
 
         # find the organization
         try:
@@ -561,7 +613,6 @@ def person_report(codename, filename):
             #    infos, 'identifier', organization_id)
             # organization_accounts = get_valid(
             #    infos, 'account', organization_id)
-            # TODO time entries in future - won't be possible with 'employees' association, TODO separate employments?
             # address, map - not here, just in organization report
         except:
             traceback.print_exc()
@@ -586,13 +637,16 @@ def person_report(codename, filename):
         # for account in organization_accounts:
         #    information_row.append(account[10])
 
+        date_string = ('%s - %s' % (start_date or '?', end_date or '?')
+                       if start_date or end_date else '')
+
         # add the complete job entry
         for position in positions:
             job_tables.append(
                 Table([
                     [logo, Paragraph(organization_name[10],
                                      styles['Heading3'])],
-                    ['', ''],  # TODO times
+                    ['', date_string],
                     ['', position[10]],
                 ],
                     colWidths=[4*cm, 12*cm],
@@ -670,7 +724,7 @@ def person_report(codename, filename):
             valids_levels = [(k, [x[10] for x in v])
                              for k, v in get_level_sort(valids)]
             t = Table([[par(str(level or '')),
-                        par('' + ', '.join(set(valids)))]
+                        par('' + ', '.join(sorted(set(valids))))]
                        for level, valids in valids_levels],
                       colWidths=[cm, 15*cm],
                       # style=test_style(3),
@@ -678,6 +732,14 @@ def person_report(codename, filename):
             entries.append(KeepTogether([
                 Paragraph(category_name, styles['Heading2']),
                 t]))
+
+    """ Quotations """
+    valids = get_valid(infos, 'quotation', codename_id)
+    if valids:
+        entries.append(Paragraph('Quotations', styles['Heading2']))
+        for valid in valids:
+            entries.append(Paragraph('<i>%s</i>' %
+                                     valid[10], getSampleStyleSheet()['BodyText']))
 
     """ Timeline """
     timeline = ensa.db.get_timeline_by_subject(codename)
@@ -693,7 +755,7 @@ def person_report(codename, filename):
 
         # first times if not the main time; \u23f0 or \U0001f4c6
         time_rows = []
-        for time in event[2]:  # TODO [1:]: # TODO but maybe not...
+        for time in event[2]:
             description = ('%s (%s)' %
                            (time[5], time[1])) if time[5] else ('%s' % time[1])
             if not time[3]:
@@ -714,17 +776,13 @@ def person_report(codename, filename):
                 photo._restrictSize(2*cm, 3*cm)
             except:
                 photo = None
+                # TODO codename image if not info image...
             if info[4] == 'codename':
-                if 'person' in info[11]:
-                    symbol = '\U0001f464'
-                elif 'organization' in info[11]:
-                    symbol = '\U0001f3ed'
-                elif 'animal' in info[11]:
-                    symbol = '\U0001f418'
-                elif 'item' in info[11]:
-                    symbol = '\U0001f4e6'
-                else:
-                    symbol = ''
+                symbol = ''
+                for category, emblem in emblem_categories:
+                    if category in info[11]:
+                        symbol = emblem
+                        break
                 rows = codename_rows
             else:
                 symbol = '\U0001f4dd &lt;%s&gt; %s:' % (
@@ -878,6 +936,8 @@ def person_report(codename, filename):
                     traceback.print_exc()
                     continue
             columns = 4
+            if not imgs_in_category:
+                continue
             t = (Table([imgs_in_category[i:i+columns]
                         for i in range(0, len(imgs_in_category), columns)],
                        hAlign='LEFT',

@@ -1,0 +1,328 @@
+#
+# This is a list of commands to create sample How I Met Your Mother Information Database.
+#
+# First, create HIMYM Ring.
+#
+
+
+
+#########################
+# delete if exists...
+rd HIMYM
+ra HIMYM
+How I Met Your Mother test ring
+
+#########################
+# Locations
+#########################
+law
+Liberty Bell
+39.949610
+-75.150282
+10
+y
+
+
+
+$liberty_bell = $last
+law
+Rome
+41.9102415
+12.395915
+10
+y
+
+
+
+$rome = $last
+#########################
+# Times
+#########################
+taw
+2005-10-03
+00:00
+10
+y
+Sweet Taste of Liberty
+
+$liberty_time = $last
+taw
+2008-04-25
+18:00
+10
+y
+Ted's 30th Birthday
+
+$birthday = $last
+taw
+2013-04-15
+00:00
+5
+y
+Trip to Rome
+
+$trip_to_rome = $last
+#####################
+# Subjects
+#####################
+sawp
+ted
+himym_ted.jpg
+Ted
+Evelyn
+Mosby
+male
+1978
+04
+25
+caucasian
+atheist
+
+heterosexual
+y
+USA
+New York
+Upper West Side
+85th
+150
+10001
+y
+40.787000
+-73.975510
+n
+Big Brown Eyes
+Teddy Westside
+T-Dog
+
+870425/1111
+
+beer
+daddy jokes
+
+New Jersey
+
+architecture
+
+handsome
+smart
+funny
+
+boots
+phonebooth
+sword
+pineapple
+
+
+I'm something stupid. Do me.
+
+
+
+sac ted mosby123 facebook
+iat username teddybear
+iat password 12345
+iat password SuperT0pSecretP@ssfort
+###################################
+sawp
+lily
+himym_lily.jpg
+Lily
+
+Aldrin
+female
+1978
+3
+22
+caucasian
+atheist
+
+bisexual
+n
+the Belly
+Lilypad
+Lil
+the Slap Bet Commisioner
+
+
+shopping
+
+
+painting
+cooking
+spanish
+
+pretty
+horny
+
+credit cards
+
+
+
+
+ted
+y
+friend
+10
+10
+ted
+n
+roommate
+10
+10
+
+##################################
+sawp
+marshall
+himym_marshall.jpg
+Marshall
+
+Eriksen
+male
+1978
+
+
+caucasian
+atheist
+green
+heterosexual
+n
+Beerkules
+Marshmallow
+Big Fudge
+
+
+beer
+board games
+
+
+law
+
+faithful
+just
+
+sword
+
+dancer's hip
+
+
+
+ted
+y
+friend
+10
+10
+ted
+n
+roommate
+10
+10
+lily
+y
+friend
+10
+10
+lily
+y
+spouse
+10
+10
+lily
+n
+roommate
+10
+10
+lily
+n
+partner
+10
+10
+
+##################################
+sawo
+gnb
+himym_gnb.png
+Goliath National Bank
+
+banking
+http://www.goliathbank.com
+
+n
+ted
+architect
+2008-02-01
+2008-02-15
+marshall
+lawyer
+2007-10-01
+
+
+
+###################################
+sawp
+arthur
+himym_arthur.png
+Arthur
+
+Hobbs
+m
+
+
+
+caucasian
+
+
+
+n
+Artillery Arthur
+
+
+Tugboat
+
+
+yelling
+
+rude
+
+
+
+
+gnb
+manager
+2008-01-01
+
+
+
+###################################
+# Add events
+###################################
+aaw
+Lick the Liberty Bell
+
+10
+y
+y
+$ltlb = $last
+aas $ltlb ted
+aas $ltlb marshall
+l
+aal $ltlb $liberty_bell
+aat $ltlb $liberty_time
+###################################
+
+###################################
+# Generate reports
+###################################
+ss ted
+sr
+ss lily
+sr
+ss marshall
+sr
+ss gnb
+sr
+ss arthur
+sr
+###################################
+ss
+ig~codename
+v
+

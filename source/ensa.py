@@ -12,26 +12,29 @@ config = OrderedDict()
 censore_keys = ['db.password']
 
 """ connection settings """
-#config['db.host'] = ('localhost', str)  # MySQL server hostname/IP
-#config['db.name'] = ('ensa', str)       # MySQL database name
-#config['db.username'] = ('ensa', str)   # MySQL username
-#config['db.password'] = ('', str)       # MySQL password
+# config['db.host'] = ('localhost', str)  # MySQL server hostname/IP
+# config['db.name'] = ('ensa', str)       # MySQL database name
+# config['db.username'] = ('ensa', str)   # MySQL username
+# config['db.password'] = ('', str)       # MySQL password
 config['db.file'] = ('', str)            # SQLite file
 
 
 """ debug settings """
 config['debug.command'] = (False, bool)  # show debug info about used commands
-config['debug.config'] = (False, bool)   # show debug info about configuration 
+config['debug.config'] = (False, bool)   # show debug info about configuration
 config['debug.errors'] = (False, bool)   # show python tracebacks
-#config['debug.flow'] = (True, bool)     # show debug info about program flow`
-config['debug.query'] = (False, bool)    # show debug info about database queries
+# config['debug.flow'] = (True, bool)     # show debug info about program flow`
+# show debug info about database queries
+config['debug.query'] = (False, bool)
 
 """ External commands """
-config['external.editor'] = ('vim %s', str) # path to editor
-config['interaction.command_modifier'] = ('$', str) # command modifier
-config['interaction.default_accuracy'] = (0, int) # default accuracy
-config['interaction.max_accuracy'] = (10, int) # maximum accuracy (for color emphasis) # TODO check when modified
-config['interaction.max_level'] = (10, int) # maximum level # TODO needed? # TODO check when modified
+config['external.editor'] = ('vim %s', str)  # path to editor
+config['interaction.command_modifier'] = ('$', str)  # command modifier
+config['interaction.default_accuracy'] = (0, int)  # default accuracy
+# maximum accuracy (for color emphasis) # TODO check when modified
+config['interaction.max_accuracy'] = (10, int)
+# maximum level # TODO needed? # TODO check when modified
+config['interaction.max_level'] = (10, int)
 
 """
 Dictionary of all available commands (filled in source/commands.py)
@@ -55,3 +58,7 @@ Database object
 """
 db = None
 
+"""
+Command history
+"""
+history = []

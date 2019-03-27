@@ -195,7 +195,6 @@ class Database():
 # Subject methods
 ###########################################
 
-
     def create_subject(self, codename, note=None):
         if not self.ring_ok():
             return None
@@ -357,6 +356,17 @@ class Database():
         """move file from uploads/ to binary/, rename properly"""
         os.rename('files/uploads/%s' % filename,
                   'files/binary/%d' % information_id)
+        """add extension as keyword"""
+        extension = filename.rpartition('.')[2].lower()
+        ensa.db.add_keyword(information_id,
+                            'extension:%s' % extension)
+        """try to guess file type"""
+        if extension in ('jpg', 'png', 'bmp', 'gif'):
+            ensa.db.add_keyword(information_id, 'image')
+        if extension in ('doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+                         'pps', 'ppsx', 'pdf', 'odt', 'txt'):
+            ensa.db.add_keyword(information_id, 'document')
+        # TODO more
 
     def delete_information(self, information_id):
         # test if can delete
@@ -569,6 +579,7 @@ class Database():
 ###########################################
 # Location methods
 ###########################################
+
 
     def create_location(self,
                         name,
@@ -1417,6 +1428,10 @@ class Database():
                                     note=None):
         if not self.ring_ok():
             return []
+        if type(association_ids) == int:
+            association_ids = str(association_ids)
+        elif type(association_ids) in (filter, tuple, list):
+            association_ids = ','.join(str(x) for x in association_ids)
         if accuracy:
             self.query(("UPDATE Association "
                         "SET modified = :m, accuracy = :a "
