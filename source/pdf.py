@@ -197,7 +197,6 @@ def person_report(codename, filename):
 
     images = get_valid_by_keyword(infos, 'image')
     own_images = get_valid_by_keyword(infos, 'image', codename_id)
-    print(own_images)
     composites = [i for i in infos if i[3] == Database.INFORMATION_COMPOSITE]
     own_composites = [i for i in infos if i[3] ==
                       Database.INFORMATION_COMPOSITE and i[1] == codename_id]
@@ -424,8 +423,10 @@ def person_report(codename, filename):
     description = '%s\'s home' % codename.title()
     """find address that is not part of a composite (e.g. work address)"""
     try:
+        # pdb.set_trace()
         address = [a for a in infos
                    if a[0] not in [x for i in own_composites for x in i[10]]
+                   and a[1] == codename_id
                    and a[3] == Database.INFORMATION_COMPOSITE
                    and a[4] == 'address']
         if address:
@@ -470,6 +471,187 @@ def person_report(codename, filename):
     except:
         traceback.print_exc()
         address = ['']
+
+    """Likes, skills etc."""
+    for category, category_name in (
+        ('skill', 'Skills'),
+        ('likes', 'Likes'),
+        ('dislikes', 'Dislikes'),
+        ('trait', 'Traits'),
+        ('asset', 'Assets'),
+        ('medical', 'Medical conditions'),
+    ):
+        valids = get_valid(infos, category, codename_id)
+        if valids:
+            valids_levels = [(k, [x[10] for x in v])
+                             for k, v in get_level_sort(valids)]
+            t = Table([[par(str(level or '')),
+                        par('' + ', '.join(sorted(set(valids))))]
+                       for level, valids in valids_levels],
+                      colWidths=[cm, 15*cm],
+                      # style=test_style(3),
+                      )
+            entries.append(KeepTogether([
+                Paragraph(category_name, styles['Heading2']),
+                t]))
+
+    """ Quotations """
+    valids = get_valid(infos, 'quotation', codename_id)
+    if valids:
+        entries.append(Paragraph('Quotations', styles['Heading2']))
+        for valid in valids:
+            entries.append(Paragraph('<i>%s</i>' %
+                                     valid[10], getSampleStyleSheet()['BodyText']))
+
+    """Credentials"""
+    # get valid credentials for systems
+    credentials = []
+    credential_tuples = get_valid_by_keyword(infos, 'credentials', codename_id)
+    for c in credential_tuples:
+        system = c[4]
+        creds = get_valid_by_ids(infos, c[10], codename_id)
+        try:
+            username = [c[10] for c in creds if c[4] == 'username'][0]
+            password = [c[10] for c in creds if c[4] == 'password'][0]
+        except:
+            continue
+        credentials.append((system, '%s:%s' % (username, password)))
+
+    if credentials:
+        entries.append(KeepTogether([
+            Paragraph('Credentials', styles['Heading2']),
+            Table(credentials,
+                  colWidths=[4*cm, 12*cm],
+                  style=TableStyle([
+                      ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
+                  ])
+                  )
+        ]))
+    # get all usernames, passwords (even invalid)
+    usernames = [i[10]
+                 for i in infos if i[1] == codename_id and i[4] == 'username']
+    if usernames:
+        entries.append(KeepTogether([
+            Paragraph('Usernames', styles['Heading3']),
+            Table([[u] for u in usernames], colWidths=[16*cm])]))
+
+    passwords = [i[10]
+                 for i in infos if i[1] == codename_id and i[4] == 'password']
+    if passwords:
+        entries.append(KeepTogether([
+            Paragraph('Passwords', styles['Heading3']),
+            Table([[u] for u in passwords], colWidths=[16*cm])]))
+
+    # TODO suggest possible (by family etc.)
+    """Job"""
+    organization_list = []  # for later map drawing
+    # pdb.set_trace()
+    jobs = [a for a in ensa.db.get_associations_by_subject(
+        codename) if a[0][6].endswith('employee')]
+    # TODO sort by start time desc
+    job_tables = []
+    # for j in jobs:
+    #    print(j)
+    for job in jobs:
+        # pdb.set_trace()
+        # skip invalid
+        # if not job[0][4]:
+        #    print('INVALID')
+        #    continue
+        job_id = job[0][0]
+        try:
+            start_date = [x[1].partition(' ')[0]
+                          for x in job[2] if 'start date as employee' in x[5]][0]
+        except:
+            start_date = None
+        try:
+            end_date = [x[1].partition(
+                ' ')[0] for x in job[2] if 'end date as employee' in x[5]][0]
+        except:
+            end_date = None
+
+        # find the organization
+        try:
+            info_organization = [i for i in infos if i[0] in [
+                i2[0] for i2 in job[1]] if 'organization' in i[11]][0]
+            organization_list.append(info_organization[10])
+            organization_id = ensa.db.select_subject(info_organization[10])
+            info_organization_id = info_organization[0]
+        except:
+            traceback.print_exc()
+            log.warn(
+                'Found employee association without organization (#%d).' % job_id)
+            continue
+
+        information_row = []
+        positions = [i for i in job[1] if i[1] ==
+                     codename_id and i[4] == 'position']
+        # print(positions, organization)
+        # pdb.set_trace()
+        try:
+            organization_name = get_valid(infos, 'name', organization_id)[0]
+            # organization_websites = get_valid(
+            #    infos, 'website', organization_id)
+            # organization_identifiers = get_valid(
+            #    infos, 'identifier', organization_id)
+            # organization_accounts = get_valid(
+            #    infos, 'account', organization_id)
+            # address, map - not here, just in organization report
+        except:
+            traceback.print_exc()
+            continue
+
+        try:
+            logo_path = 'files/binary/%d' % info_organization_id
+            logo = Image(logo_path)
+            logo._restrictSize(3*cm, 2*cm)
+        except:
+            # traceback.print_exc()
+            logo = None
+
+        information_row.append(
+            Paragraph(organization_name[10], styles['Heading3']))
+        information_row.append(logo)
+        # for identifier in organization_identifiers:
+        #    information_row.append(par(identifier[10]))
+        for position in positions:
+            information_row.append(par(position[10]))
+        # for website in organization_websites:
+        #    information_row.append(website[10])
+        # for account in organization_accounts:
+        #    information_row.append(account[10])
+
+        date_string = ('%s - %s' % (start_date or '?', end_date or '?')
+                       if start_date or end_date else '')
+
+        # add the complete job entry
+        for position in positions:
+            job_tables.append(
+                Table([
+                    [logo, Paragraph(organization_name[10],
+                                     styles['Heading3'])],
+                    ['', date_string],
+                    ['', position[10]],
+                ],
+                    colWidths=[4*cm, 12*cm],
+                    style=TableStyle([
+                        ('SPAN', (0, 0), (0, -1)),
+                        # ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+                        # ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
+                    ])
+                )
+            )
+    if job_tables:
+        entries.append(KeepTogether([
+            Paragraph('Job', styles['Heading2']),
+            Table([[jt] for jt in job_tables],
+                  colWidths=[16*cm],
+                  style=TableStyle([
+                      # ('GRID', (0, 0), (-1, -1), 0.5, 'gray'),
+                      ('LINEBELOW', (0, 0), (-1, -1), 0.5, 'gray'),
+                  ])
+                  ),
+        ]))
 
     """Social Network"""
     emblem_categories = [('person', '\U0001f464'),
@@ -556,190 +738,10 @@ def person_report(codename, filename):
             codename, acquaintances, relationships)
         # codename, acquaintances, relationships, emblems)
         network = Image(network_str)
-        network._restrictSize(17*cm, 30*cm)
+        network._restrictSize(17*cm, 35*cm)
         entries.append(KeepTogether([
             Paragraph('Social Network',
-                      styles['Heading2']), network]))
-
-    """Job"""
-    organization_list = []  # for later map drawing
-    # pdb.set_trace()
-    jobs = [a for a in ensa.db.get_associations_by_subject(
-        codename) if a[0][6].endswith('employee')]
-    # TODO sort by start time desc
-    job_tables = []
-    # for j in jobs:
-    #    print(j)
-    for job in jobs:
-        # pdb.set_trace()
-        # skip invalid
-        # if not job[0][4]:
-        #    print('INVALID')
-        #    continue
-        job_id = job[0][0]
-        try:
-            start_date = [x[1].partition(' ')[0]
-                          for x in job[2] if 'start date as employee' in x[5]][0]
-        except:
-            start_date = None
-        try:
-            end_date = [x[1].partition(
-                ' ')[0] for x in job[2] if 'end date as employee' in x[5]][0]
-        except:
-            end_date = None
-
-        # find the organization
-        try:
-            info_organization = [i for i in infos if i[0] in [
-                i2[0] for i2 in job[1]] if 'organization' in i[11]][0]
-            organization_list.append(info_organization[10])
-            organization_id = ensa.db.select_subject(info_organization[10])
-        except:
-            traceback.print_exc()
-            log.warn(
-                'Found employee association without organization (#%d).' % job_id)
-            continue
-
-        information_row = []
-        positions = [i for i in job[1] if i[1] ==
-                     codename_id and i[4] == 'position']
-        # print(positions, organization)
-        # pdb.set_trace()
-        try:
-            organization_name = get_valid(infos, 'name', organization_id)[0]
-            # organization_websites = get_valid(
-            #    infos, 'website', organization_id)
-            # organization_identifiers = get_valid(
-            #    infos, 'identifier', organization_id)
-            # organization_accounts = get_valid(
-            #    infos, 'account', organization_id)
-            # address, map - not here, just in organization report
-        except:
-            traceback.print_exc()
-            continue
-
-        try:
-            logo_path = 'files/binary/%d' % organization_id
-            logo = Image(logo_path)
-            logo._restrictSize(3*cm, 2*cm)
-        except:
-            logo = None
-
-        information_row.append(
-            Paragraph(organization_name[10], styles['Heading3']))
-        information_row.append(logo)
-        # for identifier in organization_identifiers:
-        #    information_row.append(par(identifier[10]))
-        for position in positions:
-            information_row.append(par(position[10]))
-        # for website in organization_websites:
-        #    information_row.append(website[10])
-        # for account in organization_accounts:
-        #    information_row.append(account[10])
-
-        date_string = ('%s - %s' % (start_date or '?', end_date or '?')
-                       if start_date or end_date else '')
-
-        # add the complete job entry
-        for position in positions:
-            job_tables.append(
-                Table([
-                    [logo, Paragraph(organization_name[10],
-                                     styles['Heading3'])],
-                    ['', date_string],
-                    ['', position[10]],
-                ],
-                    colWidths=[4*cm, 12*cm],
-                    style=TableStyle([
-                        ('SPAN', (0, 0), (0, -1)),
-                        # ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-                        # ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
-                    ])
-                )
-            )
-    if job_tables:
-        entries.append(KeepTogether([
-            Paragraph('Job', styles['Heading2']),
-            Table([[jt] for jt in job_tables],
-                  colWidths=[16*cm],
-                  style=TableStyle([
-                      # ('GRID', (0, 0), (-1, -1), 0.5, 'gray'),
-                      ('LINEBELOW', (0, 0), (-1, -1), 0.5, 'gray'),
-                  ])
-                  ),
-        ]))
-
-    """Credentials"""
-    # get valid credentials for systems
-    credentials = []
-    credential_tuples = get_valid_by_keyword(infos, 'credentials', codename_id)
-    for c in credential_tuples:
-        system = c[4]
-        creds = get_valid_by_ids(infos, c[10], codename_id)
-        try:
-            username = [c[10] for c in creds if c[4] == 'username'][0]
-            password = [c[10] for c in creds if c[4] == 'password'][0]
-        except:
-            continue
-        credentials.append((system, '%s:%s' % (username, password)))
-
-    if credentials:
-        entries.append(KeepTogether([
-            Paragraph('Credentials', styles['Heading2']),
-            Table(credentials,
-                  colWidths=[4*cm, 12*cm],
-                  style=TableStyle([
-                      ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
-                  ])
-                  )
-        ]))
-    # get all usernames, passwords (even invalid)
-    usernames = [i[10]
-                 for i in infos if i[1] == codename_id and i[4] == 'username']
-    if usernames:
-        entries.append(KeepTogether([
-            Paragraph('Usernames', styles['Heading3']),
-            Table([[u] for u in usernames], colWidths=[16*cm])]))
-
-    passwords = [i[10]
-                 for i in infos if i[1] == codename_id and i[4] == 'password']
-    if passwords:
-        entries.append(KeepTogether([
-            Paragraph('Passwords', styles['Heading3']),
-            Table([[u] for u in passwords], colWidths=[16*cm])]))
-
-    # TODO suggest possible (by family etc.)
-
-    """Likes, skills etc."""
-    for category, category_name in (
-        ('skill', 'Skills'),
-        ('likes', 'Likes'),
-        ('dislikes', 'Dislikes'),
-        ('trait', 'Traits'),
-        ('asset', 'Assets'),
-        ('medical', 'Medical conditions'),
-    ):
-        valids = get_valid(infos, category, codename_id)
-        if valids:
-            valids_levels = [(k, [x[10] for x in v])
-                             for k, v in get_level_sort(valids)]
-            t = Table([[par(str(level or '')),
-                        par('' + ', '.join(sorted(set(valids))))]
-                       for level, valids in valids_levels],
-                      colWidths=[cm, 15*cm],
-                      # style=test_style(3),
-                      )
-            entries.append(KeepTogether([
-                Paragraph(category_name, styles['Heading2']),
-                t]))
-
-    """ Quotations """
-    valids = get_valid(infos, 'quotation', codename_id)
-    if valids:
-        entries.append(Paragraph('Quotations', styles['Heading2']))
-        for valid in valids:
-            entries.append(Paragraph('<i>%s</i>' %
-                                     valid[10], getSampleStyleSheet()['BodyText']))
+                      styles['Heading2']), network, PageBreak()]))
 
     """ Timeline """
     timeline = ensa.db.get_timeline_by_subject(codename)

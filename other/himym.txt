@@ -34,7 +34,7 @@ y
 
 
 
-$rome = $last
+$rome_loc = $last
 #########################
 # Times
 #########################
@@ -292,6 +292,174 @@ manager
 
 
 ###################################
+sawp
+robin
+robin.jpg
+Robin
+Charles
+Scherbatsky Jr.
+f
+1980
+7
+23
+caucasian
+atheist
+
+heterosexual
+y
+USA
+New York
+Brooklyn
+8th Ave & 8th St
+
+11215
+y
+40.6661362
+-73.9804632
+n
+Robin Sparkles
+Robin Daggers
+RJ
+RoRo
+
+
+guns
+beer
+hockey
+
+kids
+relationships
+
+shooting
+coin flipping
+
+pretty
+stubborn
+
+blue french horn
+
+infertile
+
+But...umm...
+
+
+marshall
+y
+friend
+7
+10
+lily
+y
+friend
+10
+10
+ted
+y
+friend
+10
+10
+ted
+n
+partner
+10
+10
+
+
+###################################
+sawp
+barney
+himym_barney.jpg
+Barney
+
+Stinson
+m
+1976
+
+
+caucasian
+atheist
+
+heterosexual
+y
+New York
+Manhattan
+New York
+East 84st St and 3rd Ave
+
+10001
+y
+40.74868
+-73.9841747
+n
+Barnabus
+Barnacle
+Barrack Obama Jr.
+Swarley
+
+
+girls
+suits
+money
+scotch
+
+smart women
+marriage
+
+persuasion
+lying
+acting
+
+handsome
+smart
+horny
+funny
+
+teacup pig
+Stormtrooper
+lion head
+the Playbook
+the Bro Code
+
+
+
+gnb
+please
+2006-01-01
+
+
+marshall
+y
+friend
+10
+10
+lily
+y
+friend
+7
+10
+ted
+friend
+friend
+10
+10
+robin
+y
+friend
+10
+10
+robin
+n
+partner
+10
+10
+robin
+n
+spouse
+10
+10
+
+
+###################################
 # Add events
 ###################################
 aaw
@@ -303,11 +471,23 @@ y
 $ltlb = $last
 aas $ltlb ted
 aas $ltlb marshall
-l
+aas $ltlb barney
 aal $ltlb $liberty_bell
 aat $ltlb $liberty_time
 ###################################
+aaw
+Rome
 
+10
+y
+y
+$rome = $last
+aas $rome marshall
+aas $rome lily
+t
+l
+aat $rome $trip_to_rome
+aal $rome $rome_loc
 ###################################
 # Generate reports
 ###################################
@@ -320,6 +500,12 @@ sr
 ss gnb
 sr
 ss arthur
+sr
+ss robin
+sr
+ss barney
+sr
+ss katie
 sr
 ###################################
 ss
