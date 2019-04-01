@@ -372,6 +372,7 @@ iab $id got_arya.jpg
 iak $id person
 iat firstname Arya
 iat lastname Stark
+iat nickname Arry
 iat sex female
 iat trait brave
 iat trait fast
@@ -973,6 +974,8 @@ sa hound
 ########################
 sa mountain
 ########################
+sa syrio
+########################
 sa meryn
 ########################
 sa janos
@@ -1024,6 +1027,8 @@ sa olenna
 ########################
 sa randyll
 ########################
+sa samwell
+########################
 # Dorne
 ########################
 sa doran
@@ -1062,6 +1067,8 @@ sa grenn
 ########################
 sa qhorin
 ########################
+sa yoren
+########################
 # Wildlings
 ########################
 sa craster
@@ -1095,6 +1102,8 @@ sa leaf
 ########################
 ########################
 # Essos
+########################
+sa jaqen
 ########################
 sa illyrio
 ########################

@@ -14,7 +14,7 @@ from reportlab.lib import colors, utils
 from reportlab.lib.units import cm
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import KeepTogether, SimpleDocTemplate, Table, TableStyle, Paragraph, PageBreak, Image
-from reportlab.lib.styles import getSampleStyleSheet  # , ParagraphStyle
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.pdfgen import canvas
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
@@ -66,7 +66,8 @@ def get_level_sort(infos):
 
 def get_valid(infos, key, codename_id=None):
     if codename_id:
-        return [i for i in infos if i[1] == codename_id and i[7] == 1 and i[4] == key]
+        return [i for i in infos
+                if i[1] == codename_id and i[7] == 1 and i[4] == key]
     else:
         return [i for i in infos if i[7] == 1 and i[4] == key]
 
@@ -75,21 +76,26 @@ def get_valid_by_level(infos, key, codename_id=None):
     """
     Returns only valid infos as get_valid method, but sorted by level.
     """
-    return sorted(get_valid(infos, key, codename_id), key=lambda x: x[5] or 0, reverse=True)
+    return sorted(get_valid(infos, key, codename_id),
+                  key=lambda x: x[5] or 0,
+                  reverse=True)
 
 
 def get_valid_by_ids(infos, ids, codename_id=None):
     if codename_id:
-        return [i for i in infos if i[1] == codename_id and i[7] == 1 and i[0] in ids]
+        return [i for i in infos
+                if i[1] == codename_id and i[7] == 1 and i[0] in ids]
     else:
         return [i for i in infos if i[7] == 1 and i[0] in ids]
 
 
 def get_valid_by_keyword(infos, keyword, codename_id=None):
     if codename_id:
-        return [i for i in infos if i[1] == codename_id and i[7] == 1 and keyword in i[11]]
+        return [i for i in infos
+                if i[1] == codename_id and i[7] == 1 and keyword in i[11]]
     else:
-        return [i for i in infos if i[7] == 1 and keyword in i[11]]
+        return [i for i in infos
+                if i[7] == 1 and keyword in i[11]]
 
 
 def get_by_keyword(infos, keyword, codename_id=None):
@@ -187,12 +193,12 @@ horoscope = [
 def person_report(codename, filename):
     codename_id = ensa.db.select_subject(codename)
     # pdb.set_trace()
-    # info_codename_id = [x[0] for x in get_valid(
-    #    infos, 'codename') if x[10] == codename][0]
     infos = ensa.db.get_informations(
         no_composite_parts=False, force_no_current_subject=True)
     # pdb.set_trace()
-    infos = [i + ([x[1] for x in ensa.db.get_keywords_for_informations(i[0], force_no_current_subject=True)],)
+    infos = [i + ([x[1] for x in ensa.db.get_keywords_for_informations(
+        i[0],
+        force_no_current_subject=True)],)
              for i in infos]
 
     images = get_valid_by_keyword(infos, 'image')
@@ -224,7 +230,9 @@ def person_report(codename, filename):
     name = ' '.join([i[10] for i in get_valid(infos, 'firstname', codename_id)]
                     + [i[10]
                         for i in get_valid(infos, 'middlename', codename_id)]
-                    + [i[10] for i in get_valid(infos, 'lastname', codename_id)])
+                    + [i[10] for i in get_valid(infos, 
+                                                'lastname', 
+                                                codename_id)])
     try:
         sex = get_valid(infos, 'sex', codename_id)[0][10]
         sex_symbol = ('\u2642' if sex == 'male' else
@@ -248,16 +256,18 @@ def person_report(codename, filename):
     # racial_modifiers = '\U0001f3fb\U0001f3fc\U0001f3fd\U0001f3fe\U0001f3ff'
     # http://unicode.org/charts/nameslist/n_2600.html
     # http://xahlee.info/comp/unicode_plants_flowers.html
-    font_testing = ('\u2642\u2640\u26a4\u26a5\u26a3\u26a2\u2620\u26ad\u2694\u2695\u2625\u26ad\u26ae\u26af\u267f\u271d'
+    font_testing = ('\u2642\u2640\u26a4\u26a5\u26a3\u26a2\u2620\u26ad\u2694'
+                    '\u2695\u2625\u26ad\u26ae\u26af\u267f\u271d'
                     # + ''.join('%s\U0001f46e' % r for r in racial_modifiers)
-                    + '\u23f0\U0001f570\u231a\u23f1\u23f2\u231b\u23f3\u29d7\u29d6\U0001f550\U0001f5d3\U0001f4c5\U0001f4c6'  # clocks
-                    + '\U0001f464\U0001f468'  # people
-                    + '\U0001f30b\U0001fb5b\U0001f5fa\U0001f30d\U0001f30e\U0001f30f'  # locations
-                    + '\U0001f4d1\U0001f4f0\U0001f4da\U0001f4dd\U0001f4dc\U0001f4c3\U0001f4c4'  # informations
-                    + '\U0001f418\U0001f98f\U0001f42b\U0001f427\U0001f40b\U0001f420\U0001f42c\U0001f426\U0001f428\U0001f405\U0001f406\U0001f40e\U0001f981\U0001f98a\U0001f42f\U0001f412'  # animals
-                    + '\U0001f4e6\U0001f4bc'  # items
-                    + '\u26bf\U0001f5dd\U0001f511\U0001f50f\U0001f510\U0001f512\U0001f513'  # security
-                    + '\U0001f3e2\U0001f3ed\U0001f3e0\U0001f3d8\U0001f3db'  # buildings
+                    '\u23f0\U0001f570\u231a\u23f1\u23f2\u231b\u23f3\u29d7'
+                    '\u29d6\U0001f550\U0001f5d3\U0001f4c5\U0001f4c6' # clocks
+                    '\U0001f464\U0001f468'  # people
+                    '\U0001f30b\U0001fb5b\U0001f5fa\U0001f30d\U0001f30e\U0001f30f'  # locations
+                    '\U0001f4d1\U0001f4f0\U0001f4da\U0001f4dd\U0001f4dc\U0001f4c3\U0001f4c4'  # informations
+                    '\U0001f418\U0001f98f\U0001f42b\U0001f427\U0001f40b\U0001f420\U0001f42c\U0001f426\U0001f428\U0001f405\U0001f406\U0001f40e\U0001f981\U0001f98a\U0001f42f\U0001f412'  # animals
+                    '\U0001f4e6\U0001f4bc'  # items
+                    '\u26bf\U0001f5dd\U0001f511\U0001f50f\U0001f510\U0001f512\U0001f513'  # security
+                    '\U0001f3e2\U0001f3ed\U0001f3e0\U0001f3d8\U0001f3db'  # buildings
                     + ''.join(set(religion_symbols.values()))
                     + ''.join(set(horoscope_symbols.values()))
                     + ''.join(set(politics_symbols.values())))
@@ -659,16 +669,17 @@ def person_report(codename, filename):
                          ('animal', '\U0001f418'),
                          ('item', '\U0001f4e6'),
                          ]
-    # TODO add colleagues
     # pdb.set_trace()
     relationships = [
         # r for r in ensa.db.get_associations_by_information(info_codename_id)
         r for r in ensa.db.get_associations_by_subject(codename)
         if len([info for info in r[1] if info[4] in ('codename', 'position')]) == 2
         and (r[0][6].lower().startswith('%s-%s '
-                                        % (ensa.db.get_subject_codename(r[1][0][1]), ensa.db.get_subject_codename(r[1][1][1])))
+                                        % (ensa.db.get_subject_codename(r[1][0][1]), 
+                                           ensa.db.get_subject_codename(r[1][1][1])))
              or r[0][6].lower().startswith('%s-%s '
-                                           % (ensa.db.get_subject_codename(r[1][1][1]), ensa.db.get_subject_codename(r[1][0][1])))
+                                           % (ensa.db.get_subject_codename(r[1][1][1]), 
+                                              ensa.db.get_subject_codename(r[1][0][1])))
              )
     ]
     #print('relationships:', relationships)
@@ -857,19 +868,25 @@ def person_report(codename, filename):
                 location_map._restrictSize(7*cm, 7*cm)
         if location_strings:
             location_row = [
-                Table([[Table([[ls] for ls in location_strings]), location_map]], colWidths=[8*cm, 7*cm], style=TableStyle([
-                    ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-                ]))]
+                Table([[Table([[ls] for ls in location_strings]), location_map]], 
+                      colWidths=[8*cm, 7*cm], 
+                      style=TableStyle([
+                          ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                      ]))]
         else:
             location_row = []
 
         # pdb.set_trace()
         # add the complete timeline entry
         event_tables.append(
-            Table([[Paragraph('%s - %s (#%d)' % (event_time, event_name, event_id), styles['Heading3'])]]
+            Table([[Paragraph('%s - %s (#%d)' 
+                              % (event_time, event_name, event_id), 
+                              styles['Heading3'])]]
                   + [[r] for r in time_rows]
                   + [[Table(
-                      [[r for r in ci_rows][i:i+info_columns] for i in range(0, len(ci_rows), info_columns)], style=TableStyle([
+                      [[r for r in ci_rows][i:i+info_columns] 
+                        for i in range(0, len(ci_rows), info_columns)], 
+                      style=TableStyle([
                           # ('GRID', (0, 0), (-1, -1), 0.5, 'black'),
                       ]))]]
                   + [location_row],

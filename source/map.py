@@ -17,16 +17,6 @@ with open(home_folder + '/.config/geotiler/geotiler.ini', 'w') as f:
 
 
 def get_map(points, labels, image_size=(1024, 768)):
-    '''
-    points = [(49.8328013, 18.0440042), 
-              (49.8309784, 18.1624547), 
-              (49.8301379, 18.1641516),
-              (49.7842545, 18.1237474),
-              (49.9131799, 18.0989584), 
-              #(49.5494967, 18.4044064),
-              ] 
-    labels = ['Home', 'VSB', 'Babylon', 'Klimkovice', 'Benesov']
-    '''
     if not points:
         log.err('Cannot show map without point.')
         return None
