@@ -5,8 +5,8 @@ Print and logging stuff is here.
 
 import threading
 import sys
-from source.lib import positive
-from source.ensa import config
+from source.lib import positive, datetime_to_str, get_prompt_key
+from source.ensa import config, variables
 import traceback
 
 """
@@ -51,12 +51,12 @@ MIMECOLOR_MESSAGE = COLOR_DARK_BLUE
 prompt = ''
 
 
-def set_prompt(key=None, symbol=None):
+def set_prompt():
     global prompt
-    if not key or not symbol:
-        prompt = COLOR_PURPLE+COLOR_BOLD+'  ) '+COLOR_NONE
-    else:
-        prompt = COLOR_PURPLE+COLOR_BOLD+'%s%s ' % (key, symbol)+COLOR_NONE
+    prompt = (COLOR_PURPLE 
+              + COLOR_BOLD 
+              + get_prompt_key()
+              + COLOR_NONE)
 
 
 set_prompt()

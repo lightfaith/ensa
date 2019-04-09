@@ -325,11 +325,13 @@ def get_format_len_location(locations):
     )
 
 
-def format_ring(ring_id, name, password, reference_date, note, name_len):
+def format_ring(ring_id, name, password, reference_time_id, note, name_len):
+    reference_time = ensa.db.get_time(
+        reference_time_id, force_no_current_ring=True)[1]
     return '%*s  %-15s%s' % (
         name_len,
         name,
-        '(ref: %s)' % reference_date,
+        '(ref: %s)' % reference_time,
         ' # %s' % note if note else '',
     )
 
@@ -433,6 +435,8 @@ def format_location(location_id, name, lat, lon, accuracy, valid, modified, note
 
 
 def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modified=True):
+    if type(time) == str:
+        time = datetime_from_str(time)
     color = log.COLOR_NONE
     if not valid:
         color = log.COLOR_DARK_RED
@@ -445,7 +449,8 @@ def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modi
         color,
         id_len,
         time_id,
-        dateutil.parser.parse(time).strftime('%Y-%m-%d %H:%M:%S'),
+        #dateutil.parser.parse(time).strftime('%Y-%m-%d %H:%M:%S'),
+        datetime_to_str(time),
         # datetime.strptime(time).strftime('%Y-%m-%d %H:%M:%S'),
         # time if time else '',
         accuracy,
@@ -2045,15 +2050,17 @@ def ra_function(*args):
         'Name of the ring (e.g. Work):',
         # 'Should the ring be encrypted (default: no)?',
         'Optional comment:',
+        'Reference time (YYYY-mm-dd HH:MM:SS) or \'now\':',
+        'Description of reference time entry:',
         '... Use provided information to create new ring?',
     ]
     """ name given in args?"""
     if args:
         name = args[0]
         wizard_questions = wizard_questions[1:]
-        note, confirm = wizard(wizard_questions)
+        note, reference_time, rt_description, confirm = wizard(wizard_questions)
     else:
-        name, note, confirm = wizard(wizard_questions)
+        name, note, reference_time, rt_description, confirm = wizard(wizard_questions)
     if negative(confirm):
         return []
     if not name:
@@ -2067,20 +2074,36 @@ def ra_function(*args):
         password = None
     if not note:
         note = None
+
+    if reference_time == 'now':
+        reference_time = datetime_to_str(datetime.now())
+    date, _, time = reference_time.partition(' ')
+
     result = ensa.db.create_ring(name, password, note)
     if not result:
         log.err('Error while inserting ring into DB.')
         return []
     ensa.variables['last'] = result
-    ensa.current_ring, ensa.current_reference_date = ensa.db.select_ring(name)
+    
+    ensa.current_ring, _ = ensa.db.select_ring(name)
+    
+    time_id = ensa.db.create_time(date, time, accuracy=10, 
+                                  valid=True, note=rt_description)
+    print('Created time id:', time_id)
+    ensa.variables['reference_time_id'] = time_id
+    ensa.variables['reference_time'] = datetime_from_str(ensa.db.get_time(time_id)[1])
+    ensa.db.set_ring_reference_time_id(time_id)
+    
+    '''
     if ensa.current_reference_date == 'now':
         ensa.current_reference_date = time.strftime('%Y-%m-%d')
     else:
         ensa.current_reference_date = datetime.strptime(
             ensa.current_reference_date, '%Y-%m-%d')
+    '''
     if ensa.current_ring:
         log.info('Currently working with \'%s\' ring.' % name)
-        log.set_prompt(key=name, symbol=')')
+        log.set_prompt()
     return []
 
 
@@ -2118,18 +2141,24 @@ def rs_function(*args):
             log.set_prompt()
             return []
         name = args[0]
-        ensa.current_ring, ensa.current_reference_date = ensa.db.select_ring(
+        ensa.current_ring, ref_time_id = ensa.db.select_ring(
             name)
+
+        ensa.variables['reference_time_id'] = ref_time_id
+        ensa.variables['reference_time'] = datetime_from_str(
+            ensa.db.get_time(ref_time_id)[1])
+        '''
         if ensa.current_reference_date == 'now':
             ensa.current_reference_date = time.strftime('%Y-%m-%d')
         else:
             ensa.current_reference_date = datetime.strptime(
                 ensa.current_reference_date, '%Y-%m-%d')
+        '''
         if ensa.current_ring:
             ensa.variables['last'] = ensa.current_ring
             ensa.current_subject = None
             log.info('Currently working with \'%s\' ring.' % name)
-            log.set_prompt(key=name, symbol=')')
+            log.set_prompt()
     except:
         log.err('Ring name must be specified.')
         log.debug_error()
@@ -2149,7 +2178,7 @@ def rms_function(*_):
 add_command(Command('rm', 'ring modification', 'rm', lambda *_: []))
 add_command(Command('rms', 'standardize ring data', 'rms', rms_function))
 
-
+'''
 def rmr_function(*args):
     try:
         reference_date = args[0].lower()
@@ -2166,7 +2195,7 @@ def rmr_function(*args):
     ensa.db.set_ring_reference_date(reference_date)
     ensa.current_reference_date = reference_date
     if ensa.current_reference_date == 'now':
-        ensa.current_reference_date = time.strftime('%Y-%m-%d')
+        ensa.current_reference_date = datetime_to_str(only_date=True)
     else:
         ensa.current_reference_date = datetime.strptime(
             ensa.current_reference_date, '%Y-%m-%d')
@@ -2175,7 +2204,7 @@ def rmr_function(*args):
 
 add_command(Command('rmr <now|YYYY-mm-dd>',
                     'set reference date for current ring', 'rmr', rmr_function))
-
+'''
 
 """
 SUBJECT COMMANDS
@@ -2206,10 +2235,7 @@ def sa_function(*args):
     # ensa.variables['last'] = str(subject_id)
     ensa.variables['last'] = codename
     if ensa.current_subject:
-        log.set_prompt(key='%s/%s'
-                       % (ensa.db.get_ring_name(ensa.current_ring),
-                          codename),
-                       symbol=']')
+        log.set_prompt()
         log.info('Currently working with \'%s\' subject.' % codename)
     return []
 
@@ -2248,9 +2274,7 @@ def sawo_function(*_):
             traceback.print_exc()
 
     if ensa.current_subject:
-        log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring),
-                                      codename),
-                       symbol=']')
+        log.set_prompt()
         log.info('Currently working with \'%s\' subject.' % codename)
 
     information_ids = []
@@ -2441,9 +2465,7 @@ def sawp_function(*_):
         return []
 
     if ensa.current_subject:
-        log.set_prompt(key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring),
-                                      codename),
-                       symbol=']')
+        log.set_prompt()
         log.info('Currently working with \'%s\' subject.' % codename)
 
     info_codename_id = [i[0] for i in ensa.db.get_informations(
@@ -2698,8 +2720,7 @@ def sd_function(*args):
             raise AttributeError
         if ensa.current_subject == subject_id:
             ensa.current_subject = None
-            log.set_prompt(key=ensa.db.get_ring_name(
-                ensa.current_ring), symbol=')')
+            log.set_prompt()
         ensa.db.delete_subject(subject_id)
     except:
         log.debug_error()
@@ -2753,16 +2774,14 @@ def ss_function(*args):
     if not args:
         ensa.current_subject = None
         log.info('Currently working outside subject.')
-        log.set_prompt(key=ensa.db.get_ring_name(
-            ensa.current_ring), symbol=')')
+        log.set_prompt()
         return []
     try:
         codename = args[0]
         ensa.current_subject = ensa.db.select_subject(codename)
         if ensa.current_subject:
             log.info('Currently working with \'%s\' subject.' % codename)
-            log.set_prompt(
-                key='%s/%s' % (ensa.db.get_ring_name(ensa.current_ring), codename), symbol=']')
+            log.set_prompt()
             ensa.variables['last'] = codename
     except:
         log.err('Subject codename must be specified.')
@@ -2796,12 +2815,13 @@ def taw_function(*_):
     if not ensa.current_ring:
         log.err('First select a ring with `rs <name>`.')
         return []
-    date, time, accuracy, valid, note, confirm = wizard([
+    date, time, accuracy, valid, note, as_reference, confirm = wizard([
         'Date (YYYY-mm-dd):',
         'Time (HH:MM:SS):',
         'Accuracy of this entry (default 0):',
         'Is the entry valid?',
         'Optional comment:',
+        'Use this time as reference?',
         '... Use provided information to create new time?',
     ])
     if negative(confirm):
@@ -2809,6 +2829,9 @@ def taw_function(*_):
     accuracy = int(accuracy) if accuracy.isdigit() else 0
     valid = not negative(valid)
     time_id = ensa.db.create_time(date, time, accuracy, valid, note)
+    if as_reference:
+        ensa.variables['reference_time_id'] = time_id
+        ensa.variables['reference_time'] = ensa.db.get_time(time_id)[1]
     ensa.variables['last'] = time_id
     if time_id:
         log.info('Created new time entry with id #%d' % time_id)
@@ -2893,11 +2916,50 @@ add_command(Command('tlsv <codename>',
 
 
 def tlt_function(*args, hide_details=False, use_modified=True):
-    start = None
-    end = None
+    # supported: t-t, d-, d-d, dt-, dt-t, dt-d, dt-dt
+    if len(args) in (3, 4):
+        """ first is always dt """
+        start_args = args[:2]
+        end_args = args[2:]
+    elif len(args) == 2:
+        """ t-t, d-d or dt-; try parse start, decide by returned type """
+        test_start_type, test_start = datetime_from_str(
+            ' '.join(args), 
+            also_return_type=True)
+        if test_start_type == 'dt':
+            start_args = args
+            end_args = datetime_to_str()
+        else:
+            start_args = args[:1]
+            end_args = args[1:]
+    elif len(args) == 1:
+        """ always start; use 'now' as end """
+        start_args = args
+        end_args = datetime_to_str()
+    
+    print('start args', start_args)
+    print('end args', end_args)
+
+    start_type, start = datetime_from_str(' '.join(start_args), also_return_type=True)
+    end_type, end = datetime_from_str(' '.join(end_args), also_return_type=True)
+    
+    print(start_type, start)
+    print(end_type, end)
+    if (start_type, end_type) not in [
+        ('t', 't'),
+        ('d', None),
+        ('d', 'd'),
+        ('dt', None),
+        ('dt', 't'),
+        ('dt', 'd'),
+        ('dt', 'dt'),
+    ]:
+        log.err('%s-%s date range format is not supported.' % (start_type, end_type))
+        return []
+        
+    '''
     formats = {'dt': '%Y-%m-%d %H:%M:%S',
                'd': '%Y-%m-%d', 't': '%H:%M:%S', 't2': '%H:%M'}
-    # supported: t-t, d-, d-d, dt-, dt-t, dt-d, dt-dt
     # try treat start as time
     for f in ('t', 't2'):
         try:
@@ -2956,6 +3018,7 @@ def tlt_function(*args, hide_details=False, use_modified=True):
                             log.err(
                                 'Date range format is not supported (DT-x fail).')
                             return []
+    '''
     # print(start)
     # print(end)
     return ag_function(start,
@@ -2986,10 +3049,16 @@ def tme_function(*args):
     data = ensa.db.get_time(time_id)
     if not data:
         return []
+    '''
     d, _, t = data[1].partition(' ')
     data = data[:1]+(d, t)+data[2:]
+    '''
     # add labels
+    '''
     mapped = dict(zip([None, 'date', 'time', 'accuracy', 'valid', 'note'], [
+                  (x if type(x) == bytearray else x) if x else '' for x in data]))
+    '''
+    mapped = dict(zip([None, 'datetime', 'accuracy', 'valid', 'note'], [
                   (x if type(x) == bytearray else x) if x else '' for x in data]))
     # print(mapped)
     # write into file
@@ -3038,7 +3107,15 @@ def tme_function(*args):
                     log.err('%s must be defined.' % (k.title()))
                     change_occured = False
                     break
-            elif k == 'date':
+            elif k == 'datetime':
+                date_time = datetime_from_str(v)
+                if not date_time:
+                    log.err('Datetime is invalid.')
+                    change_occured = False
+                    break
+                mapped[k] = datetime_to_str(date_time)
+                '''
+            elif k == 'date': # TODO edit
                 if not v:
                     mapped[k] = '0000-00-00'
                 else:
@@ -3050,7 +3127,7 @@ def tme_function(*args):
                         log.debug_error()
                         change_occured = False
                         break
-            elif k == 'time':
+            elif k == 'time': # TODO edit
                 if not v:
                     mapped[k] = '00:00:00'
                 else:
@@ -3066,18 +3143,23 @@ def tme_function(*args):
                             log.debug_error()
                             change_occured = False
                             break
+                '''
             elif k == 'note':
                 mapped[k] = v if v else None
     if change_occured:
         # update DB
         del mapped[None]
         mapped['time_id'] = time_id
-        mapped['datetime'] = '%s %s' % (mapped['date'], mapped['time'])
-        del mapped['date']
-        del mapped['time']
+        #mapped['datetime'] = '%s %s' % (mapped['date'], mapped['time'])
+        #del mapped['date']
+        #del mapped['time']
         # print(mapped)
         ensa.db.update_time(**mapped)
         log.info('Time entry %s successfully changed.' % time_id)
+        if int(time_id) == ensa.variables['reference_time_id']:
+            ensa.variables['reference_time'] = mapped['datetime']
+        
+        log.set_prompt()
     else:
         log.info('No change has been done.')
     return []

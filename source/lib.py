@@ -11,6 +11,8 @@ import pdb
 from source import ensa
 from source import db
 from source import log
+from datetime import datetime
+import traceback
 '''
 mypdb = pdb.Pdb(stdin=open('/tmp/fifo_stdin', 'r'),
                 stdout=open('/tmp/fifo_stdout', 'w'))
@@ -109,6 +111,70 @@ def hexdump(data):
 
     return result
 
+
+def get_prompt_key():
+    if ensa.current_subject:
+        ring = ensa.db.get_ring_name(ensa.current_ring)
+        subject = ensa.db.get_subject_codename(ensa.current_subject)
+        return '%s %s/%s] ' % (ensa.variables.get('reference_time') or '', 
+                              ring, 
+                              subject)
+    elif ensa.current_ring:
+        ring = ensa.db.get_ring_name(ensa.current_ring)
+        return '%s %s) ' % (ensa.variables.get('reference_time') or '',
+                           ring)
+    else:
+        return '  ) '
+
+def datetime_from_str(string, 
+                      only_date=False, 
+                      only_time=False, 
+                      also_return_type=False):
+    tries = [
+        ('dt', '%Y-%m-%d %H:%M:%S', not only_date and not only_time),
+        ('dt', '%Y-%m-%d %H:%M',    not only_date and not only_time),
+        ('d',  '%Y-%m-%d',          not only_time),
+        ('d',  '%Y',                not only_time),
+        ('t',  '%H:%M:%S',          not only_date),
+        ('t',  '%H:%M',             not only_date),
+    ]
+    for format_type, format_string, condition in tries:
+        try:
+            if not condition:
+                continue
+            if also_return_type:
+                result = (format_type, datetime.strptime(string, format_string))
+            else:
+                result = datetime.strptime(string, format_string)
+            """ add reference date if only time is parsed """
+            if format_type == 't':
+                reference = ensa.variables['reference_time']
+                result = result.replace(year=reference.year,
+                                        month=reference.month,
+                                        day=reference.day)
+            return result
+        except:
+            #traceback.print_exc()
+            continue
+    """ no match """
+    log.err('Cannot parse datetime \'%s\'' % string) # TODO comment, `tlt` might use this as feature
+    if also_return_type:
+        return (None, None)
+    else:
+        return None
+        
+
+def datetime_to_str(dt=None, only_date=False, only_time=False):
+    if not dt:
+        #dt = datetime.now()
+        dt = ensa.variables['reference_time']
+    format_string = '%Y-%m-%d %H:%M:%S'
+    if only_date:
+        format_string = '%Y-%m-%d'
+    elif only_time:
+        format_string = '%H:%M:%S'
+
+    return dt.strftime(format_string)
 
 '''
 def degree_to_dms(value):

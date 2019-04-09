@@ -46,7 +46,6 @@ Current data
 """
 current_ring = None
 current_subject = None
-current_reference_date = None
 
 """
 Variables

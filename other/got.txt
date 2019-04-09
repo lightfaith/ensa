@@ -11,6 +11,8 @@
 rd GOT
 ra GOT
 Game of Thrones ring for testing
+now
+creation reference
 y
 #########################
 
@@ -1028,6 +1030,8 @@ sa olenna
 sa randyll
 ########################
 sa samwell
+########################
+sa dickon
 ########################
 # Dorne
 ########################

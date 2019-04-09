@@ -11,6 +11,9 @@
 rd HIMYM
 ra HIMYM
 How I Met Your Mother test ring
+now
+creation reference
+y
 
 #########################
 # Locations

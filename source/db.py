@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import time
-import datetime
+from datetime import datetime
 import os
 import pdb
 import sqlite3 as sqlite
@@ -78,21 +78,21 @@ class Database():
     def get_rings(self, name=None):
         if name:
             result = self.query(("SELECT ring_id, name, password, "
-                                 "       reference_date, note "
+                                 "       reference_time_id, note "
                                  "FROM Ring "
                                  "WHERE name LIKE '%"+name+"%'"))
         else:
-            result = self.query("SELECT ring_id, name, password, reference_date, note "
+            result = self.query("SELECT ring_id, name, password, "
+                                "       reference_time_id, note "
                                 "FROM Ring")
         return result
 
     def create_ring(self, name, password, note):
         try:
-            self.query(("INSERT INTO Ring(name, password, reference_date, note) "
-                        "VALUES(:n, :p, :d, :note)"),
+            self.query(("INSERT INTO Ring(name, password, note) "
+                        "VALUES(:n, :p, :note)"),
                        {'n': name,
                         'p': password,
-                        'd': 'now',
                         'note': note})
             return name
         except:
@@ -100,7 +100,7 @@ class Database():
             return ''
 
     def select_ring(self, name):
-        result = self.query(("SELECT ring_id, reference_date "
+        result = self.query(("SELECT ring_id, reference_time_id "
                              "FROM Ring "
                              "WHERE name = :n"),
                             {'n': name})
@@ -124,13 +124,13 @@ class Database():
                     "WHERE ring_id = :r"),
                    {'r': ring_id})
 
-    def set_ring_reference_date(self, reference_date):
+    def set_ring_reference_time_id(self, reference_time_id):
         if not self.ring_ok():
             return
         self.query(("UPDATE Ring "
-                    "SET reference_date = :d "
+                    "SET reference_time_id = :rtid "
                     "WHERE ring_id = :r"),
-                   {'d': reference_date,
+                   {'rtid': reference_time_id,
                     'r': ensa.current_ring})
 
     def standardize(self):
@@ -203,7 +203,7 @@ class Database():
                         "VALUES(:r, :c, :d, :n)"),
                        {'r': ensa.current_ring,
                         'c': codename,
-                        'd': time.strftime('%Y-%m-%d %H:%M:%S'),
+                        'd': datetime.now(),
                         'n': note})
             #subject_id = self.query("SELECT LAST_INSERT_ID()")[0][0]
             subject_id = self.query(("SELECT subject_id "
@@ -313,7 +313,7 @@ class Database():
                         'a': accuracy,
                         'l': level,
                         'v': valid,
-                        'm': time.strftime('%Y-%m-%d %H:%M:%S'),
+                        'm': datetime.now(),
                         'note': note})
             #information_id = self.query("SELECT LAST_INSERT_ID()")[0][0]
             information_id = self.query(("SELECT information_id "
@@ -511,7 +511,7 @@ class Database():
                 'v': 'valid',
                 'note': 'note',
                 'i': 'information_id'}.items()}
-            args.update({'d': time.strftime('%Y-%m-%d %H:%M:%S')})
+            args.update({'d': datetime.now()})
             self.query(("UPDATE Information "
                         "SET modified = :d, subject_id = :s, name = :n, "
                         "    level = :l, accuracy = :a, valid = :v, "
@@ -547,7 +547,7 @@ class Database():
                         "SET modified = :m, accuracy = :a "
                         "WHERE subject_id = :s "
                         "      AND information_id IN ("+information_ids+")"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'a': accuracy,
                         's': ensa.current_subject})
         elif valid is not None:
@@ -555,7 +555,7 @@ class Database():
                         "SET modified = :m, valid = :v "
                         "WHERE subject_id = :s "
                         "      AND information_id IN ("+information_ids+")"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'v': valid,
                         's': ensa.current_subject})
         elif note:
@@ -563,7 +563,7 @@ class Database():
                         "SET modified = :m, note = :n "
                         "WHERE subject_id = :s "
                         "      AND information_id IN ("+information_ids+")"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'n': note,
                         's': ensa.current_subject})
         else:  # only level remains
@@ -571,7 +571,7 @@ class Database():
                         "SET modified = :m, level = :l "
                         "WHERE subject_id = :s "
                         "      AND information_id IN ("+information_ids+")"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'l': level,
                         's': ensa.current_subject})
 
@@ -600,7 +600,7 @@ class Database():
                         'a': accuracy,
                         'v': valid,
                         'r': ensa.current_ring,
-                        'm': time.strftime('%Y-%m-%d %H:%M:%S'),
+                        'm': datetime.now(),
                         'note': note})
             location_id = self.query("SELECT location_id "
                                      "FROM Location "
@@ -656,7 +656,7 @@ class Database():
                 'v': 'valid',
                 'note': 'note'}.items()}
             args.update({
-                'd': time.strftime('%Y-%m-%d %H:%M:%S'),
+                'd': datetime.now(),
                 'r': ensa.current_ring})
 
             self.query(("UPDATE Location "
@@ -680,7 +680,7 @@ class Database():
                         "SET modified = :m, accuracy = :a "
                         "WHERE ring_id = :r "
                         "      AND location_id IN ("+location_ids+")"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'a': accuracy,
                         'r': ensa.current_ring})
         elif valid is not None:
@@ -688,7 +688,7 @@ class Database():
                         "SET modified = :m, valid = :v "
                         "WHERE ring_id = :r "
                         "      AND location_id IN ("+location_ids+")"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'v': valid,
                         'r': ensa.current_ring})
         elif note:
@@ -696,7 +696,7 @@ class Database():
                         "SET modified = :m, note = :n "
                         "WHERE ring_id = :r "
                         "      AND location_id IN ("+location_ids+")"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'n': note,
                         'r': ensa.current_ring})
 
@@ -706,6 +706,7 @@ class Database():
     def create_time(self, d, t, accuracy=0, valid=True, note=None):
         if not self.ring_ok():
             return None
+        '''
         try:
             datetime.datetime.strptime(d, '%Y-%m-%d')
         except:
@@ -718,6 +719,8 @@ class Database():
             except:
                 t = '00:00:00'
         dt = '%s %s' % (d, t)
+        '''
+        dt = lib.datetime_from_str('%s %s' % (d, t))
         # TODO find if not exists
         try:
             self.query(("INSERT INTO Time(time, accuracy, valid, ring_id, "
@@ -727,7 +730,7 @@ class Database():
                         'a': accuracy,
                         'v': valid,
                         'r': ensa.current_ring,
-                        'm': time.strftime('%Y-%m-%d %H:%M:%S'),
+                        'm': datetime.now(),
                         'n': note})
             time_id = self.query("SELECT time_id "
                                  "FROM Time "
@@ -737,16 +740,26 @@ class Database():
             log.debug_error()
             return None
 
-    def get_times(self):
+    def get_times(self, interval=None):
         if not self.ring_ok():
             return []
-        return self.query(("SELECT time_id, "
-                           #"       DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'), "
-                           "       time, "
-                           "       accuracy, valid, modified, note "
-                           #"       accuracy, valid, note "
-                           "FROM Time "
-                           "WHERE ring_id = :r"), {'r': ensa.current_ring})
+        result = self.query(("SELECT time_id, "
+                             #"       DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'), "
+                             "       time, "
+                             "       accuracy, valid, modified, note "
+                             #"       accuracy, valid, note "
+                             "FROM Time "
+                             "WHERE ring_id = :r"), {'r': ensa.current_ring})
+        if interval:
+            start, end = interval
+            if type(start) == str:
+                start = lib.datetime_from_str(start)
+            if type(end) == str:
+                end = lib.datetime_from_str(end)
+            result = [x for x in result 
+                      if lib.datetime_from_str(x[1]) >= start 
+                      and lib.datetime_from_str(x[1]) <= end]
+        return result
 
     def delete_times(self, time_ids):
         if not self.ring_ok():
@@ -755,18 +768,26 @@ class Database():
                     "WHERE time_id IN ("+time_ids+") "
                     "      AND ring_id = :r"), {'r': ensa.current_ring})
 
-    def get_time(self, time_id):
-        if not self.ring_ok():
-            return []
+    def get_time(self, time_id, force_no_current_ring=False):
+        #if not self.ring_ok():
+        #    return []
         try:
-            info = self.query(("SELECT time_id, "
-                               "       time,"
-                               "       accuracy, valid, note "
-                               "FROM Time "
-                               "WHERE time_id = :t "
-                               "      AND ring_id = :r"),
-                              {'t': time_id,
-                               'r': ensa.current_ring})[0]
+            if force_no_current_ring:
+                info = self.query(("SELECT time_id, "
+                                   "       time,"
+                                   "       accuracy, valid, note "
+                                   "FROM Time "
+                                   "WHERE time_id = :t "),
+                                  {'t': time_id})[0]
+            else:
+                info = self.query(("SELECT time_id, "
+                                   "       time,"
+                                   "       accuracy, valid, note "
+                                   "FROM Time "
+                                   "WHERE time_id = :t "
+                                   "      AND ring_id = :r"),
+                                  {'t': time_id,
+                                   'r': ensa.current_ring})[0]
         except:
             log.err('There is no such time entry.')
             log.debug_error()
@@ -783,7 +804,7 @@ class Database():
                 'a': 'accuracy',
                 'v': 'valid',
                 'note': 'note'}.items()}
-            args.update({'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+            args.update({'m': datetime.now(),
                          'r': ensa.current_ring})
             self.query(("UPDATE Time "
                         "SET modified = :m, time = :d, accuracy = :a, "
@@ -806,7 +827,7 @@ class Database():
                         "SET modified = :m, accuracy = :a "
                         "WHERE ring_id = :r "
                         "      AND time_id IN ("+time_ids+")"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'a': accuracy,
                         'r': ensa.current_ring})
         elif valid is not None:
@@ -814,7 +835,7 @@ class Database():
                         "SET modified = :m, valid = :v "
                         "WHERE ring_id = :r "
                         "      AND time_id IN ("+time_ids+")"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'v': valid,
                         'r': ensa.current_ring})
         elif note:
@@ -822,7 +843,7 @@ class Database():
                         "SET modified = :m, note = :n "
                         "WHERE ring_id = :r "
                         "      AND time_id IN ("+time_ids+")"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'n': note,
                         'r': ensa.current_ring})
 
@@ -840,7 +861,7 @@ class Database():
                         'l': level,
                         'a': accuracy,
                         'v': valid,
-                        'm': time.strftime('%Y-%m-%d %H:%M:%S'),
+                        'm': datetime.now(),
                         'n': note})
             association_id = self.query("SELECT association_id "
                                         "FROM Association "
@@ -885,7 +906,7 @@ class Database():
             self.query(("UPDATE Association "
                         "SET modified = :m "
                         "WHERE association_id = :a"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'a': association_id})
             return tuple([(association_id, a)
                           for a in association_ids.split(',')])
@@ -930,7 +951,7 @@ class Database():
             self.query(("UPDATE Association "
                         "SET modified = :m "
                         "WHERE association_id = :a"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'a': association_id})
             return tuple([(association_id, i) for i in information_ids])
         except:
@@ -970,7 +991,7 @@ class Database():
             self.query(("UPDATE Association "
                         "SET modified = :m "
                         "WHERE association_id = :a"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'a': association_id})
             return tuple([(association_id, l) for l in location_ids])
         except:
@@ -1011,7 +1032,7 @@ class Database():
             self.query(("UPDATE Association "
                         "SET modified = :m "
                         "WHERE association_id = :a"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'a': association_id})
             return tuple([(association_id, codename)
                           for codename in codenames.split(',')])
@@ -1055,7 +1076,7 @@ class Database():
             self.query(("UPDATE Association "
                         "SET modified = :m "
                         "WHERE association_id = :a"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'a': association_id})
             return tuple([(association_id, t) for t in time_ids])
         except:
@@ -1305,7 +1326,7 @@ class Database():
                     "SET modified = :m "
                     "WHERE association_id = :a "
                     "      AND ring_id = :r"),
-                   {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                   {'m': datetime.now(),
                     'a': association_id,
                     'r': ensa.current_ring})
 
@@ -1329,7 +1350,7 @@ class Database():
                     "SET modified = :m "
                     "WHERE association_id = :a "
                     "      AND ring_id = :r"),
-                   {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                   {'m': datetime.now(),
                     'a': association_id,
                     'r': ensa.current_ring})
 
@@ -1353,7 +1374,7 @@ class Database():
                     "SET modified = :m "
                     "WHERE association_id = :a "
                     "      AND ring_id = :r"),
-                   {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                   {'m': datetime.now(),
                     'a': association_id,
                     'r': ensa.current_ring})
 
@@ -1377,7 +1398,7 @@ class Database():
                     "SET modified = :m "
                     "WHERE association_id = :a "
                     "      AND ring_id = :r"),
-                   {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                   {'m': datetime.now(),
                     'a': association_id,
                     'r': ensa.current_ring})
 
@@ -1409,7 +1430,7 @@ class Database():
                 'v': 'valid',
                 'n': 'note'}.items()}
             args.update({
-                'm': time.strftime('%Y-%m-%d %H:%M:%S'),
+                'm': datetime.now(),
                 'r': ensa.current_ring})
             self.query("UPDATE Association "
                        "SET modified = :m, level = :l, accuracy = :a, "
@@ -1437,7 +1458,7 @@ class Database():
                         "SET modified = :m, accuracy = :a "
                         "WHERE ring_id = :r "
                         "      AND association_id IN ("+association_ids+")"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'a': accuracy,
                         'r': ensa.current_ring})
         elif valid is not None:
@@ -1445,7 +1466,7 @@ class Database():
                         "SET modified = :m, valid = :v "
                         "WHERE ring_id = :r "
                         "      AND association_id IN ("+association_ids+")"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'v': valid,
                         'r': ensa.current_ring})
         elif note:
@@ -1453,7 +1474,7 @@ class Database():
                         "SET modified = :m, note = :n "
                         "WHERE ring_id = :r "
                         "      AND association_id IN ("+association_ids+")"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'n': note,
                         'r': ensa.current_ring})
         else:  # only level remains
@@ -1461,7 +1482,7 @@ class Database():
                         "SET modified = :m, level = :l "
                         "WHERE ring_id = :r "
                         "      AND association_id IN ("+association_ids+")"),
-                       {'m': time.strftime('%Y-%m-%d %H:%M:%S'),
+                       {'m': datetime.now(),
                         'l': level,
                         'r': ensa.current_ring})
 
