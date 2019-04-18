@@ -2,13 +2,19 @@
 """
 Ensa is collaborative tool for human information management.
 """
+from getpass import getpass
 import readline
 from source import log
 from source import lib
 from source import ensa
 from source import commands
+
+
+lib.reload_config()
+db_password = (ensa.config['db.password'].value or 
+               getpass(log.question('DB password: ', stdout=False)[0]))
 # TODO different db file from argument - but what about binary content?
-if not ensa.db or not ensa.db.connect():
+if not ensa.db or not ensa.db.connect(db_password):
     log.err('Cannot connect to DB!')
     lib.exit_program(None, None)
 

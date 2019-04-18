@@ -66,7 +66,7 @@ def run_command(fullcommand):
     if fullcommand.startswith('#') or not fullcommand.strip():
         return
 
-    modifier = ensa.config['interaction.command_modifier'][0]
+    modifier = ensa.config['interaction.command_modifier'].value
     regex_modifier = (modifier   # TODO there must be better way
                       if modifier not in '^$\\*.+{('
                       else r'\%s' % modifier)
@@ -325,7 +325,7 @@ def get_format_len_location(locations):
     )
 
 
-def format_ring(ring_id, name, password, reference_time_id, note, name_len):
+def format_ring(ring_id, name, reference_time_id, note, name_len):
     reference_time = ensa.db.get_time(
         reference_time_id, force_no_current_ring=True)[1]
     return '%*s  %-15s%s' % (
@@ -341,9 +341,9 @@ def format_association(association_id, ring_id, level, accuracy, valid, modified
     if not valid:
         color = log.COLOR_DARK_RED
     else:
-        if accuracy >= 0.75*ensa.config['interaction.max_accuracy'][0]:
+        if accuracy >= 0.75*ensa.config['interaction.max_accuracy'].value:
             color = log.COLOR_GREEN
-        elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'][0]:
+        elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'].value:
             color = log.COLOR_BROWN
     return '%s%-d  %s (%sacc %d%s%s)%s' % (
         color,
@@ -365,9 +365,9 @@ def format_information(information_id, subject_id, codename, info_type, name, le
     elif not active:
         color = log.COLOR_GREY
     else:
-        if accuracy >= 0.75*ensa.config['interaction.max_accuracy'][0]:
+        if accuracy >= 0.75*ensa.config['interaction.max_accuracy'].value:
             color = log.COLOR_GREEN
-        elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'][0]:
+        elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'].value:
             color = log.COLOR_BROWN
     return '%s%-*d %s %*s  %*s: %-*s  (%sacc %2d%s%s%s)  %s%s' % (
         color,
@@ -419,9 +419,9 @@ def format_location(location_id, name, lat, lon, accuracy, valid, modified, note
     if not valid:
         color = log.COLOR_DARK_RED
     else:
-        if accuracy >= 0.75*ensa.config['interaction.max_accuracy'][0]:
+        if accuracy >= 0.75*ensa.config['interaction.max_accuracy'].value:
             color = log.COLOR_GREEN
-        elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'][0]:
+        elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'].value:
             color = log.COLOR_BROWN
     return '%s%-*d  %s %s (acc %d%s%s) %s%s' % (
         color,
@@ -444,9 +444,9 @@ def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modi
     if not valid:
         color = log.COLOR_DARK_RED
     else:
-        if accuracy >= 0.75*ensa.config['interaction.max_accuracy'][0]:
+        if accuracy >= 0.75*ensa.config['interaction.max_accuracy'].value:
             color = log.COLOR_GREEN
-        elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'][0]:
+        elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'].value:
             color = log.COLOR_BROWN
     return '%s%-*d  %s  (acc %d%s%s) %s%s' % (
         color,
@@ -834,7 +834,7 @@ def ame_function(*args):
         for k in sorted(filter(None, mapped.keys())):
             f.write(('%s: %s\n' % (k, mapped[k])).encode())
         f.flush()
-        subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
+        subprocess.call((ensa.config['external.editor'].value % (f.name)).split())
         f.seek(0)
         # retrieve changes
         changes = f.read().decode()
@@ -1363,7 +1363,7 @@ def ime_function(*args):
         for k in sorted(filter(None, mapped.keys())):
             f.write(('%s: %s\n' % (k, mapped[k])).encode())
         f.flush()
-        subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
+        subprocess.call((ensa.config['external.editor'].value % (f.name)).split())
         f.seek(0)
         # retrieve changes
         changes = f.read().decode()
@@ -1791,7 +1791,7 @@ def lme_function(*args):
         for k in sorted(filter(None, mapped.keys())):
             f.write(('%s: %s\n' % (k, mapped[k])).encode())
         f.flush()
-        subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
+        subprocess.call((ensa.config['external.editor'].value % (f.name)).split())
         f.seek(0)
         # retrieve changes
         changes = f.read().decode()
@@ -2018,10 +2018,11 @@ def os_function(*args):
     except:
         log.err('Invalid arguments.')
         return []
-    typ = str if key not in ensa.config.keys() else ensa.config[key][1]
-    if typ == bool:
-        value = positive(value)
-    ensa.config[key] = (typ(value), typ)
+    try:
+        ensa.config[key].value = value
+    except:
+        key = key if key.startswith('@') else '@%s' % key
+        ensa.config[key] = ensa.Option(value, str)
     return []
 
 
@@ -2067,11 +2068,8 @@ add_command(Command('r [<name>]', 'print rings', 'r', r_function))
 
 def ra_function(*args):
 
-    # name, encrypted, note, confirm = wizard([
-    encrypted = False
     wizard_questions = [
         'Name of the ring (e.g. Work):',
-        # 'Should the ring be encrypted (default: no)?',
         'Optional comment:',
         'Reference time (YYYY-mm-dd HH:MM:SS) or \'now\':',
         'Description of reference time entry:',
@@ -2089,12 +2087,6 @@ def ra_function(*args):
     if not name:
         log.err('Unique name must be specified.')
         return []
-    if positive(encrypted):
-        # TODO ask for password, bcrypt it and save in memory
-        log.err('TODO - encryption')
-        return []
-    else:
-        password = None
     if not note:
         note = None
 
@@ -2102,7 +2094,7 @@ def ra_function(*args):
         reference_time = datetime_to_str(datetime.now())
     date, _, time = reference_time.partition(' ')
 
-    result = ensa.db.create_ring(name, password, note)
+    result = ensa.db.create_ring(name, note)
     if not result:
         log.err('Error while inserting ring into DB.')
         return []
@@ -2662,7 +2654,7 @@ def sar_function(*args):
     try:
         accuracy = int(args[2])
     except:
-        accuracy = ensa.config['interaction.default_accuracy'][0]
+        accuracy = ensa.config['interaction.default_accuracy'].value
     try:
         level = int(args[3])
     except:
@@ -2983,7 +2975,7 @@ def tme_function(*args):
         for k in sorted(filter(None, mapped.keys())):
             f.write(('%s: %s\n' % (k, mapped[k])).encode())
         f.flush()
-        subprocess.call((ensa.config['external.editor'][0] % (f.name)).split())
+        subprocess.call((ensa.config['external.editor'].value % (f.name)).split())
         f.seek(0)
         # retrieve changes
         changes = f.read().decode()

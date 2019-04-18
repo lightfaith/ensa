@@ -8,8 +8,7 @@ import signal
 import io
 import time
 import pdb
-from source import ensa
-from source import db
+#from source import db
 from source import log
 from datetime import datetime
 import traceback
@@ -48,6 +47,7 @@ def quitstring(x):
         return True
     return False
 
+from source import ensa
 
 def exit_program(signal, frame):
     if signal == -1:  # immediate termination due to -h or bad parameter
@@ -80,12 +80,9 @@ def reload_config():
                 log.debug_config('  line: \'%s\'' % (line))
             # cast to correct type and save into weber.config
             if k in ensa.config.keys():
-                if ensa.config[k][1] in (bool, int, float):
-                    if ensa.config[k][1] == bool:
-                        v = positive(v)
-                    ensa.config[k] = (ensa.config[k][1](v), ensa.config[k][1])
-                else:
-                    ensa.config[k] = (v, str)
+                ensa.config[k].value = v 
+            else:
+                ensa.config['@' + k] = ensa.Option(v, str)
             if k in ensa.censore_keys:
                 v = '*********'
             log.debug_config('  parsed: %s = %s (%s)' % (k, v, str(type(v))))

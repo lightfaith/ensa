@@ -134,25 +134,25 @@ Debug functions
 
 
 def debug_command(string=''):
-    if positive(config['debug.command'][0]):
+    if positive(config['debug.command'].value):
         show_marked('cmd.', COLOR_DARK_GREY,
                     COLOR_DARK_GREY+str(string)+COLOR_NONE)
 
 
 def debug_config(string=''):
-    if positive(config['debug.config'][0]):
+    if positive(config['debug.config'].value):
         show_marked('cnf.', COLOR_DARK_GREY,
                     COLOR_DARK_GREY+str(string)+COLOR_NONE)
 
 
 def debug_error(string=''):
-    if positive(config['debug.errors'][0]):
+    if positive(config['debug.errors'].value):
         err('See traceback:')
         traceback.print_exc()
 
 
 def debug_query(string=''):
-    if positive(config['debug.query'][0]):
+    if positive(config['debug.query'].value):
         show_marked('qry.', COLOR_DARK_GREY,
                     COLOR_DARK_GREY+str(string)+COLOR_NONE)
 

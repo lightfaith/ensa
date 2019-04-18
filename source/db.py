@@ -3,7 +3,8 @@ import time
 from datetime import datetime
 import os
 import pdb
-import sqlite3 as sqlite
+#import sqlite3 as sqlite
+from pysqlcipher3 import dbapi2 as sqlite
 from source import log
 from source import ensa
 from source import lib
@@ -19,29 +20,32 @@ class Database():
         self.cnx = None
         self.cur = None
 
-    def connect(self):
-        lib.reload_config()
+    def connect(self, password):
+        #lib.reload_config()
         """
+        try to connect to the database
+        """
+        db_exists = True
         try:
-            cnx_params = {
-                'host': ensa.config['db.host'][0],
-                'database': ensa.config['db.name'][0],
-                'user': ensa.config['db.username'][0],
-                'password': ensa.config['db.password'][0],
-            }
-            self.cnx = mysql.connector.connect(**cnx_params, autocommit=True)
-            self.cur = self.cnx.cursor(prepared=True)
-            return True
+            with open(ensa.config['db.file'].value, 'r') as f:
+                pass
         except:
-            return False
-        """
+            db_exists = False
+
         try:
-            self.cnx = sqlite.connect(ensa.config['db.file'][0])
+            self.cnx = sqlite.connect(ensa.config['db.file'].value)
             self.cur = self.cnx.cursor()
+            self.query("PRAGMA key='%s'" % password)
             self.query("PRAGMA foreign_keys=ON")
+            if not db_exists:
+                log.info('Cannot locate database file, creating new one...')
+                with open('files/schema.sql', 'r') as f:
+                    for q in f.read().split(';'):
+                        self.query(q)
             return True
         except Exception as e:
-            print(str(e))
+            traceback.print_exc()
+            #print(str(e))
             return False
 
     def query(self, command, parameters=None):
@@ -77,22 +81,21 @@ class Database():
 
     def get_rings(self, name=None):
         if name:
-            result = self.query(("SELECT ring_id, name, password, "
+            result = self.query(("SELECT ring_id, name, "
                                  "       reference_time_id, note "
                                  "FROM Ring "
                                  "WHERE name LIKE '%"+name+"%'"))
         else:
-            result = self.query("SELECT ring_id, name, password, "
+            result = self.query("SELECT ring_id, name, "
                                 "       reference_time_id, note "
                                 "FROM Ring")
         return result
 
-    def create_ring(self, name, password, note):
+    def create_ring(self, name, note):
         try:
-            self.query(("INSERT INTO Ring(name, password, note) "
-                        "VALUES(:n, :p, :note)"),
+            self.query(("INSERT INTO Ring(name, note) "
+                        "VALUES(:n, :note)"),
                        {'n': name,
-                        'p': password,
                         'note': note})
             return name
         except:
@@ -297,7 +300,7 @@ class Database():
                            info_type,
                            name,
                            value,
-                           accuracy=ensa.config['interaction.default_accuracy'][0],
+                           accuracy=ensa.config['interaction.default_accuracy'].value,
                            level=None,
                            valid=True,
                            note=None,
