@@ -130,28 +130,30 @@ def datetime_from_str(string,
                       only_date=False, 
                       only_time=False, 
                       also_return_type=False):
+    if type(string) == datetime:
+        string = datetime_to_str(string)
     tries = [
-        ('dt', '%Y-%m-%d %H:%M:%S', not only_date and not only_time),
-        ('dt', '%Y-%m-%d %H:%M',    not only_date and not only_time),
-        ('d',  '%Y-%m-%d',          not only_time),
-        ('d',  '%Y',                not only_time),
-        ('t',  '%H:%M:%S',          not only_date),
-        ('t',  '%H:%M',             not only_date),
+        ('dt', '%Y-%m-%d %H:%M:%S.%f', not only_date and not only_time),
+        ('dt', '%Y-%m-%d %H:%M:%S',    not only_date and not only_time),
+        ('dt', '%Y-%m-%d %H:%M',       not only_date and not only_time),
+        ('d',  '%Y-%m-%d',             not only_time),
+        ('d',  '%Y',                   not only_time),
+        ('t',  '%H:%M:%S',             not only_date),
+        ('t',  '%H:%M',                not only_date),
     ]
     for format_type, format_string, condition in tries:
         try:
             if not condition:
                 continue
-            if also_return_type:
-                result = (format_type, datetime.strptime(string, format_string))
-            else:
-                result = datetime.strptime(string, format_string)
+            result = datetime.strptime(string, format_string)
             """ add reference date if only time is parsed """
             if format_type == 't':
                 reference = ensa.variables['reference_time']
                 result = result.replace(year=reference.year,
                                         month=reference.month,
                                         day=reference.day)
+            if also_return_type:
+                result = (format_type, result)
             return result
         except:
             #traceback.print_exc()
@@ -168,6 +170,8 @@ def datetime_to_str(dt=None, only_date=False, only_time=False):
     if not dt:
         #dt = datetime.now()
         dt = ensa.variables['reference_time']
+    if type(dt) == str:
+        dt = datetime_from_str(dt)
     format_string = '%Y-%m-%d %H:%M:%S'
     if only_date:
         format_string = '%Y-%m-%d'
@@ -176,13 +180,3 @@ def datetime_to_str(dt=None, only_date=False, only_time=False):
 
     return dt.strftime(format_string)
 
-'''
-def degree_to_dms(value):
-    degrees = int(value)
-    minutes = int(60 * value - degrees)
-    seconds = 3600 * (value - degrees) - 60 * minutes
-    return (degrees, minutes, seconds)
-
-def dms_to_degree(degrees, minutes, seconds):
-    return degrees + minutes/60 + seconds/3600
-'''

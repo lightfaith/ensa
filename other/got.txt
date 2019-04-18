@@ -677,6 +677,10 @@ iat skill healing
 iat trait good
 sar robb spouse 10
 ########################
+sa locke
+########################
+sa lyanna
+########################
 # THE VALE
 ########################
 sa jon
@@ -1057,6 +1061,8 @@ sa yara
 ########################
 sa aemon
 ########################
+sa benjen
+########################
 sa joer
 ########################
 sa alliser
@@ -1101,6 +1107,11 @@ sa night_king
 # Children
 ########################
 sa third_eye_raven
+iat firstname Brynden
+iat lastname Rivers
+iat nickname Bloodraven
+########################
+sa quaithe
 ########################
 sa leaf
 ########################
@@ -1108,6 +1119,8 @@ sa leaf
 # Essos
 ########################
 sa jaqen
+########################
+sa waif
 ########################
 sa illyrio
 ########################
@@ -1148,7 +1161,7 @@ sa grey_worm
 sa razdal
 ########################
 sa mero
-sa nickname Titan's bastard
+iat nickname Titan's bastard
 ########################
 sa prendahl
 ########################
@@ -1156,8 +1169,9 @@ sa daario
 ########################
 sa hizdahr
 ########################
-
+sa crane
 ########################
+sa bianca
 ########################
 ########################
 ########################

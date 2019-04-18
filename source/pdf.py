@@ -24,6 +24,7 @@ from source import ensa
 from source.db import Database
 from source.map import *
 from source.graph import *
+from source.lib import *
 
 styles = getSampleStyleSheet()
 
@@ -59,7 +60,7 @@ def get_level_sort(infos):
 
     """sort the infos in each level"""
     for k, v in result.items():
-        result[k] = sorted(v, key=lambda x: x[10])
+        result[k] = sorted(v, key=lambda x: x[11])
     """sort levels"""
     return sorted(result.items(), key=lambda x: x[0] or 0, reverse=True)
 
@@ -92,21 +93,21 @@ def get_valid_by_ids(infos, ids, codename_id=None):
 def get_valid_by_keyword(infos, keyword, codename_id=None):
     if codename_id:
         return [i for i in infos
-                if i[1] == codename_id and i[7] == 1 and keyword in i[11]]
+                if i[1] == codename_id and i[7] == 1 and keyword in i[12]]
     else:
         return [i for i in infos
-                if i[7] == 1 and keyword in i[11]]
+                if i[7] == 1 and keyword in i[12]]
 
 
 def get_by_keyword(infos, keyword, codename_id=None):
     if codename_id:
-        return [i for i in infos if i[1] == codename_id and keyword in i[11]]
+        return [i for i in infos if i[1] == codename_id and keyword in i[12]]
     else:
-        return [i for i in infos if keyword in i[11]]
+        return [i for i in infos if keyword in i[12]]
 
 
 def format_address(components):
-    parts = {i[4]: i[10] for i in components}
+    parts = {i[4]: i[11] for i in components}
     lines = [
         '%s %s' % (parts.get('street') or '',
                    parts.get('street_number') or ''),
@@ -222,25 +223,27 @@ def person_report(codename, filename):
     # infos_dict = {info[4]: info for info in infos}
     """TITLE"""
     entries.append(Paragraph(
-        '<para align=center spaceAfter=20>Person Report</para>',
+        '<para align=center>Person Report</para>',
         styles['Title']))
-    # TODO generation timestamp
+    entries.append(par('<para align=center spaceAfter=20>reference %s, created %s</para>'
+                       % (datetime_to_str(),
+                          datetime_to_str(datetime.now()))))
 
     """basic info"""
-    name = ' '.join([i[10] for i in get_valid(infos, 'firstname', codename_id)]
-                    + [i[10]
+    name = ' '.join([i[11] for i in get_valid(infos, 'firstname', codename_id)]
+                    + [i[11]
                         for i in get_valid(infos, 'middlename', codename_id)]
-                    + [i[10] for i in get_valid(infos, 
+                    + [i[11] for i in get_valid(infos, 
                                                 'lastname', 
                                                 codename_id)])
     try:
-        sex = get_valid(infos, 'sex', codename_id)[0][10]
+        sex = get_valid(infos, 'sex', codename_id)[0][11]
         sex_symbol = ('\u2642' if sex == 'male' else
                       ('\u2640' if sex == 'female' else ''))
     except:
         sex_symbol = ''
     try:
-        orientation = get_valid(infos, 'orientation', codename_id)[0][10]
+        orientation = get_valid(infos, 'orientation', codename_id)[0][11]
         if orientation == 'heterosexual':
             orientation_symbol = '\u26a4'
         elif orientation == 'bisexual':
@@ -275,12 +278,12 @@ def person_report(codename, filename):
     entries.append(par(''))
     # '''
     try:
-        religion = get_valid_by_level(infos, 'religion', codename_id)[0][10]
+        religion = get_valid_by_level(infos, 'religion', codename_id)[0][11]
     except:
         religion = ''
 
     try:
-        politics = get_valid_by_level(infos, 'politics', codename_id)[0][10]
+        politics = get_valid_by_level(infos, 'politics', codename_id)[0][11]
     except:
         politics = ''
 
@@ -302,24 +305,24 @@ def person_report(codename, filename):
             # time entry present and valid?
             if time_assoc[2] and time_assoc[2][0][3]:
                 event_str = time_assoc[2][0][1].partition(' ')[0]
-                event_value = datetime.strptime(event_str, '%Y-%m-%d')
-                event_str = datetime.strftime(event_value, '%-d. %-m. %Y')
+                event_value = datetime_from_str(event_str)#.strptime(event_str, '%Y-%m-%d')
+                event_str = datetime_to_str(event_value, only_date=True)#datetime.strftime(event_value, '%-d. %-m. %Y')
                 break
         # get partial info from Information
         if not event_value:
             try:
-                year = get_valid(infos, '%s_year' % event, codename_id)[0][10]
+                year = get_valid(infos, '%s_year' % event, codename_id)[0][11]
             except:
                 year = None
             try:
                 month = get_valid(infos, '%s_month' %
-                                  event, codename_id)[0][10]
+                                  event, codename_id)[0][11]
                 real_month = month
             except:
                 month = '01'
                 real_month = '??'
             try:
-                day = get_valid(infos, '%s_day' % event, codename_id)[0][10]
+                day = get_valid(infos, '%s_day' % event, codename_id)[0][11]
                 real_day = day
             except:
                 day = '01'
@@ -327,7 +330,7 @@ def person_report(codename, filename):
             if year:  # at least
                 event_str = '-'.join(filter(None, [year, month, day]))
                 try:
-                    event_value = datetime.strptime(event_str, '%Y-%m-%d')
+                    event_value = datetime_from_str(event_str)#datetime.strptime(event_str, '%Y-%m-%d')
                 except:
                     pass
                 event_str = '-'.join(filter(None,
@@ -374,11 +377,11 @@ def person_report(codename, filename):
     basic_info = OrderedDict([
         ('Codename', codename),
         ('Name', name),
-        ('Identifier', list(par(i[10])
+        ('Identifier', list(par(i[11])
                             for i in get_valid(infos, 'identifier', codename_id))),
         ('Birth', time_events.get('birth')),
         ('Death', time_events.get('death')),
-        ('Known as', list(par(i[10])
+        ('Known as', list(par(i[11])
                           for i in get_valid(infos, 'nickname', codename_id))),
         ('Characteristics', ' '.join((sex_symbol,
                                       orientation_symbol,
@@ -386,11 +389,11 @@ def person_report(codename, filename):
                                           religion) or religion,
                                       politics_symbols.get(politics) or politics)
                                      ).strip()),
-        ('Phone', list(par(i[10])
+        ('Phone', list(par(i[11])
                        for i in get_valid(infos, 'phone', codename_id))),
-        ('Email', list(par(i[10])
+        ('Email', list(par(i[11])
                        for i in get_valid(infos, 'email', codename_id))),
-        ('Website', list(par('<link href="%s">%s</link>' % (i[10], i[10]))
+        ('Website', list(par('<link href="%s">%s</link>' % (i[11], i[11]))
                          for i in get_valid(infos, 'website', codename_id))),
     ])
     portrait_path = 'files/binary/%d' % info_codename_id
@@ -435,14 +438,14 @@ def person_report(codename, filename):
     try:
         # pdb.set_trace()
         address = [a for a in infos
-                   if a[0] not in [x for i in own_composites for x in i[10]]
+                   if a[0] not in [x for i in own_composites for x in i[11]]
                    and a[1] == codename_id
                    and a[3] == Database.INFORMATION_COMPOSITE
                    and a[4] == 'address']
         if address:
             address_id = address[0][0]
             address_lines = format_address(
-                get_valid_by_ids(infos, address[0][10], codename_id))
+                get_valid_by_ids(infos, address[0][11], codename_id))
             """get map"""
             # get associations with address
             address_map = None
@@ -493,7 +496,7 @@ def person_report(codename, filename):
     ):
         valids = get_valid(infos, category, codename_id)
         if valids:
-            valids_levels = [(k, [x[10] for x in v])
+            valids_levels = [(k, [x[11] for x in v])
                              for k, v in get_level_sort(valids)]
             t = Table([[par(str(level or '')),
                         par('' + ', '.join(sorted(set(valids))))]
@@ -511,7 +514,8 @@ def person_report(codename, filename):
         entries.append(Paragraph('Quotations', styles['Heading2']))
         for valid in valids:
             entries.append(Paragraph('<i>%s</i>' %
-                                     valid[10], getSampleStyleSheet()['BodyText']))
+                                     valid[11], 
+                                     getSampleStyleSheet()['BodyText']))
 
     """Credentials"""
     # get valid credentials for systems
@@ -519,10 +523,10 @@ def person_report(codename, filename):
     credential_tuples = get_valid_by_keyword(infos, 'credentials', codename_id)
     for c in credential_tuples:
         system = c[4]
-        creds = get_valid_by_ids(infos, c[10], codename_id)
+        creds = get_valid_by_ids(infos, c[11], codename_id)
         try:
-            username = [c[10] for c in creds if c[4] == 'username'][0]
-            password = [c[10] for c in creds if c[4] == 'password'][0]
+            username = [c[11] for c in creds if c[4] == 'username'][0]
+            password = [c[11] for c in creds if c[4] == 'password'][0]
         except:
             continue
         credentials.append((system, '%s:%s' % (username, password)))
@@ -538,14 +542,14 @@ def person_report(codename, filename):
                   )
         ]))
     # get all usernames, passwords (even invalid)
-    usernames = [i[10]
+    usernames = [i[11]
                  for i in infos if i[1] == codename_id and i[4] == 'username']
     if usernames:
         entries.append(KeepTogether([
             Paragraph('Usernames', styles['Heading3']),
             Table([[u] for u in usernames], colWidths=[16*cm])]))
 
-    passwords = [i[10]
+    passwords = [i[11]
                  for i in infos if i[1] == codename_id and i[4] == 'password']
     if passwords:
         entries.append(KeepTogether([
@@ -583,9 +587,9 @@ def person_report(codename, filename):
         # find the organization
         try:
             info_organization = [i for i in infos if i[0] in [
-                i2[0] for i2 in job[1]] if 'organization' in i[11]][0]
-            organization_list.append(info_organization[10])
-            organization_id = ensa.db.select_subject(info_organization[10])
+                i2[0] for i2 in job[1]] if 'organization' in i[12]][0]
+            organization_list.append(info_organization[11])
+            organization_id = ensa.db.select_subject(info_organization[11])
             info_organization_id = info_organization[0]
         except:
             traceback.print_exc()
@@ -620,12 +624,12 @@ def person_report(codename, filename):
             logo = None
 
         information_row.append(
-            Paragraph(organization_name[10], styles['Heading3']))
+            Paragraph(organization_name[11], styles['Heading3']))
         information_row.append(logo)
         # for identifier in organization_identifiers:
         #    information_row.append(par(identifier[10]))
         for position in positions:
-            information_row.append(par(position[10]))
+            information_row.append(par(position[11]))
         # for website in organization_websites:
         #    information_row.append(website[10])
         # for account in organization_accounts:
@@ -638,10 +642,10 @@ def person_report(codename, filename):
         for position in positions:
             job_tables.append(
                 Table([
-                    [logo, Paragraph(organization_name[10],
+                    [logo, Paragraph(organization_name[11],
                                      styles['Heading3'])],
                     ['', date_string],
-                    ['', position[10]],
+                    ['', position[11]],
                 ],
                     colWidths=[4*cm, 12*cm],
                     style=TableStyle([
@@ -717,7 +721,7 @@ def person_report(codename, filename):
     for colleague in colleagues:
         if colleague[1] == codename_id:
             continue
-        if 'organization' in colleague[11]:
+        if 'organization' in colleague[12]:
             continue
         colleague_codename = ensa.db.get_subject_codename(colleague[1])
         # TODO average with own?
@@ -793,7 +797,7 @@ def person_report(codename, filename):
             if info[4] == 'codename':
                 symbol = ''
                 for category, emblem in emblem_categories:
-                    if category in info[11]:
+                    if category in info[12]:
                         symbol = emblem
                         break
                 rows = codename_rows
@@ -803,12 +807,12 @@ def person_report(codename, filename):
                 rows = information_rows
             #  get data if composite
             if info[3] == Database.INFORMATION_COMPOSITE:
-                components = [(i[4], i[10])
-                              for i in infos if i[0] in info[10]]
+                components = [(i[4], i[11])
+                              for i in infos if i[0] in info[11]]
                 text = '\n'.join([symbol] +
                                  ['%s: %s' % c for c in components])
             else:
-                text = '%s %s' % (symbol, info[10])
+                text = '%s %s' % (symbol, info[11])
             # mark invalid
             if not info[7]:
                 text = '<strike>%s</strike>' % text
@@ -841,7 +845,7 @@ def person_report(codename, filename):
                         # get_associations_by_location does not give components
                         # -> we must manually find the values
                         components = [
-                            i for i in infos if i[0] == info[0]][0][10]
+                            i for i in infos if i[0] == info[0]][0][11]
                         location_strings += format_address(
                             get_valid_by_ids(infos, components, codename_id))
                         address_found = True
@@ -938,7 +942,7 @@ def person_report(codename, filename):
         entries.append(Paragraph('Gallery', styles['Heading2']))
         images_dict = {}
         for image in own_images:
-            key = '%s:%s' % (image[4], image[10])
+            key = '%s:%s' % (image[4], image[11])
             if key not in images_dict.keys():
                 images_dict[key] = []
             images_dict[key].append(image)

@@ -47,6 +47,7 @@ taw
 10
 y
 Sweet Taste of Liberty
+n
 
 $liberty_time = $last
 taw
@@ -55,6 +56,7 @@ taw
 10
 y
 Ted's 30th Birthday
+n
 
 $birthday = $last
 taw
@@ -63,6 +65,7 @@ taw
 5
 y
 Trip to Rome
+n
 
 $trip_to_rome = $last
 #####################
@@ -297,7 +300,7 @@ manager
 ###################################
 sawp
 robin
-robin.jpg
+himym_robin.jpg
 Robin
 Charles
 Scherbatsky Jr.

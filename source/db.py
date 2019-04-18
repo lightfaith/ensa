@@ -176,8 +176,8 @@ class Database():
                     accuracy = min(x[6] for x in (y, m, d))
                     valid = all(x[7] for x in (y, m, d))
                     time_id = self.create_time(
-                        '%04d-%02d-%02d' % (int(y[10]),
-                                            int(m[10]), int(d[10])),
+                        '%04d-%02d-%02d' % (int(y[11]),
+                                            int(m[11]), int(d[11])),
                         '00:00', accuracy=accuracy, valid=valid, note=as_note)
                     as_id = self.create_association(
                         accuracy=accuracy, valid=valid, note=as_note)
@@ -300,7 +300,8 @@ class Database():
                            accuracy=ensa.config['interaction.default_accuracy'][0],
                            level=None,
                            valid=True,
-                           note=None):
+                           note=None,
+                           active=True):
         if not self.subject_ok():
             return None
         try:
@@ -327,11 +328,6 @@ class Database():
                            {'i': information_id,
                             'v': value})
 
-                '''
-                elif info_type == Database.INFORMATION_BINARY:
-                    # TODO optional encryption?
-                '''
-
             elif info_type == Database.INFORMATION_COMPOSITE:
                 if type(value) in (filter, tuple, list):
                     value = ','.join(str(v) for v in value)
@@ -343,6 +339,11 @@ class Database():
                            {'i': information_id,
                             's': ensa.current_subject})
                 self.information_cleanup('composites')
+
+            """ set active/inactive """
+            self.add_active(information_id, 
+                            ensa.variables['reference_time_id'], 
+                            active)
 
             return information_id
         except:
@@ -396,6 +397,7 @@ class Database():
         result = []
         if ensa.current_subject and not force_no_current_subject:
             if no_composite_parts:
+                """ by subject, no components """
                 infos_nodata = self.query((
                     "SELECT I.information_id, I.subject_id, S.codename, "
                     "       I.type, I.name, I.level, I.accuracy, I.valid, "
@@ -407,6 +409,7 @@ class Database():
                     "          (SELECT part_id FROM Composite) "
                     "ORDER BY I.name"), {'s': ensa.current_subject})
             else:
+                """ by subject, all """
                 infos_nodata = self.query((
                     "SELECT I.information_id, I.subject_id, S.codename, "
                     "       I.type, I.name, I.level, I.accuracy, I.valid, "
@@ -417,6 +420,7 @@ class Database():
                     "ORDER BY I.name"), {'s': ensa.current_subject})
         else:
             if no_composite_parts:
+                """ all in ring, no components """
                 infos_nodata = self.query((
                     "SELECT I.information_id, I.subject_id, S.codename, "
                     "       I.type, I.name, I.level, I.accuracy, I.valid, "
@@ -428,6 +432,7 @@ class Database():
                     "          (SELECT part_id FROM Composite) "
                     "ORDER BY I.name"), {'r': ensa.current_ring})
             else:
+                """ all in ring, all """
                 infos_nodata = self.query((
                     "SELECT I.information_id, I.subject_id, S.codename, "
                     "       I.type, I.name, I.level, I.accuracy, I.valid, "
@@ -439,6 +444,21 @@ class Database():
 
         infos = []
         for info in infos_nodata:
+            """ get active/inactive """
+            active_times = self.query(("SELECT T.time, A.active "
+                                       "FROM Time T INNER JOIN Active A"
+                                       "     ON T.time_id = A.time_id "
+                                       "WHERE A.information_id = :i "
+                                       "ORDER BY T.time"),
+                                      {'i': info[0]})
+            is_active = False
+            for time, active in active_times:
+                if lib.datetime_from_str(time) <= ensa.variables['reference_time']:
+                    is_active = bool(active)
+                else:
+                    break
+
+            """ get value """
             if info[3] in [Database.INFORMATION_ALL,
                            Database.INFORMATION_TEXT]:
                 value = self.query(("SELECT value "
@@ -458,9 +478,14 @@ class Database():
                     "WHERE information_id = :i"), {'i': info[0]})]
             else:
                 value = 'ERROR'
+
+            to_add = [is_active]
             if (info_type == Database.INFORMATION_ALL
                     or info_type == info[3]):
-                infos.append(tuple(list(info)+[value]))
+                to_add = [is_active, value]
+            infos.append(tuple(list(info) + to_add))
+        #for info in infos:
+        #    print(info)
         return infos
 
     def get_information(self, information_id):
@@ -575,7 +600,27 @@ class Database():
                         'l': level,
                         's': ensa.current_subject})
 
+###########################################
+# Active methods
+###########################################
+    def add_active(self, information_id, time_id, active):
+        self.query(("INSERT INTO Active(information_id, time_id, active) "
+                    "VALUES(:i, :t, :a)"),
+                   {'i': information_id,
+                    't': time_id,
+                    'a': active})
 
+    def set_active(self, information_ids, time_id, active):
+        if type(information_ids) == int:
+            information_ids = str(information_ids)
+        if type(information_ids) in (filter, tuple, list):
+            information_ids = ','.join(str(x) for x in information_ids)
+        self.query(("UPDATE Active "
+                    "SET active = :a "
+                    "WHERE information_id IN (" + information_ids + ") "
+                    "      AND time_id = :t "),
+                   {'t': time_id,
+                    'a': active})
 ###########################################
 # Location methods
 ###########################################
@@ -610,16 +655,24 @@ class Database():
             log.debug_error()
             return None
 
-    def get_locations(self):
+    def get_locations(self, sort='name'):
         if not self.ring_ok():
             return []
-        return self.query(("SELECT location_id, name, lat, lon, "
-                           "       accuracy, valid, modified, note "
-                           "FROM Location "
-                           "WHERE ring_id = :r"),
-                          {'r': ensa.current_ring})
+        result = self.query(("SELECT location_id, name, lat, lon, "
+                             "       accuracy, valid, modified, note "
+                             "FROM Location "
+                             "WHERE ring_id = :r "
+                             "ORDER BY name"), # TODO use sort here when it works
+                            {'r': ensa.current_ring,
+                             's': sort})
+        #print(result)
+        return result
 
     def delete_locations(self, location_ids):
+        if type(location_ids) == int:
+            location_ids = str(location_ids)
+        if type(location_ids) in (filter, tuple, list):
+            location_ids = ','.join(str(x) for x in location_ids)
         if self.ring_ok():
             self.query(("DELETE FROM Location "
                         "WHERE location_id IN ("+location_ids+") "
@@ -675,6 +728,10 @@ class Database():
                                  note=None):
         if not self.ring_ok():
             return
+        if type(location_ids) == int:
+            location_ids = str(location_ids)
+        if type(location_ids) in (filter, tuple, list):
+            location_ids = ','.join(str(x) for x in location_ids)
         if accuracy:
             self.query(("UPDATE Location "
                         "SET modified = :m, accuracy = :a "
@@ -740,7 +797,7 @@ class Database():
             log.debug_error()
             return None
 
-    def get_times(self, interval=None):
+    def get_times(self, interval=None, sort='time'):
         if not self.ring_ok():
             return []
         result = self.query(("SELECT time_id, "
@@ -749,7 +806,11 @@ class Database():
                              "       accuracy, valid, modified, note "
                              #"       accuracy, valid, note "
                              "FROM Time "
-                             "WHERE ring_id = :r"), {'r': ensa.current_ring})
+                             "WHERE ring_id = :r "
+                             "ORDER BY time"), # TODO use sort here when it works
+                            {'r': ensa.current_ring,
+                             's': sort})
+        #print(result)
         if interval:
             start, end = interval
             if type(start) == str:
@@ -764,6 +825,10 @@ class Database():
     def delete_times(self, time_ids):
         if not self.ring_ok():
             return []
+        if type(time_ids) == int:
+            time_ids = str(time_ids)
+        if type(time_ids) in (filter, tuple, list):
+            time_ids = ','.join(str(x) for x in time_ids)
         self.query(("DELETE FROM Time "
                     "WHERE time_id IN ("+time_ids+") "
                     "      AND ring_id = :r"), {'r': ensa.current_ring})
@@ -822,6 +887,10 @@ class Database():
                              note=None):
         if not self.ring_ok():
             return []
+        if type(time_ids) == int:
+            time_ids = str(time_ids)
+        if type(time_ids) in (filter, tuple, list):
+            time_ids = ','.join(str(x) for x in time_ids)
         if accuracy:
             self.query(("UPDATE Time "
                         "SET modified = :m, accuracy = :a "
@@ -875,6 +944,10 @@ class Database():
     def associate_association(self, association_id, association_ids):
         if not self.ring_ok():
             return None
+        if type(association_ids) == int:
+            association_ids = str(association_ids)
+        if type(association_ids) in (filter, tuple, list):
+            association_ids = ','.join(str(x) for x in association_ids)
         try:
             ring_id = self.query(("SELECT DISTINCT ring_id "
                                   "FROM Association "
@@ -1120,6 +1193,20 @@ class Database():
                  "ORDER BY information_id"), {'a': assoc[0]})
             infos = []
             for info in infos_nodata:
+                """ get active/inactive """
+                active_times = self.query(("SELECT T.time, A.active "
+                                           "FROM Time T INNER JOIN Active A"
+                                           "     ON T.time_id = A.time_id "
+                                           "WHERE A.information_id = :i "
+                                           "ORDER BY T.time"),
+                                          {'i': info[0]})
+                is_active = False
+                for time, active in active_times:
+                    if lib.datetime_from_str(time) <= ensa.variables['reference_time']:
+                        is_active = bool(active)
+                    else:
+                        break
+                """ get data """
                 if info[3] == Database.INFORMATION_TEXT:
                     value = self.query(("SELECT value "
                                         "FROM Text "
@@ -1128,10 +1215,13 @@ class Database():
                 elif info[3] == Database.INFORMATION_BINARY:
                     value = '[binary]'
                 elif info[3] == Database.INFORMATION_COMPOSITE:
-                    value = '{composite}'
+                    value = [row[0] for row in self.query((
+                        "SELECT part_id "
+                        "FROM Composite "
+                        "WHERE information_id = :i"), {'i': info[0]})]
                 else:
                     value = 'ERROR'
-                infos.append(tuple(list(info)+[value]))
+                infos.append(tuple(list(info)+[is_active, value]))
             # get time entries
             times = self.query(("SELECT Time.time_id, "
                                 #"       DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'),"
@@ -1637,6 +1727,20 @@ class Database():
                                       {'r': ensa.current_ring})
         infos = []
         for info in infos_nodata:
+            """ get active/inactive """
+            active_times = self.query(("SELECT T.time, A.active "
+                                       "FROM Time T INNER JOIN Active A"
+                                       "     ON T.time_id = A.time_id "
+                                       "WHERE A.information_id = :i "
+                                       "ORDER BY T.time"),
+                                      {'i': info[0]})
+            is_active = False
+            for time, active in active_times:
+                if lib.datetime_from_str(time) <= ensa.variables['reference_time']:
+                    is_active = bool(active)
+                else:
+                    break
+            """ get data """
             if info[3] in [Database.INFORMATION_ALL,
                            Database.INFORMATION_TEXT]:
                 value = self.query(("SELECT value "
@@ -1703,6 +1807,20 @@ class Database():
 
         infos = []
         for info in infos_nodata:
+            """ get active/inactive """
+            active_times = self.query(("SELECT T.time, A.active "
+                                       "FROM Time T INNER JOIN Active A"
+                                       "     ON T.time_id = A.time_id "
+                                       "WHERE A.information_id = :i "
+                                       "ORDER BY T.time"),
+                                      {'i': info[0]})
+            is_active = False
+            for time, active in active_times:
+                if lib.datetime_from_str(time) <= ensa.variables['reference_time']:
+                    is_active = bool(active)
+                else:
+                    break
+            """ get data """
             if info[3] in [Database.INFORMATION_ALL,
                            Database.INFORMATION_TEXT]:
                 value = self.query(("SELECT value "

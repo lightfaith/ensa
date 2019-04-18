@@ -86,7 +86,7 @@ def run_command(fullcommand):
                                                    else 0):])
         if not variable_matches:
             break
-        for m in variable_matches:
+        for m in sorted(variable_matches, key=lambda x: len(x), reverse=True):
             name = m[1:]
             value = str(ensa.variables.get(name))
             # pdb.set_trace()
@@ -352,22 +352,24 @@ def format_association(association_id, ring_id, level, accuracy, valid, modified
         note if note else '',
         'lvl %d, ' % level if level else '',
         accuracy,
-        ', mod '+modified if use_modified else '',
+        (', mod ' + datetime_to_str(modified)) if use_modified else '',
         ', invalid' if not valid else '',
         log.COLOR_NONE,
     )
 
 
-def format_information(information_id, subject_id, codename, info_type, name, level, accuracy, valid, modified, note, value, id_len, codename_len, name_len, value_len, keywords=None, use_codename=True, use_modified=True):
+def format_information(information_id, subject_id, codename, info_type, name, level, accuracy, valid, modified, note, active, value, id_len, codename_len, name_len, value_len, keywords=None, use_codename=True, use_modified=True):
     color = log.COLOR_NONE
     if not valid:
         color = log.COLOR_DARK_RED
+    elif not active:
+        color = log.COLOR_GREY
     else:
         if accuracy >= 0.75*ensa.config['interaction.max_accuracy'][0]:
             color = log.COLOR_GREEN
         elif accuracy <= 0.25*ensa.config['interaction.max_accuracy'][0]:
             color = log.COLOR_BROWN
-    return '%s%-*d %s %*s  %*s: %-*s  (%sacc %2d%s%s)  %s%s' % (
+    return '%s%-*d %s %*s  %*s: %-*s  (%sacc %2d%s%s%s)  %s%s' % (
         color,
         id_len,
         information_id,
@@ -382,7 +384,8 @@ def format_information(information_id, subject_id, codename, info_type, name, le
          else value),
         'lvl %d, ' % level if level else '',
         accuracy,
-        ', mod '+modified if use_modified else '',
+        (', mod ' + datetime_to_str(modified)) if use_modified else '',
+        ', inactive' if not active else '',
         ', invalid' if not valid else '',
         (('# '+note) if note else '') if keywords is None else (', '.join(keywords)),
         log.COLOR_NONE,
@@ -427,7 +430,7 @@ def format_location(location_id, name, lat, lon, accuracy, valid, modified, note
         name,
         gps if gps else '',
         accuracy,
-        ', mod '+modified if use_modified else '',
+        (', mod ' + datetime_to_str(modified)) if use_modified else '',
         ', invalid' if not valid else '',
         ('# '+note) if note else '',
         log.COLOR_NONE,
@@ -454,7 +457,7 @@ def format_time(time_id, time, accuracy, valid, modified, note, id_len, use_modi
         # datetime.strptime(time).strftime('%Y-%m-%d %H:%M:%S'),
         # time if time else '',
         accuracy,
-        ', mod '+modified if use_modified else '',
+        (', mod ' + datetime_to_str(modified)) if use_modified else '',
         ', invalid' if not valid else '',
         ('# '+note) if note else '',
         log.COLOR_NONE,
@@ -1499,6 +1502,28 @@ add_command(Command('imn <information_id> <value>',
                     'modify information note', 'imn', imn_function))
 
 
+def imr_function(*args):
+    try:
+        information_ids = parse_sequence(args[0])
+    except:
+        log.err('Information ID must be specified.')
+        return []
+    value = positive(args[1])
+
+    if len(information_ids) == 1:
+        ensa.variables['last'] = information_ids[0]
+    ensa.db.set_active(information_ids, 
+                       ensa.variables['reference_time_id'], 
+                       value)
+    log.info('Activity updated.')
+    return []
+
+add_command(Command('imr <information_ids> <value>',
+                    'modify information active state for current reference time', 
+                    'imr', 
+                    imr_function))
+
+
 def imv_function(*args):
     try:
         information_ids = ','.join(parse_sequence(args[0]))
@@ -1750,7 +1775,6 @@ def lme_function(*args):
     data = ensa.db.get_location(location_id)
     if not data:
         return []
-    print(data)
     '''
     lat, _, lon = data[2].partition('(')[2].partition(
         ' ') if data[2] else (None, None, None)
@@ -1822,7 +1846,6 @@ def lme_function(*args):
         if type(mapped['lon']) == float:
             mapped['lon'] = str(mapped['lon'])
         mapped['location_id'] = location_id
-        print(mapped)
         ensa.db.update_location(**mapped)
         log.info('Location %s successfully changed.' % location_id)
     else:
@@ -2260,7 +2283,7 @@ def sawo_function(*_):
         return []
     codename_id = ensa.db.create_subject(codename)
     info_codename_id = [i[0] for i in ensa.db.get_informations(
-    ) if i[4] == 'codename' and i[10] == codename][0]
+    ) if i[4] == 'codename' and i[11] == codename][0]
     ensa.db.add_keyword(info_codename_id, 'organization')
 
     if not codename_id:
@@ -2334,53 +2357,8 @@ def sawo_function(*_):
                                                     % codename.title())
         ensa.db.associate_information(association_id, address_id)
         ensa.db.associate_location(association_id, location_id)
-    '''
-    # CEO association
-    employment_id = ensa.db.create_association(
-        note=('%s\'s employees' % (codename.title())))
-    ensa.db.associate_subject(employment_id, codename)
-
-    while True:
-        employee, = wizard(['CEO codename:'])
-        if not employee:
-            break
-        employee_id = ensa.db.select_subject(employee)
-        if not employee_id:
-            log.err('No such subject exists.')
-            continue
-        ensa.current_subject = employee_id
-        association_id = ensa.db.create_association(
-            note=('%s\'s CEO' % (codename.title())))
-        job_id = ensa.db.create_information(
-            Database.INFORMATION_TEXT, 'position', 'CEO', level=10, accuracy=10)
-        ensa.db.associate_subject(association_id, codename)
-        ensa.db.associate_information(association_id, job_id)
-        ensa.db.associate_information(employment_id, job_id)
-        break
-
-    # employees
-    """relationships"""
-    log.newline()
-    while True:
-        employee, = wizard(['Employee codename:'])
-        if not employee:
-            break
-        employee_id = ensa.db.select_subject(employee)
-        if not employee_id:
-            log.err('No such subject exists.')
-            continue
-        valid, position,  = wizard(
-            [
-                'Is the employment still valid?',
-                'What is %s\'s position?' % (employee),
-            ])
-        valid = not negative(valid)
-        ensa.current_subject = employee_id
-        job_id = ensa.db.create_information(
-            Database.INFORMATION_TEXT, 'position', position, level=10, accuracy=10)
-        ensa.db.associate_information(employment_id, job_id)
-    '''
-    # employees
+    
+    """ employees """
     while True:
         employee, = wizard([
             'Employee codename:',
@@ -2469,7 +2447,7 @@ def sawp_function(*_):
         log.info('Currently working with \'%s\' subject.' % codename)
 
     info_codename_id = [i[0] for i in ensa.db.get_informations(
-    ) if i[4] == 'codename' and i[10] == codename][0]
+    ) if i[4] == 'codename' and i[11] == codename][0]
     ensa.db.add_keyword(info_codename_id, 'person')
     if portrait_name:
         try:
@@ -2829,7 +2807,7 @@ def taw_function(*_):
     accuracy = int(accuracy) if accuracy.isdigit() else 0
     valid = not negative(valid)
     time_id = ensa.db.create_time(date, time, accuracy, valid, note)
-    if as_reference:
+    if positive(as_reference):
         ensa.variables['reference_time_id'] = time_id
         ensa.variables['reference_time'] = ensa.db.get_time(time_id)[1]
     ensa.variables['last'] = time_id
@@ -2928,14 +2906,14 @@ def tlt_function(*args, hide_details=False, use_modified=True):
             also_return_type=True)
         if test_start_type == 'dt':
             start_args = args
-            end_args = datetime_to_str()
+            end_args = (datetime_to_str(),)
         else:
             start_args = args[:1]
             end_args = args[1:]
     elif len(args) == 1:
         """ always start; use 'now' as end """
         start_args = args
-        end_args = datetime_to_str()
+        end_args = (datetime_to_str(),)
     
     print('start args', start_args)
     print('end args', end_args)
@@ -2945,6 +2923,7 @@ def tlt_function(*args, hide_details=False, use_modified=True):
     
     print(start_type, start)
     print(end_type, end)
+    '''
     if (start_type, end_type) not in [
         ('t', 't'),
         ('d', None),
@@ -2956,69 +2935,7 @@ def tlt_function(*args, hide_details=False, use_modified=True):
     ]:
         log.err('%s-%s date range format is not supported.' % (start_type, end_type))
         return []
-        
-    '''
-    formats = {'dt': '%Y-%m-%d %H:%M:%S',
-               'd': '%Y-%m-%d', 't': '%H:%M:%S', 't2': '%H:%M'}
-    # try treat start as time
-    for f in ('t', 't2'):
-        try:
-            start = datetime.strptime(args[0], formats[f])
-            for f in ('t', 't2'):
-                try:
-                    end = datetime.strptime(args[1], formats[f])
-                except:
-                    continue
-            if not end:
-                log.err('Date range format is not supported (T-T fail).')
-                return []
-        except:
-            continue
-    if start and end:
-        print('t-t')
-        start = '0000-00-00 %s' % str(start)[-8:]
-        end = '0000-00-00 %s' % str(end)[-8:]
-    else:
-        # try treat first entry as date
-        try:
-            start = datetime.strptime(args[0], formats['d'])
-            if len(args) < 2:
-                print('d-')
-                end = ensa.current_reference_date
-            else:
-                try:
-                    end = datetime.strptime(args[1], formats['d'])
-                    print('d-d')
-                except:
-                    raise ValueError  # so start must be dt
-        except:
-            # start must be datetime
-            try:
-                start = datetime.strptime(' '.join(args[:2]), formats['dt'])
-            except:
-                log.err('Date range format is not supported (DT- fail).')
-                return []
-            if len(args) == 2:
-                print('dt-')
-                end = ensa.current_reference_date
-            else:
-                try:
-                    end = datetime.strptime(' '.join(args[2:]), formats['dt'])
-                    print('dt-dt')
-                except:
-                    try:
-                        end = datetime.strptime(args[2], formats['d'])
-                        print('dt-d')
-                    except:
-                        try:
-                            end = datetime.strptime(args[2], formats['t'])
-                            end = '%s %s' % (str(start)[:10], str(end)[-8:])
-                            print('dt-t')
-                        except:
-                            log.err(
-                                'Date range format is not supported (DT-x fail).')
-                            return []
-    '''
+    ''' 
     # print(start)
     # print(end)
     return ag_function(start,
