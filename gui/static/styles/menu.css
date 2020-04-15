@@ -16,7 +16,12 @@ Main layout
 .menu-image:hover {opacity: 1;}
 
 .Header { grid-area: Header; background-color: #cc3f4f;}
-.List { grid-area: List; background-color: #888888;}
-.Detail { grid-area: Detail; background-color: #ffffff;}
+
+.List { grid-area: List; background-color: #888888; display: flex; flex-direction: column; flex-wrap: wrap; max-height: 45vh; overflow-x: scroll;}
+.item {margin: 1px; padding: 10px; background-color: #7bed9f; width: 200px;}
+.item:hover { background-color: #4ced7f;}
+.item-checked, .item-checked:hover {background-color: #30bf5d;}
+
+.Detail {grid-area: Detail; background-color: #ffffff;}
 
 

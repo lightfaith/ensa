@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 import pdb
 import sqlite3 as sqlite
+from threading import Lock
 #from pysqlcipher3 import dbapi2 as sqlite
 from source import log
 from source import ensa
@@ -19,6 +20,7 @@ class Database():
     def __init__(self):
         self.cnx = None
         self.cur = None
+        self.lock = Lock()
 
     def connect(self, password):
         #lib.reload_config()
@@ -49,21 +51,21 @@ class Database():
             return False
 
     def query(self, command, parameters=None):
-        # TODO lock (because of last insert id)
-        log.debug_query(command)
-        try:
-            #self.cur.execute(command, parameters or tuple())
-            self.cur.execute(command, parameters or tuple())
-            self.cnx.commit()
-        except Exception as e:  # mysql.connector.errors.OperationalError:
-            print(str(e))
-        #    self.connect()
-        #    self.cur.execute(command, parameters or tuple())
+        with self.lock:
+            log.debug_query(command)
+            try:
+                #self.cur.execute(command, parameters or tuple())
+                self.cur.execute(command, parameters or tuple())
+                self.cnx.commit()
+            except Exception as e:  # mysql.connector.errors.OperationalError:
+                print(str(e))
+            #    self.connect()
+            #    self.cur.execute(command, parameters or tuple())
 
-        if command.upper().startswith('SELECT '):
-            #return self.cur.fetchall()
-            return list(self.cur.fetchall())
-        return []
+            if command.upper().startswith('SELECT '):
+                #return self.cur.fetchall()
+                return list(self.cur.fetchall())
+            return []
 
     def ring_ok(self, ring):
         if not ring:
@@ -434,7 +436,7 @@ class Database():
                     "       I.modified, I.note "
                     "FROM Subject S INNER JOIN Information I "
                     "     ON S.subject_id = I.subject_id "
-                    "WHERE I.subject_id = :s "
+                    "wherE I.subject_id = :s "
                     "ORDER BY I.name"), {'s': subject})
         else:
             if no_composite_parts:

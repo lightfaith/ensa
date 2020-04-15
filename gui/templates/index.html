@@ -32,6 +32,8 @@ var active_category = "ring";
 var rings = JSON.parse({{ rings|tojson }});
 var subjects = new Array();
 var locations = new Array();
+var times = new Array();
+var associations = new Array();
 
 
 /**************************
@@ -74,32 +76,72 @@ function menu_image(off, on, alt, f){
 3. Functions relevant for List
 */
 
+function create_items(category, datasource, id_index, formatter)
+{
+	var result = "";
+	for (var i in datasource){
+		result += '<div id="item-'+category+'-'+datasource[i][id_index]+'" class="item" onclick="item_click(`'+category+'`, `'+datasource[i][id_index]+'`)" >'+formatter(datasource[i])+'</div>';
+	}
+	return result;
+}
+
 function regenerate_list(element)
 {
 	active_category=element.id.substring(11);
 	//alert("Test, >"+active_category+"<");
 	objlist = document.getElementById('object-list');
+	content = "";
 	switch (active_category)
 	{
 		case 'ring':
-			objlist.innerHTML = rings;
+			//content = rings;
+			content += create_items(active_category, rings, 0, function(entry){return entry[1];});
 			break;
 		case 'subject':
-			objlist.innerHTML = subjects;
+			//content = subjects;
+			content += create_items(active_category, subjects, 0, function(entry){return entry[1];});
 			break;
 		case 'location':
-			objlist.innerHTML = locations;
+			//content = locations;
+			content += create_items(active_category, locations, 0, function(entry){return entry[1];});
 			break;
 		case 'time':
-			objlist.innerHTML = times;
+			//content = times;
+			content += create_items(active_category, times, 0, function(entry){return entry[5]+'<br>('+entry[1]+')';});
 			break;
 		case 'association':
-			objlist.innerHTML = associations;
+			//content = associations;
+			content += create_items(active_category, associations, 0, function(entry){return entry[6];});
 			break;
 	}
+	objlist.innerHTML = content;
 }
 
 
+function item_click(category, id)
+{
+	// 1. load data if necessary
+	switch(category)
+	{
+		case 'ring':
+			ajax('get_subjects', id, 'subjects');
+			ajax('get_locations', id, 'locations');
+			ajax('get_times', id, 'times');
+			ajax('get_associations', id, 'associations');
+			break;
+	}
+	// 2. generate detail
+	// TODO 
+
+	// 3. mark as checked
+	items = document.getElementsByClassName('item');
+	[].forEach.call(items, function(item){
+		if (item.classList.contains('item-checked')){
+			item.classList.remove('item-checked');
+		}
+	});
+	document.getElementById("item-"+category+"-"+id).classList.add('item-checked');
+}
 /**************************
  End of functions
 **************************/

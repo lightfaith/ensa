@@ -27,6 +27,19 @@ class GUI(Thread):
 def get_subjects(ring):
     return json.dumps(ensa.db.get_subjects(ring=int(ring)))
 
+@GUI.app.route('/get_locations/<ring>')
+def get_locations(ring):
+    return json.dumps(ensa.db.get_locations(ring=int(ring)))
+
+@GUI.app.route('/get_times/<ring>')
+def get_times(ring):
+    return json.dumps(ensa.db.get_times(ring=int(ring)))
+
+@GUI.app.route('/get_associations/<ring>')
+def get_associations(ring):
+    return json.dumps(ensa.db.get_associations(ring=int(ring)))
+
+
 @GUI.app.route('/')
 def gui_index():
     #return '<html><body><h1>It works!</h1></body></html>'
