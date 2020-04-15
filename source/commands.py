@@ -18,6 +18,7 @@ from source.pdf import *
 from source.map import *
 # from source.protocols import protocols
 from source.lib import *
+from source.gui import *
 from source.db import Database
 from datetime import datetime
 import dateutil.parser
@@ -3226,3 +3227,12 @@ add_command(Command('v',
                     'show variables',
                     'v',
                     v_function))
+def gui_function(*_):
+    gui = GUI() 
+    gui.start()
+
+add_command(Command('gui',
+                    'run Web GUI',
+                    'gui',
+                    gui_function))
+

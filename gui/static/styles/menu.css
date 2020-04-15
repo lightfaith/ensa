@@ -1,0 +1,22 @@
+/*
+Main layout
+*/
+
+.grid-container {
+  display: grid;
+  grid-template-columns: 7vw 92vw;
+  grid-template-rows: 4vh 45vh 50vh;
+  gap: 1px 1px;
+  grid-template-areas: "Menu Header" "Menu List" "Menu Detail";
+}
+
+.Menu { grid-area: Menu; background-color: #eeeeee; }
+.menu-column {width: 60px;}
+.menu-image {max-height: 50px; max-width: 50px; padding: 5px; opacity: 0.3;}
+.menu-image:hover {opacity: 1;}
+
+.Header { grid-area: Header; background-color: #cc3f4f;}
+.List { grid-area: List; background-color: #888888;}
+.Detail { grid-area: Detail; background-color: #ffffff;}
+
+

@@ -3,8 +3,8 @@ import time
 from datetime import datetime
 import os
 import pdb
-#import sqlite3 as sqlite
-from pysqlcipher3 import dbapi2 as sqlite
+import sqlite3 as sqlite
+#from pysqlcipher3 import dbapi2 as sqlite
 from source import log
 from source import ensa
 from source import lib
@@ -33,7 +33,7 @@ class Database():
             db_exists = False
 
         try:
-            self.cnx = sqlite.connect(ensa.config['db.file'].value)
+            self.cnx = sqlite.connect(ensa.config['db.file'].value, check_same_thread=False)
             self.cur = self.cnx.cursor()
             self.query("PRAGMA key='%s'" % password)
             self.query("PRAGMA foreign_keys=ON")
@@ -61,11 +61,12 @@ class Database():
         #    self.cur.execute(command, parameters or tuple())
 
         if command.upper().startswith('SELECT '):
-            return self.cur.fetchall()
+            #return self.cur.fetchall()
+            return list(self.cur.fetchall())
         return []
 
-    def ring_ok(self):
-        if not ensa.current_ring:
+    def ring_ok(self, override_ring=None):
+        if not (ensa.current_ring or override_ring):
             log.err('First select a ring with `rs <name>`.')
             return False
         return True
@@ -228,9 +229,10 @@ class Database():
             log.debug_error()
             return None
 
-    def get_subjects(self, codename=None, sort='codename'):
-        if not self.ring_ok():
+    def get_subjects(self, codename=None, sort='codename', override_ring=None):
+        if not self.ring_ok(override_ring):
             return []
+        ring = override_ring or ensa.current_ring
         if codename:
             codename_condition = "AND codename like '%" + codename + "%' "
         else:
@@ -239,7 +241,7 @@ class Database():
                              "FROM Subject "
                              "WHERE ring_id = :r " + codename_condition +
                              "ORDER BY :s"),
-                            {'r': ensa.current_ring,
+                            {'r': ring,
                              's': sort})
         return result
 

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/menu.css') }}" />
+	<title>Ensa</title>
+  </head>
+  <body>
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+
+	<script type="text/javascript">
+/*
+var rings = JSON.parse({{ rings|tojson }});
+//var rings = '{{ rings|tojson }}';
+for (var i in rings){
+	alert(rings[i]);
+}
+*/
+/**************************
+0. Global variables
+*/
+var active_category = "ring";
+var rings = JSON.parse({{ rings|tojson }});
+var subjects = new Array();
+var locations = new Array();
+
+
+/**************************
+1. General-purpose functions
+*/
+function test()
+{
+	ajax('get_subjects', 1, 'subjects');
+}
+
+function get_image_url(name)
+{
+	return "/static/images/"+name+".png";
+}
+
+function ajax(query, fkey, result)
+{
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function()
+	{
+		if (this.readyState == 4 && this.status == 200) {
+			window[result] = JSON.parse(this.responseText);
+		}
+	};
+	xhttp.open('GET', '/'+query+'/'+fkey, true);
+	xhttp.send();
+}
+
+/**************************
+2. Functions relevant for Menu
+*/
+
+function menu_image(off, on, alt, f){
+	document.write("<img id='menu-image-"+on+"' class='menu-image' src='/static/images/"+off+".png' onmouseover='this.src=get_image_url(\""+on+"\")' onmouseout='this.src=get_image_url(\""+off+"\")'>");	
+    document.getElementById('menu-image-'+on).addEventListener('click', function(){f(this);});
+}
+
+
+/**************************
+3. Functions relevant for List
+*/
+
+function regenerate_list(element)
+{
+	active_category=element.id.substring(11);
+	//alert("Test, >"+active_category+"<");
+	objlist = document.getElementById('object-list');
+	switch (active_category)
+	{
+		case 'ring':
+			objlist.innerHTML = rings;
+			break;
+		case 'subject':
+			objlist.innerHTML = subjects;
+			break;
+		case 'location':
+			objlist.innerHTML = locations;
+			break;
+		case 'time':
+			objlist.innerHTML = times;
+			break;
+		case 'association':
+			objlist.innerHTML = associations;
+			break;
+	}
+}
+
+
+/**************************
+ End of functions
+**************************/
+	</script>
+	<div class="grid-container">
+	  <div class="Menu" align="center">
+        <div class="menu-column">
+			<script type="text/javascript">
+				menu_image('black_ring', 'ring', 'Ring', regenerate_list);
+				menu_image('black_subject', 'subject', 'Subject', regenerate_list);
+				menu_image('black_location', 'location', 'Location', regenerate_list);
+				menu_image('black_time', 'time', 'Date/time', regenerate_list);
+				menu_image('black_association', 'association', 'Association', regenerate_list);
+			</script><hr>
+			<script type="text/javascript">
+				menu_image('black_bubbles', 'bubbles', 'Relationships', regenerate_list);
+				menu_image('black_timeline', 'timeline', 'Timeline', regenerate_list);
+			</script>
+	    </div>
+      </div>
+	  <div class="Header"><button onclick='test()'>Test</button></div>
+	  <div id='object-list' class="List"></div>
+	  <div class="Detail"></div>
+	</div>
+  </body>
+</html>
+
