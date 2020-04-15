@@ -25,7 +25,7 @@ class GUI(Thread):
 
 @GUI.app.route('/get_subjects/<ring>')
 def get_subjects(ring):
-    return json.dumps(ensa.db.get_subjects(override_ring=int(ring)))
+    return json.dumps(ensa.db.get_subjects(ring=int(ring)))
 
 @GUI.app.route('/')
 def gui_index():

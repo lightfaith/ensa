@@ -65,14 +65,14 @@ class Database():
             return list(self.cur.fetchall())
         return []
 
-    def ring_ok(self, override_ring=None):
-        if not (ensa.current_ring or override_ring):
+    def ring_ok(self, ring):
+        if not ring:
             log.err('First select a ring with `rs <name>`.')
             return False
         return True
 
-    def subject_ok(self):
-        if not ensa.current_subject:
+    def subject_ok(self, subject):
+        if not subject:
             log.err('First select a subject with `ss <codename>`.')
             return False
         return True
@@ -128,8 +128,9 @@ class Database():
                     "WHERE ring_id = :r"),
                    {'r': ring_id})
 
-    def set_ring_reference_time_id(self, reference_time_id):
-        if not self.ring_ok():
+    def set_ring_reference_time_id(self, reference_time_id, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return
         self.query(("UPDATE Ring "
                     "SET reference_time_id = :rtid "
@@ -137,8 +138,9 @@ class Database():
                    {'rtid': reference_time_id,
                     'r': ensa.current_ring})
 
-    def standardize(self):
-        if not ensa.current_ring:
+    def standardize(self, ring=None):
+        ring = ring or ensa.current_ring
+        if not ring:
             log.err('Choose a ring first.')
             return
         """
@@ -150,11 +152,11 @@ class Database():
         # sawp and sawo should control that, otherwise we cannot guess
         # the name properly...
         """ convert birth_* and others to Time entry """
-        informations = self.get_informations()
+        informations = self.get_informations(ring=ring)
         events = ['birth', 'death']  # TODO more
 
         for subject_id in set([i[1] for i in informations]):
-            codename = self.get_subject_codename(subject_id)
+            codename = self.get_subject_codename(subject_id, ring=ring)
             for event in events:
                 # find id and value of y, m, d for an event
                 try:
@@ -175,18 +177,19 @@ class Database():
 
                 as_note = '%s\'s %s' % (codename.title(), event)
                 """create if possible"""
-                if y and m and d and not [x for x in self.get_associations()
+                if y and m and d and not [x for x in self.get_associations(ring=ring)
                                           if x[6] == as_note]:
                     accuracy = min(x[6] for x in (y, m, d))
                     valid = all(x[7] for x in (y, m, d))
                     time_id = self.create_time(
                         '%04d-%02d-%02d' % (int(y[11]),
                                             int(m[11]), int(d[11])),
-                        '00:00', accuracy=accuracy, valid=valid, note=as_note)
+                        '00:00', accuracy=accuracy, valid=valid, 
+                        note=as_note, ring=ring)
                     as_id = self.create_association(
-                        accuracy=accuracy, valid=valid, note=as_note)
-                    self.associate_subject(as_id, codename)
-                    self.associate_time(as_id, time_id)
+                        accuracy=accuracy, valid=valid, note=as_note, ring=ring)
+                    self.associate_subject(as_id, codename, ring=ring)
+                    self.associate_time(as_id, time_id, ring=ring)
                     """delete information entries"""
                     if ensa.current_subject != subject_id:
                         ensa.current_subject = subject_id
@@ -199,13 +202,14 @@ class Database():
 # Subject methods
 ###########################################
 
-    def create_subject(self, codename, note=None):
-        if not self.ring_ok():
+    def create_subject(self, codename, note=None, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return None
         try:
             self.query(("INSERT INTO Subject(ring_id, codename, created, note) "
                         "VALUES(:r, :c, :d, :n)"),
-                       {'r': ensa.current_ring,
+                       {'r': ring,
                         'c': codename,
                         'd': datetime.now(),
                         'n': note})
@@ -229,10 +233,10 @@ class Database():
             log.debug_error()
             return None
 
-    def get_subjects(self, codename=None, sort='codename', override_ring=None):
-        if not self.ring_ok(override_ring):
+    def get_subjects(self, codename=None, sort='codename', ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return []
-        ring = override_ring or ensa.current_ring
         if codename:
             codename_condition = "AND codename like '%" + codename + "%' "
         else:
@@ -245,42 +249,45 @@ class Database():
                              's': sort})
         return result
 
-    def select_subject(self, codename):
-        if not self.ring_ok():
+    def select_subject(self, codename, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return None
         result = self.query(("SELECT subject_id "
                              "FROM Subject "
                              "WHERE codename = :c "
                              "      AND ring_id = :r"),
                             {'c': codename,
-                             'r': ensa.current_ring})
+                             'r': ring})
         if result:
             return result[0][0]
         log.err('There is no such subject in this ring.')
         return None
 
-    def get_subject_codename(self, subject_id):
-        if not self.ring_ok():
+    def get_subject_codename(self, subject_id, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return None
         result = self.query(("SELECT codename "
                              "FROM Subject "
                              "WHERE subject_id = :s "
                              "      AND ring_id = :r"),
                             {'s': subject_id,
-                             'r': ensa.current_ring})
+                             'r': ring})
         if result:
             return result[0][0]
         log.err('There is no such subject in this ring.')
         return None
 
-    def delete_subject(self, subject_id):
-        if not self.ring_ok():
+    def delete_subject(self, subject_id, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return
         self.query(("DELETE FROM Subject "
                     "WHERE subject_id = :s "
                     "      AND ring_id = :r"),
                    {'s': subject_id,
-                    'r': ensa.current_ring})
+                    'r': ring})
 ###########################################
 # Information methods
 ###########################################
@@ -306,8 +313,10 @@ class Database():
                            level=None,
                            valid=True,
                            note=None,
-                           active=True):
-        if not self.subject_ok():
+                           active=True,
+                           subject=None):
+        subject = subject or ensa.current_subject
+        if not self.subject_ok(subject):
             return None
         try:
             self.query(("INSERT INTO Information(subject_id, type, name, "
@@ -342,7 +351,7 @@ class Database():
                             "WHERE information_id IN ("+value+") "
                             "      AND subject_id = :s"),
                            {'i': information_id,
-                            's': ensa.current_subject})
+                            's': subject})
                 self.information_cleanup('composites')
 
             """ set active/inactive """
@@ -355,33 +364,35 @@ class Database():
             log.debug_error()
             return None
 
-    def add_binary(self, information_id, filename):
+    def add_binary(self, information_id, filename, subject=None):
         """
         adds binary content to an existing information entry
         """
+        subject = subject or ensa.current_subject
         """move file from uploads/ to binary/, rename properly"""
         os.rename('files/uploads/%s' % filename,
                   'files/binary/%d' % information_id)
         """add extension as keyword"""
         extension = filename.rpartition('.')[2].lower()
         ensa.db.add_keyword(information_id,
-                            'extension:%s' % extension)
+                            'extension:%s' % extension, subject=subject)
         """try to guess file type"""
         if extension in ('jpg', 'png', 'bmp', 'gif'):
-            ensa.db.add_keyword(information_id, 'image')
+            ensa.db.add_keyword(information_id, 'image', subject=subject)
         if extension in ('doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
                          'pps', 'ppsx', 'pdf', 'odt', 'txt'):
-            ensa.db.add_keyword(information_id, 'document')
+            ensa.db.add_keyword(information_id, 'document', subject=subject)
         # TODO more
 
-    def delete_information(self, information_id):
+    def delete_information(self, information_id, subject=None):
+        subject = subject or ensa.current_subject
         # test if can delete
         try:
             subject_id, info_type = self.query(("SELECT subject_id, type "
                                                 "FROM Information "
                                                 "WHERE information_id = :i"),
                                                {'i': information_id})[0]
-            if subject_id != ensa.current_subject:
+            if subject_id != subject:
                 raise AttributeError
         except:
             log.debug_error()
@@ -394,13 +405,15 @@ class Database():
             os.remove('files/binary/%d' % information_id)
         log.info('Information deleted.')
 
-    def get_informations(self, info_type=None, no_composite_parts=False, force_no_current_subject=False):
-        # if not self.subject_ok():
+    def get_informations(self, info_type=None, no_composite_parts=False, ring=None, subject=None, force_no_current_subject=False):
+        ring = ring or ensa.current_ring
+        subject = subject or ensa.current_subject
+        # if not self.subject_ok(subject):
         #    return []
         if info_type is None:
             info_type = Database.INFORMATION_ALL
         result = []
-        if ensa.current_subject and not force_no_current_subject:
+        if subject and not force_no_current_subject:
             if no_composite_parts:
                 """ by subject, no components """
                 infos_nodata = self.query((
@@ -412,7 +425,7 @@ class Database():
                     "WHERE I.subject_id = :s "
                     "      AND I.information_id NOT IN "
                     "          (SELECT part_id FROM Composite) "
-                    "ORDER BY I.name"), {'s': ensa.current_subject})
+                    "ORDER BY I.name"), {'s': subject})
             else:
                 """ by subject, all """
                 infos_nodata = self.query((
@@ -422,7 +435,7 @@ class Database():
                     "FROM Subject S INNER JOIN Information I "
                     "     ON S.subject_id = I.subject_id "
                     "WHERE I.subject_id = :s "
-                    "ORDER BY I.name"), {'s': ensa.current_subject})
+                    "ORDER BY I.name"), {'s': subject})
         else:
             if no_composite_parts:
                 """ all in ring, no components """
@@ -435,7 +448,7 @@ class Database():
                     "WHERE S.ring_id = :r "
                     "      AND I.information_id NOT IN "
                     "          (SELECT part_id FROM Composite) "
-                    "ORDER BY I.name"), {'r': ensa.current_ring})
+                    "ORDER BY I.name"), {'r': ring})
             else:
                 """ all in ring, all """
                 infos_nodata = self.query((
@@ -445,7 +458,7 @@ class Database():
                     "FROM Subject S INNER JOIN Information I "
                     "     ON S.subject_id = I.subject_id "
                     "WHERE S.ring_id = :r "
-                    "ORDER BY I.name"), {'r': ensa.current_ring})
+                    "ORDER BY I.name"), {'r': ring})
 
         infos = []
         for info in infos_nodata:
@@ -493,7 +506,8 @@ class Database():
         #    print(info)
         return infos
 
-    def get_information(self, information_id):
+    def get_information(self, information_id, subject=None):
+        subject = subject or ensa.current_subject
         try:
             info = self.query(
                 ("SELECT I.information_id, S.codename, I.type, I.name, "
@@ -502,7 +516,7 @@ class Database():
                  "     ON S.subject_id = I.subject_id "
                  "WHERE I.subject_id = :s "
                  "      AND I.information_id = :i"),
-                {'s': ensa.current_subject, 'i': information_id})[0]
+                {'s': subject, 'i': information_id})[0]
         except:
             log.err('There is no such information.')
             log.debug_error()
@@ -529,8 +543,9 @@ class Database():
             value = 'ERROR'
         return tuple(list(info)+[value])
 
-    def update_information(self, **kwargs):
-        if not self.subject_ok():
+    def update_information(self, subject=None, **kwargs):
+        subject = subject or ensa.current_subject
+        if not self.subject_ok(subject):
             return
         try:
             args = {k: kwargs[v] for k, v in {
@@ -557,7 +572,7 @@ class Database():
                             "           WHERE subject_id = :s)"),
                            {'v': kwargs['value'],
                             'i': kwargs['information_id'],
-                            's': ensa.current_subject})
+                            's': subject})
             # elif 'path' in kwargs.keys():# TODO binary
             # elif 'compounds' in kwargs.keys(): # TODO composite without edit support?
         except:
@@ -569,8 +584,10 @@ class Database():
                                     accuracy=None,
                                     level=None,
                                     valid=None,
-                                    note=None):
-        if not self.subject_ok():
+                                    note=None,
+                                    subject=None):
+        subject = subject or ensa.current_subject
+        if not self.subject_ok(subject):
             return
         if accuracy is not None:
             self.query(("UPDATE Information "
@@ -579,7 +596,7 @@ class Database():
                         "      AND information_id IN ("+information_ids+")"),
                        {'m': datetime.now(),
                         'a': accuracy,
-                        's': ensa.current_subject})
+                        's': subject})
         elif valid is not None:
             self.query(("UPDATE Information "
                         "SET modified = :m, valid = :v "
@@ -587,7 +604,7 @@ class Database():
                         "      AND information_id IN ("+information_ids+")"),
                        {'m': datetime.now(),
                         'v': valid,
-                        's': ensa.current_subject})
+                        's': subject})
         elif note:
             self.query(("UPDATE Information "
                         "SET modified = :m, note = :n "
@@ -595,7 +612,7 @@ class Database():
                         "      AND information_id IN ("+information_ids+")"),
                        {'m': datetime.now(),
                         'n': note,
-                        's': ensa.current_subject})
+                        's': subject})
         else:  # only level remains
             self.query(("UPDATE Information "
                         "SET modified = :m, level = :l "
@@ -603,7 +620,7 @@ class Database():
                         "      AND information_id IN ("+information_ids+")"),
                        {'m': datetime.now(),
                         'l': level,
-                        's': ensa.current_subject})
+                        's': subject})
 
 ###########################################
 # Active methods
@@ -637,8 +654,10 @@ class Database():
                         lon,
                         accuracy=0,
                         valid=True,
-                        note=None):
-        if not self.ring_ok():
+                        note=None, 
+                        ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return None
         try:
             self.query(("INSERT INTO Location(name, lat, lon, accuracy, valid, "
@@ -649,7 +668,7 @@ class Database():
                         'lon': lon,
                         'a': accuracy,
                         'v': valid,
-                        'r': ensa.current_ring,
+                        'r': ring,
                         'm': datetime.now(),
                         'note': note})
             location_id = self.query("SELECT location_id "
@@ -660,32 +679,35 @@ class Database():
             log.debug_error()
             return None
 
-    def get_locations(self, sort='name'):
-        if not self.ring_ok():
+    def get_locations(self, sort='name', ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return []
         result = self.query(("SELECT location_id, name, lat, lon, "
                              "       accuracy, valid, modified, note "
                              "FROM Location "
                              "WHERE ring_id = :r "
                              "ORDER BY name"), # TODO use sort here when it works
-                            {'r': ensa.current_ring,
+                            {'r': ring,
                              's': sort})
         #print(result)
         return result
 
-    def delete_locations(self, location_ids):
+    def delete_locations(self, location_ids, ring=None):
+        ring = ring or ensa.current_ring
         if type(location_ids) == int:
             location_ids = str(location_ids)
         if type(location_ids) in (filter, tuple, list):
             location_ids = ','.join(str(x) for x in location_ids)
-        if self.ring_ok():
+        if self.ring_ok(ring):
             self.query(("DELETE FROM Location "
                         "WHERE location_id IN ("+location_ids+") "
                         "      AND ring_id = :r"),
-                       {'r': ensa.current_ring})
+                       {'r': ring})
 
-    def get_location(self, location_id):
-        if not self.ring_ok():
+    def get_location(self, location_id, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return []
         try:
             info = self.query(("SELECT location_id, name, lat, lon, "
@@ -694,15 +716,16 @@ class Database():
                                "WHERE location_id = :l "
                                "      AND ring_id = :r"),
                               {'l': location_id,
-                               'r': ensa.current_ring})[0]
+                               'r': ring})[0]
         except:
             log.err('There is no such location.')
             log.debug_error()
             return []
         return info
 
-    def update_location(self, **kwargs):
-        if not self.ring_ok():
+    def update_location(self, ring=None, **kwargs):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return
         try:
             args = {k: kwargs[v] for k, v in {
@@ -715,7 +738,7 @@ class Database():
                 'note': 'note'}.items()}
             args.update({
                 'd': datetime.now(),
-                'r': ensa.current_ring})
+                'r': ring})
 
             self.query(("UPDATE Location "
                         "SET modified = :d, name = :n, lat = :lat, lon = :lon,"
@@ -730,8 +753,10 @@ class Database():
                                  location_ids,
                                  accuracy=None,
                                  valid=None,
-                                 note=None):
-        if not self.ring_ok():
+                                 note=None, 
+                                 ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return
         if type(location_ids) == int:
             location_ids = str(location_ids)
@@ -744,7 +769,7 @@ class Database():
                         "      AND location_id IN ("+location_ids+")"),
                        {'m': datetime.now(),
                         'a': accuracy,
-                        'r': ensa.current_ring})
+                        'r': ring})
         elif valid is not None:
             self.query(("UPDATE Location "
                         "SET modified = :m, valid = :v "
@@ -752,7 +777,7 @@ class Database():
                         "      AND location_id IN ("+location_ids+")"),
                        {'m': datetime.now(),
                         'v': valid,
-                        'r': ensa.current_ring})
+                        'r': ring})
         elif note:
             self.query(("UPDATE Location "
                         "SET modified = :m, note = :n "
@@ -760,13 +785,14 @@ class Database():
                         "      AND location_id IN ("+location_ids+")"),
                        {'m': datetime.now(),
                         'n': note,
-                        'r': ensa.current_ring})
+                        'r': ring})
 
 ###########################################
 # Time methods
 ###########################################
-    def create_time(self, d, t, accuracy=0, valid=True, note=None):
-        if not self.ring_ok():
+    def create_time(self, d, t, accuracy=0, valid=True, note=None, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return None
         '''
         try:
@@ -791,7 +817,7 @@ class Database():
                        {'d': dt,
                         'a': accuracy,
                         'v': valid,
-                        'r': ensa.current_ring,
+                        'r': ring,
                         'm': datetime.now(),
                         'n': note})
             time_id = self.query("SELECT time_id "
@@ -802,8 +828,9 @@ class Database():
             log.debug_error()
             return None
 
-    def get_times(self, interval=None, sort='time'):
-        if not self.ring_ok():
+    def get_times(self, interval=None, sort='time', ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return []
         result = self.query(("SELECT time_id, "
                              #"       DATE_FORMAT(time, '%Y-%m-%d %H:%i:%s'), "
@@ -813,7 +840,7 @@ class Database():
                              "FROM Time "
                              "WHERE ring_id = :r "
                              "ORDER BY time"), # TODO use sort here when it works
-                            {'r': ensa.current_ring,
+                            {'r': ring,
                              's': sort})
         #print(result)
         if interval:
@@ -827,8 +854,9 @@ class Database():
                       and lib.datetime_from_str(x[1]) <= end]
         return result
 
-    def delete_times(self, time_ids):
-        if not self.ring_ok():
+    def delete_times(self, time_ids, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return []
         if type(time_ids) == int:
             time_ids = str(time_ids)
@@ -836,11 +864,10 @@ class Database():
             time_ids = ','.join(str(x) for x in time_ids)
         self.query(("DELETE FROM Time "
                     "WHERE time_id IN ("+time_ids+") "
-                    "      AND ring_id = :r"), {'r': ensa.current_ring})
+                    "      AND ring_id = :r"), {'r': ensa.ring})
 
-    def get_time(self, time_id, force_no_current_ring=False):
-        #if not self.ring_ok():
-        #    return []
+    def get_time(self, time_id, force_no_current_ring=False, ring=None):
+        ring = ring or ensa.current_ring
         try:
             if force_no_current_ring:
                 info = self.query(("SELECT time_id, "
@@ -850,6 +877,8 @@ class Database():
                                    "WHERE time_id = :t "),
                                   {'t': time_id})[0]
             else:
+                if not self.ring_ok(ring):
+                    return []
                 info = self.query(("SELECT time_id, "
                                    "       time,"
                                    "       accuracy, valid, note "
@@ -857,15 +886,16 @@ class Database():
                                    "WHERE time_id = :t "
                                    "      AND ring_id = :r"),
                                   {'t': time_id,
-                                   'r': ensa.current_ring})[0]
+                                   'r': ring})[0]
         except:
             log.err('There is no such time entry.')
             log.debug_error()
             return []
         return info
 
-    def update_time(self, **kwargs):
-        if not self.ring_ok():
+    def update_time(self, ring=None, **kwargs):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return []
         try:
             args = {k: kwargs[v] for k, v in {
@@ -875,7 +905,7 @@ class Database():
                 'v': 'valid',
                 'note': 'note'}.items()}
             args.update({'m': datetime.now(),
-                         'r': ensa.current_ring})
+                         'r': ring})
             self.query(("UPDATE Time "
                         "SET modified = :m, time = :d, accuracy = :a, "
                         "    valid = :v, note = :note "
@@ -889,8 +919,10 @@ class Database():
                              time_ids,
                              accuracy=None,
                              valid=None,
-                             note=None):
-        if not self.ring_ok():
+                             note=None,
+                             ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return []
         if type(time_ids) == int:
             time_ids = str(time_ids)
@@ -903,7 +935,7 @@ class Database():
                         "      AND time_id IN ("+time_ids+")"),
                        {'m': datetime.now(),
                         'a': accuracy,
-                        'r': ensa.current_ring})
+                        'r': ring})
         elif valid is not None:
             self.query(("UPDATE Time "
                         "SET modified = :m, valid = :v "
@@ -911,7 +943,7 @@ class Database():
                         "      AND time_id IN ("+time_ids+")"),
                        {'m': datetime.now(),
                         'v': valid,
-                        'r': ensa.current_ring})
+                        'r': ring})
         elif note:
             self.query(("UPDATE Time "
                         "SET modified = :m, note = :n "
@@ -919,19 +951,20 @@ class Database():
                         "      AND time_id IN ("+time_ids+")"),
                        {'m': datetime.now(),
                         'n': note,
-                        'r': ensa.current_ring})
+                        'r': ring})
 
 ###########################################
 # Association methods
 ###########################################
-    def create_association(self, level=None, accuracy=0, valid=True, note=None):
-        if not self.ring_ok():
+    def create_association(self, level=None, accuracy=0, valid=True, note=None, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return None
         try:
             self.query(("INSERT INTO Association(ring_id, level, accuracy, "
                         "                        valid, modified, note) "
                         "VALUES(:r, :l, :a, :v, :m, :n)"),
-                       {'r': ensa.current_ring,
+                       {'r': ring,
                         'l': level,
                         'a': accuracy,
                         'v': valid,
@@ -946,8 +979,9 @@ class Database():
             log.debug_error()
             return None
 
-    def associate_association(self, association_id, association_ids):
-        if not self.ring_ok():
+    def associate_association(self, association_id, association_ids, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return None
         if type(association_ids) == int:
             association_ids = str(association_ids)
@@ -963,7 +997,7 @@ class Database():
             if len(ring_id) != 1:
                 raise AttributeError
             ring_id = ring_id[0][0]
-            if ring_id != ensa.current_ring:
+            if ring_id != ring:
                 raise AttributeError
         except:
             log.err('All associations must belong to current ring.')
@@ -976,7 +1010,7 @@ class Database():
                         "WHERE association_id IN (" + association_ids + ") "
                         "      AND ring_id = :r"),
                        {'a': association_id,
-                        'r': ensa.current_ring})
+                        'r': ring})
             count_after = self.query("SELECT COUNT(*) FROM AA")[0][0]
             if count_before == count_after:
                 log.err('Association must belong to current ring.')
@@ -993,8 +1027,9 @@ class Database():
             log.err('Failed to associate association.')
             return None
 
-    def associate_information(self, association_id, information_ids):
-        if not self.ring_ok():
+    def associate_information(self, association_id, information_ids, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return None
         if type(information_ids) == int:
             information_ids = str(information_ids)
@@ -1005,7 +1040,7 @@ class Database():
                                   "FROM Association "
                                   "WHERE association_id = :a"),
                                  {'a': association_id})[0][0]
-            if ring_id != ensa.current_ring:
+            if ring_id != ring:
                 raise AttributeError
         except:
             log.err('Current ring has no such asssociation.')
@@ -1021,7 +1056,7 @@ class Database():
                         "           FROM Subject "
                         "         WHERE ring_id = :r)"),
                        {'a': association_id,
-                        'r': ensa.current_ring})
+                        'r': ring})
             count_after = self.query("SELECT COUNT(*) FROM AI")[0][0]
             if count_before == count_after:
                 log.err('Information must belong to current ring.')
@@ -1036,8 +1071,9 @@ class Database():
             log.err('Failed to associate information.')
             return None
 
-    def associate_location(self, association_id, location_ids):
-        if not self.ring_ok():
+    def associate_location(self, association_id, location_ids, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return None
         if type(location_ids) == int:
             location_ids = str(location_ids)
@@ -1048,7 +1084,7 @@ class Database():
                                   "FROM Association "
                                   "WHERE association_id = :a"),
                                  {'a': association_id})[0][0]
-            if ring_id != ensa.current_ring:
+            if ring_id != ring:
                 raise AttributeError
         except:
             log.err('Current ring has no such asssociation.')
@@ -1061,7 +1097,7 @@ class Database():
                         "WHERE location_id IN (" + location_ids + ") "
                         "      AND ring_id = :r"),
                        {'a': association_id,
-                        'r': ensa.current_ring})
+                        'r': ring})
             count_after = self.query("SELECT COUNT(*) FROM AL")[0][0]
             if count_before == count_after:
                 log.err('Location must belong to current ring.')
@@ -1077,8 +1113,9 @@ class Database():
             log.err('Failed to associate location.')
             return None
 
-    def associate_subject(self, association_id, codenames):
-        if not self.ring_ok():
+    def associate_subject(self, association_id, codenames, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return None
         if type(codenames) in (filter, tuple, list):
             codenames = "','".join(codenames)
@@ -1087,7 +1124,7 @@ class Database():
                                   "FROM Association "
                                   "WHERE association_id = :a"),
                                  {'a': association_id})[0][0]
-            if ring_id != ensa.current_ring:
+            if ring_id != ring:
                 raise AttributeError
         except:
             log.err('Current ring has no such asssociation.')
@@ -1102,7 +1139,7 @@ class Database():
                         "WHERE I.name = 'codename' "
                         "      AND S.codename IN ('" + codenames + "') "
                         "      AND S.ring_id = :r"),
-                       {'a': association_id, 'r': ensa.current_ring})
+                       {'a': association_id, 'r': ring})
             count_after = self.query("SELECT COUNT(*) FROM AI")[0][0]
             if count_before == count_after:
                 log.err('Subject must belong to current ring.')
@@ -1119,10 +1156,11 @@ class Database():
             log.err('Failed to associate subject.')
             return None
 
-    def associate_time(self, association_id, time_ids):
+    def associate_time(self, association_id, time_ids, ring=None):
+        ring = ring or ensa.current_ring
         #import pdb
         # pdb.set_trace()
-        if not self.ring_ok():
+        if not self.ring_ok(ring):
             return None
         if type(time_ids) == int:
             time_ids = str(time_ids)
@@ -1133,7 +1171,7 @@ class Database():
                                   "FROM Association "
                                   "WHERE association_id = :a"),
                                  {'a': association_id})[0][0]
-            if ring_id != ensa.current_ring:
+            if ring_id != ring:
                 raise AttributeError
         except:
             log.err('Current ring has no such asssociation.')
@@ -1146,7 +1184,7 @@ class Database():
                         "WHERE time_id IN (" + time_ids + ") "
                         "      AND ring_id = :r"),
                        {'a': association_id,
-                        'r': ensa.current_ring})
+                        'r': ring})
             count_after = self.query("SELECT COUNT(*) FROM AT")[0][0]
             if count_before == count_after:
                 log.err('Time must belong to current ring.')
@@ -1162,18 +1200,20 @@ class Database():
             log.err('Failed to associate time.')
             return None
 
-    def get_associations(self):
-        if not self.ring_ok():
+    def get_associations(self, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return []
         # get associations
         return self.query(("SELECT association_id, ring_id, level, accuracy, "
                            "       valid, modified, note "
                            "FROM Association "
                            "WHERE ring_id = :r"),
-                          {'r': ensa.current_ring})
+                          {'r': ring})
 
-    def get_associations_by_X(self, query, query_args=None):
-        if not self.ring_ok():
+    def get_associations_by_X(self, query, query_args=None, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return []
         # get associations
         associations = self.query(query, query_args)
@@ -1181,7 +1221,7 @@ class Database():
         result = []
         for assoc in associations:
             # in current ring?
-            if assoc[1] != ensa.current_ring:
+            if assoc[1] != ring:
                 continue
             # TODO is ring check needed for ITL entries?
             # get info entries (+ subject)
@@ -1256,7 +1296,8 @@ class Database():
             result.append((assoc, infos, times, locations, associations))
         return result
 
-    def get_associations_by_ids(self, association_ids):
+    def get_associations_by_ids(self, association_ids, ring=None):
+        ring = ring or ensa.current_ring
         if type(association_ids) == int:
             association_ids = str(association_ids)
         elif type(association_ids) in (filter, tuple, list):
@@ -1265,16 +1306,18 @@ class Database():
                  "       valid, modified, note "
                  "FROM Association "
                  "WHERE association_id IN("+association_ids+")")
-        return self.get_associations_by_X(query)
+        return self.get_associations_by_X(query, ring=ring)
 
-    def get_associations_by_note(self, string):
+    def get_associations_by_note(self, string, ring=None):
+        ring = ring or ensa.current_ring
         query = ("SELECT DISTINCT association_id, ring_id, level, accuracy, "
                  "       valid, modified, note "
                  "FROM Association "
                  "WHERE note LIKE '%"+string+"%'")
-        return self.get_associations_by_X(query)
+        return self.get_associations_by_X(query, ring=ring)
 
-    def get_associations_by_location(self, location_ids):
+    def get_associations_by_location(self, location_ids, ring=None):
+        ring = ring or ensa.current_ring
         if type(location_ids) == int:
             location_ids = str(location_ids)
         elif type(location_ids) in (filter, tuple, list):
@@ -1284,9 +1327,10 @@ class Database():
                  "FROM Association A INNER JOIN AL "
                  "     ON A.association_id = AL.association_id "
                  "WHERE location_id IN("+location_ids+")")
-        return self.get_associations_by_X(query)
+        return self.get_associations_by_X(query, ring=ring)
 
-    def get_associations_by_time(self, time_ids):
+    def get_associations_by_time(self, time_ids, ring=None):
+        ring = ring or ensa.current_ring
         if type(time_ids) == int:
             time_ids = str(time_ids)
         elif type(time_ids) in (filter, tuple, list):
@@ -1296,9 +1340,10 @@ class Database():
                  "FROM Association A INNER JOIN AT "
                  "     ON A.association_id = AT.association_id "
                  "WHERE time_id IN("+time_ids+")")
-        return self.get_associations_by_X(query)
+        return self.get_associations_by_X(query, ring=ring)
 
-    def get_associations_by_information(self, information_ids):
+    def get_associations_by_information(self, information_ids, ring=None):
+        ring = ring or ensa.current_ring
         if type(information_ids) == int:
             information_ids = str(information_ids)
         elif type(information_ids) in (filter, tuple, list):
@@ -1308,9 +1353,10 @@ class Database():
                  "FROM Association A INNER JOIN AI "
                  "     ON A.association_id = AI.association_id "
                  "WHERE information_id IN("+information_ids+")")
-        return self.get_associations_by_X(query)
+        return self.get_associations_by_X(query, ring=ring)
 
-    def get_associations_by_subject(self, codenames):
+    def get_associations_by_subject(self, codenames, ring=None):
+        ring = ring or ensa.current_ring
         if type(codenames) in (filter, tuple, list):
             codenames = "','".join(codenames)
         query = ("SELECT DISTINCT A.association_id, A.ring_id, A.level, A.accuracy, "
@@ -1323,9 +1369,10 @@ class Database():
                  "     INNER JOIN Subject S "
                  "         ON I.subject_id = S.subject_id "
                  "WHERE S.codename IN('"+codenames+"')")
-        return self.get_associations_by_X(query)
+        return self.get_associations_by_X(query, ring=ring)
 
-    def get_timeline_by_location(self, location_ids):
+    def get_timeline_by_location(self, location_ids, ring=None):
+        ring = ring or ensa.current_ring
         if type(location_ids) == int:
             location_ids = str(location_ids)
         elif type(location_ids) in (filter, tuple, list):
@@ -1341,9 +1388,10 @@ class Database():
                  "         ON T.time_id = AT.time_id "
                  "WHERE location_id IN("+location_ids+") "
                  "ORDER BY T.time")
-        return self.get_associations_by_X(query)
+        return self.get_associations_by_X(query, ring=ring)
 
-    def get_timeline_by_information(self, information_ids):
+    def get_timeline_by_information(self, information_ids, ring=None):
+        ring = ring or ensa.current_ring
         if type(information_ids) == int:
             information_ids = str(information_ids)
         elif type(information_ids) in (filter, tuple, list):
@@ -1359,9 +1407,10 @@ class Database():
                  "         ON T.time_id = AT.time_id "
                  "WHERE information_id IN("+information_ids+") "
                  "ORDER BY T.time")
-        return self.get_associations_by_X(query)
+        return self.get_associations_by_X(query, ring=ring)
 
-    def get_timeline_by_subject(self, codenames):
+    def get_timeline_by_subject(self, codenames, ring=None):
+        ring = ring or ensa.current_ring
         if type(codenames) in (filter, tuple, list):
             codenames = "','".join(codenames)
         query = ("SELECT DISTINCT A.association_id, A.ring_id, A.level, A.accuracy, "
@@ -1379,9 +1428,10 @@ class Database():
                  "         ON T.time_id = AT.time_id "
                  "WHERE S.codename IN('"+codenames+"') "
                  "ORDER BY T.time")
-        return self.get_associations_by_X(query)
+        return self.get_associations_by_X(query, ring=ring)
 
-    def get_timeline_by_range(self, start, end):
+    def get_timeline_by_range(self, start, end, ring=None):
+        ring = ring or ensa.current_ring
         query = ("SELECT DISTINCT A.association_id, A.ring_id, A.level, A.accuracy, "
                  "       A.valid, A.modified, A.note "
                  "FROM Association A "
@@ -1391,22 +1441,24 @@ class Database():
                  "         ON T.time_id = AT.time_id "
                  "WHERE T.time BETWEEN :s AND :e "
                  "ORDER BY T.time")
-        return self.get_associations_by_X(query, {'s': start, 'e': end})
+        return self.get_associations_by_X(query, {'s': start, 'e': end}, ring=ring)
 
-    def delete_associations(self, association_ids):
-        if not self.ring_ok():
+    def delete_associations(self, association_ids, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return
         self.query(("DELETE FROM Association "
                     "WHERE association_id IN ("+association_ids+") "
                     "      AND ring_id = :r"),
-                   {'r': ensa.current_ring})
+                   {'r': ring})
 
-    def dissociate_associations(self, association_id, association_ids):
+    def dissociate_associations(self, association_id, association_ids, ring=None):
+        ring = ring or ensa.current_ring
         if type(association_ids) == int:
             association_ids = str(association_ids)
         elif type(association_ids) in (filter, tuple, list):
             association_ids = ','.join(str(x) for x in association_ids)
-        if not self.ring_ok():
+        if not self.ring_ok(ring):
             return
         self.query(("DELETE FROM AA "
                     "WHERE association_id_1 IN "
@@ -1416,21 +1468,22 @@ class Database():
                     "           AND ring_id = :r) "
                     "    AND association_id_2 IN ("+association_ids+")"),
                    {'a': association_id,
-                    'r': ensa.current_ring})
+                    'r': ring})
         self.query(("UPDATE Association "
                     "SET modified = :m "
                     "WHERE association_id = :a "
                     "      AND ring_id = :r"),
                    {'m': datetime.now(),
                     'a': association_id,
-                    'r': ensa.current_ring})
+                    'r': ring})
 
-    def dissociate_informations(self, association_id, information_ids):
+    def dissociate_informations(self, association_id, information_ids, ring=None):
+        ring = ring or ensa.current_ring
         if type(information_ids) == int:
             information_ids = str(information_ids)
         elif type(information_ids) in (filter, tuple, list):
             information_ids = ','.join(str(x) for x in information_ids)
-        if not self.ring_ok():
+        if not self.ring_ok(ring):
             return
         self.query(("DELETE FROM AI "
                     "WHERE association_id IN "
@@ -1440,21 +1493,22 @@ class Database():
                     "           AND ring_id = :r) "
                     "    AND information_id IN ("+information_ids+")"),
                    {'a': association_id,
-                    'r': ensa.current_ring})
+                    'r': ring})
         self.query(("UPDATE Association "
                     "SET modified = :m "
                     "WHERE association_id = :a "
                     "      AND ring_id = :r"),
                    {'m': datetime.now(),
                     'a': association_id,
-                    'r': ensa.current_ring})
+                    'r': ring})
 
-    def dissociate_locations(self, association_id, location_ids):
+    def dissociate_locations(self, association_id, location_ids, ring=None):
+        ring = ring or ensa.current_ring
         if type(location_ids) == int:
             location_ids = str(location_ids)
         elif type(location_ids) in (filter, tuple, list):
             location_ids = ','.join(str(x) for x in location_ids)
-        if not self.ring_ok():
+        if not self.ring_ok(ring):
             return []
         self.query(("DELETE FROM AL "
                     "WHERE association_id IN "
@@ -1464,21 +1518,22 @@ class Database():
                     "           AND ring_id = :r) "
                     "    AND location_id IN ("+location_ids+")"),
                    {'a': association_id,
-                    'r': ensa.current_ring})
+                    'r': ring})
         self.query(("UPDATE Association "
                     "SET modified = :m "
                     "WHERE association_id = :a "
                     "      AND ring_id = :r"),
                    {'m': datetime.now(),
                     'a': association_id,
-                    'r': ensa.current_ring})
+                    'r': ring})
 
-    def dissociate_times(self, association_id, time_ids):
+    def dissociate_times(self, association_id, time_ids, ring=None):
+        ring = ring or ensa.current_ring
         if type(time_ids) == int:
             time_ids = str(time_ids)
         elif type(time_ids) in (filter, tuple, list):
             time_ids = ','.join(str(x) for x in time_ids)
-        if not self.ring_ok():
+        if not self.ring_ok(ring):
             return []
         self.query(("DELETE FROM AT "
                     "WHERE association_id IN "
@@ -1488,17 +1543,18 @@ class Database():
                     "           AND ring_id = :r) "
                     "    AND time_id IN ("+time_ids+")"),
                    {'a': association_id,
-                    'r': ensa.current_ring})
+                    'r': ring})
         self.query(("UPDATE Association "
                     "SET modified = :m "
                     "WHERE association_id = :a "
                     "      AND ring_id = :r"),
                    {'m': datetime.now(),
                     'a': association_id,
-                    'r': ensa.current_ring})
+                    'r': ring})
 
-    def get_association(self, association_id):
-        if not self.ring_ok():
+    def get_association(self, association_id, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return []
         try:
             info = self.query(("SELECT association_id, level, accuracy, "
@@ -1507,15 +1563,16 @@ class Database():
                                "WHERE association_id = :a "
                                "      AND ring_id = :r"),
                               {'a': association_id,
-                               'r': ensa.current_ring})[0]
+                               'r': ring})[0]
         except:
             log.err('There is no such association.')
             log.debug_error()
             return []
         return info
 
-    def update_association(self, **kwargs):
-        if not self.ring_ok():
+    def update_association(self, ring=None, **kwargs):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return []
         try:
             args = {k: kwargs[v] for k, v in {
@@ -1526,7 +1583,7 @@ class Database():
                 'n': 'note'}.items()}
             args.update({
                 'm': datetime.now(),
-                'r': ensa.current_ring})
+                'r': ring})
             self.query("UPDATE Association "
                        "SET modified = :m, level = :l, accuracy = :a, "
                        "    valid = :v, note = :n "
@@ -1541,8 +1598,10 @@ class Database():
                                     accuracy=None,
                                     level=None,
                                     valid=None,
-                                    note=None):
-        if not self.ring_ok():
+                                    note=None,
+                                    ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return []
         if type(association_ids) == int:
             association_ids = str(association_ids)
@@ -1555,7 +1614,7 @@ class Database():
                         "      AND association_id IN ("+association_ids+")"),
                        {'m': datetime.now(),
                         'a': accuracy,
-                        'r': ensa.current_ring})
+                        'r': ring})
         elif valid is not None:
             self.query(("UPDATE Association "
                         "SET modified = :m, valid = :v "
@@ -1563,7 +1622,7 @@ class Database():
                         "      AND association_id IN ("+association_ids+")"),
                        {'m': datetime.now(),
                         'v': valid,
-                        'r': ensa.current_ring})
+                        'r': ring})
         elif note:
             self.query(("UPDATE Association "
                         "SET modified = :m, note = :n "
@@ -1571,7 +1630,7 @@ class Database():
                         "      AND association_id IN ("+association_ids+")"),
                        {'m': datetime.now(),
                         'n': note,
-                        'r': ensa.current_ring})
+                        'r': ring})
         else:  # only level remains
             self.query(("UPDATE Association "
                         "SET modified = :m, level = :l "
@@ -1579,7 +1638,7 @@ class Database():
                         "      AND association_id IN ("+association_ids+")"),
                        {'m': datetime.now(),
                         'l': level,
-                        'r': ensa.current_ring})
+                        'r': ring})
 
 ###########################################
 # Keyword methods
@@ -1598,8 +1657,9 @@ class Database():
                                      "ORDER BY keyword_id DESC LIMIT 1"))[0][0]
         return keyword_id
 
-    def add_keyword(self, information_ids, keyword):
-        if not self.subject_ok():
+    def add_keyword(self, information_ids, keyword, subject=None):
+        subject = subject or ensa.current_subject
+        if not self.subject_ok(subject):
             return
         if type(information_ids) == int:
             information_ids = str(information_ids)
@@ -1612,10 +1672,11 @@ class Database():
                     "WHERE subject_id = :s "
                     "      AND information_id IN ("+information_ids+")"),
                    {'k': keyword_id,
-                    's': ensa.current_subject})
+                    's': subject})
 
-    def delete_keywords(self, information_ids, keywords):
-        if not self.subject_ok():
+    def delete_keywords(self, information_ids, keywords, subject=None):
+        subject = subject or ensa.current_subject
+        if not self.subject_ok(subject):
             return
         if keywords:
             keyword_ids = ','.join([str(x[0]) for x in self.query(
@@ -1630,7 +1691,7 @@ class Database():
                         "           WHERE information_id IN(" +
                                                             information_ids+")"
                         "                 AND subject_id = :s)"),
-                       {'s': ensa.current_subject})
+                       {'s': subject})
         else:  # delete all keywords
             self.query(("DELETE FROM IK "
                         "WHERE information_id IN "
@@ -1638,13 +1699,14 @@ class Database():
                         "       FROM Information "
                         "       WHERE information_id IN("+information_ids+")"
                         "       AND subject_id = :s)"),
-                       {'s': ensa.current_subject})
+                       {'s': subject})
         self.information_cleanup('keywords')
 
-    def get_keywords(self):
-        if not self.ring_ok():
+    def get_keywords(self, subject=None, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
             return []
-        if ensa.current_subject:
+        if subject:
             result = self.query(("SELECT DISTINCT K.keyword "
                                  "FROM Keyword K "
                                  "    INNER JOIN IK "
@@ -1653,7 +1715,7 @@ class Database():
                                  "     ON IK.information_id = I.information_id "
                                  "WHERE I.subject_id = :s "
                                  "ORDER BY K.keyword"),
-                                {'s': ensa.current_subject})
+                                {'s': subject})
         else:
             result = self.query(("SELECT DISTINCT K.keyword "
                                  "FROM Keyword K "
@@ -1665,12 +1727,11 @@ class Database():
                                  "     ON I.subject_id = S.subject_id "
                                  "WHERE S.ring_id = :r "
                                  "ORDER BY K.keyword"),
-                                {'r': ensa.current_ring})
+                                {'r': ring})
         return result
 
-    def get_keywords_for_informations(self, information_ids, force_no_current_subject=False):
-        if not self.subject_ok():
-            return []
+    def get_keywords_for_informations(self, information_ids, subject=None, force_no_current_subject=False):
+        subject = subject or ensa.current_subject
         if type(information_ids) == int:
             information_ids = str(information_ids)
         elif type(information_ids) in (filter, tuple, list):
@@ -1685,6 +1746,8 @@ class Database():
                                  "       WHERE information_id IN "
                                  "           ("+information_ids+")) "))
         else:
+            if not self.subject_ok(subject):
+                return []
             result = self.query(("SELECT IK.information_id, K.keyword "
                                  "FROM IK INNER JOIN Keyword K "
                                  "     ON IK.keyword_id = K.keyword_id "
@@ -1694,13 +1757,15 @@ class Database():
                                  "       WHERE information_id IN "
                                  "           ("+information_ids+") "
                                  "       AND subject_id = :s)"),
-                                {'s': ensa.current_subject})
+                                {'s': subject})
         return result
 
-    def get_informations_for_keywords_or(self, keywords):
-        if not self.ring_ok():
+    def get_informations_for_keywords_or(self, keywords, ring=None, subject=None):
+        ring = ring or ensa.current_ring
+        subject = subject or ensa.current_subject
+        if not self.ring_ok(ring):
             return []
-        if ensa.current_subject:
+        if subject:
             infos_nodata = self.query(("SELECT I.information_id, I.subject_id, "
                                        "       S.codename, I.type, I.name, "
                                        "       I.level, I.accuracy, I.valid, "
@@ -1714,7 +1779,7 @@ class Database():
                                        "        ON IK.keyword_id = K.keyword_id"
                                        "       WHERE K.keyword IN "
                                        "           ("+keywords+"))"),
-                                      {'s': ensa.current_subject})
+                                      {'s': subject})
         else:
             infos_nodata = self.query(("SELECT I.information_id, I.subject_id, "
                                        "       S.codename, I.type, I.name, "
@@ -1729,7 +1794,7 @@ class Database():
                                        "        ON IK.keyword_id = K.keyword_id"
                                        "        WHERE K.keyword IN "
                                        "            ("+keywords+"))"),
-                                      {'r': ensa.current_ring})
+                                      {'r': ring})
         infos = []
         for info in infos_nodata:
             """ get active/inactive """
@@ -1768,10 +1833,12 @@ class Database():
             infos.append(tuple(list(info)+[value]))
         return infos
 
-    def get_informations_for_keywords_and(self, keywords):
-        if not self.ring_ok():
+    def get_informations_for_keywords_and(self, keywords, ring=None, subject=None):
+        ring = ring or ensa.current_ring
+        subject = subject or ensa.current_subject
+        if not self.ring_ok(ring):
             return []
-        if ensa.current_subject:
+        if subject:
             infos_nodata = self.query(
                 ("SELECT I.information_id, I.subject_id, S.codename, "
                  "       I.type, I.name, I.level, I.accuracy, I.valid, "
@@ -1788,7 +1855,7 @@ class Database():
                  "            WHERE keyword IN ("+keywords+")) "
                  "       GROUP BY information_id "
                  "       HAVING COUNT(keyword_id) = :c)"),
-                {'s': ensa.current_subject,
+                {'s': subject,
                  'c': keywords.count(',')+1})
         else:
             infos_nodata = self.query(
@@ -1807,7 +1874,7 @@ class Database():
                  "           WHERE keyword IN ("+keywords+")) "
                  "       GROUP BY information_id "
                  "       HAVING COUNT(keyword_id) = :c)"),
-                {'r': ensa.current_ring,
+                {'r': ring,
                  'c': keywords.count(',')+1})
 
         infos = []
