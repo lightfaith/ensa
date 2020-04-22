@@ -407,9 +407,13 @@ class Database():
             os.remove('files/binary/%d' % information_id)
         log.info('Information deleted.')
 
-    def get_informations(self, info_type=None, no_composite_parts=False, ring=None, subject=None, force_no_current_subject=False):
+    def get_informations(self, info_type=None, no_composite_parts=False, ring=None, subject=None, force_no_current_subject=False, reference_time=None):
         ring = ring or ensa.current_ring
         subject = subject or ensa.current_subject
+        reference_time = (lib.datetime_from_str(self.get_time(reference_time, force_no_current_ring=True)[1])
+                          if reference_time
+                          else ensa.variables['reference_time'])
+        print(reference_time)
         # if not self.subject_ok(subject):
         #    return []
         if info_type is None:
@@ -436,7 +440,7 @@ class Database():
                     "       I.modified, I.note "
                     "FROM Subject S INNER JOIN Information I "
                     "     ON S.subject_id = I.subject_id "
-                    "wherE I.subject_id = :s "
+                    "WHERE I.subject_id = :s "
                     "ORDER BY I.name"), {'s': subject})
         else:
             if no_composite_parts:
@@ -473,7 +477,7 @@ class Database():
                                       {'i': info[0]})
             is_active = False
             for time, active in active_times:
-                if lib.datetime_from_str(time) <= ensa.variables['reference_time']:
+                if lib.datetime_from_str(time) <= reference_time:
                     is_active = bool(active)
                 else:
                     break

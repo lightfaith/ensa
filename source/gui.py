@@ -39,6 +39,11 @@ def get_times(ring):
 def get_associations(ring):
     return json.dumps(ensa.db.get_associations(ring=int(ring)))
 
+@GUI.app.route('/get_informations/<reference_time>/<subject>')
+def get_informations(reference_time, subject):
+    return json.dumps(ensa.db.get_informations(subject=int(subject), reference_time=int(reference_time)))
+
+
 
 @GUI.app.route('/')
 def gui_index():

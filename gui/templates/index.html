@@ -34,7 +34,15 @@ var subjects = new Array();
 var locations = new Array();
 var times = new Array();
 var associations = new Array();
+var informations = new Array(); // of last subject
 
+var last = {
+	'ring': 0,
+	'subject': 0,
+	'location': 0,
+	'time': 0,
+	'association': 0,
+}
 
 /**************************
 1. General-purpose functions
@@ -60,6 +68,25 @@ function ajax(query, fkey, result)
 	};
 	xhttp.open('GET', '/'+query+'/'+fkey, true);
 	xhttp.send();
+}
+
+function request(query)
+{
+	var req = new XMLHttpRequest();
+	req.open('GET', query, false);
+	req.send(null);
+	if (req.status === 200)
+		return JSON.parse(req.responseText);
+	return '';
+}
+
+function get_by_id(dataset, id, id_index=0)
+{
+	for(var i in dataset)
+	{
+		if (dataset[i][id_index] == id)
+			return dataset[i];
+	}
 }
 
 /**************************
@@ -115,6 +142,10 @@ function regenerate_list(element)
 			break;
 	}
 	objlist.innerHTML = content;
+	// select last active
+	if (last[active_category] > 0){
+		item_click(active_category, last[active_category]);
+	}
 }
 
 
@@ -129,11 +160,41 @@ function item_click(category, id)
 			ajax('get_times', id, 'times');
 			ajax('get_associations', id, 'associations');
 			break;
+		case 'subject':
+			informations = request('/get_informations/'+'1'+'/'+id, 'informations'); // TODO dynamic reference time
+			break;
 	}
-	// 2. generate detail
-	// TODO 
 
+	// 2. generate detail
+	// TODO
+	detail = '';
+	switch(category){
+		case 'ring':
+			data = get_by_id(rings, id);
+			detail += generate_gridrow('name', data[1], 'text', {key_editable:false, value_editable:false});
+			detail += generate_gridrow('note', data[3], 'text', {key_editable:false});
+			//detail += get_by_id(rings, id);
+			break
+
+		case 'subject':
+			data = get_by_id(subjects, id);
+			detail += generate_gridrow('codename', data[1], 'text', {key_editable:false, value_editable:false});
+			detail += generate_gridrow('note', data[3], 'text', {key_editable:false});
+			detail += '<hr>';
+			// informations
+			for (var i in informations)
+			{
+				data = informations[i];
+				if (data[4] == 'codename')
+					continue;
+				detail += generate_gridrow(data[4], data[11], 'text', {level:data[5], accuracy:data[6], valid:data[7], modified:data[8], note:data[9]});
+			}
+			break
+	} 
+	document.getElementById('object-detail').innerHTML = detail;
+	
 	// 3. mark as checked
+	last[category] = id;
 	items = document.getElementsByClassName('item');
 	[].forEach.call(items, function(item){
 		if (item.classList.contains('item-checked')){
@@ -141,6 +202,28 @@ function item_click(category, id)
 		}
 	});
 	document.getElementById("item-"+category+"-"+id).classList.add('item-checked');
+}
+
+/**************************
+4. Functions relevant for Detail
+*/
+
+function generate_gridrow(key, value, value_type, { 
+                          key_editable=true, value_editable=true, 
+                          level=null, accuracy=null, valid=null, 
+                          modified=null, note=null} = {}){
+	result = "<div class='gridrow'>";
+	// TODO valid/invalid, accuracy, level etc.
+	// valid
+	if (valid != null)
+		result += "<div class='gridcell valid'><input type='checkbox' "+(valid ? 'checked' : '')+"></div>";
+	// key
+	result += "<div class='gridcell key "+(key_editable ? '' : 'const')+"' "+(key_editable ? 'contenteditable' : '')+">"+key+"</div>";
+	// value
+	result += "<div class='gridcell value "+(value_editable ? '' : 'const')+"' "+(value_editable ? 'contenteditable' : '')+">"+(value ? value : '')+"</div>"; // TODO value_type
+	//
+	result += '</div>';
+	return result;
 }
 /**************************
  End of functions
@@ -163,8 +246,8 @@ function item_click(category, id)
 	    </div>
       </div>
 	  <div class="Header"><button onclick='test()'>Test</button></div>
-	  <div id='object-list' class="List"></div>
-	  <div class="Detail"></div>
+	  <div id='object-list' class="List"><!-- created dynamically --></div>
+	  <div id='object-detail' class="Detail"></div>
 	</div>
   </body>
 </html>

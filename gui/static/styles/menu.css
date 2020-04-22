@@ -17,11 +17,20 @@ Main layout
 
 .Header { grid-area: Header; background-color: #cc3f4f;}
 
-.List { grid-area: List; background-color: #888888; display: flex; flex-direction: column; flex-wrap: wrap; max-height: 45vh; overflow-x: scroll;}
+.List { grid-area: List; background-color: #888888; display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; max-height: 45vh; overflow-x: scroll;}
 .item {margin: 1px; padding: 10px; background-color: #7bed9f; width: 200px;}
 .item:hover { background-color: #4ced7f;}
 .item-checked, .item-checked:hover {background-color: #30bf5d;}
 
 .Detail {grid-area: Detail; background-color: #ffffff;}
+.gridrow {display: flex; width: 50%;}
+.gridcell.const {background-color: #eeeeee; color: #666666;}
+.gridcell.valid {flex: 30px;}
+.gridcell.key   {flex: 100px;}
+.gridcell.value {flex: 200px;}
+.gridcell.accuracy {flex: 20px;}
+.gridcell.level {flex: 30px;}
+.gridcell.modified {flex: 40px;}
+.gridcell.note {flex: 200px;}
 
 
