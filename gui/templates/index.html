@@ -187,7 +187,7 @@ function item_click(category, id)
 				data = informations[i];
 				if (data[4] == 'codename')
 					continue;
-				detail += generate_gridrow('information-'+data[0], data[4], data[11], 'text', {level:data[5], accuracy:data[6], valid:data[7], modified:data[8], note:data[9]});
+				detail += generate_gridrow('information-'+data[0], data[4], data[11], 'text', {level:data[5], accuracy:data[6], valid:data[7], modified:data[8], note:data[9], level_allowed:true});
 			}
 			break
 	} 
@@ -211,7 +211,7 @@ function item_click(category, id)
 function generate_gridrow(id, key, value, value_type, { 
                           key_editable=true, value_editable=true, 
                           level=null, accuracy=null, valid=null, 
-                          modified=null, note=null} = {}){
+                          modified=null, note=null, level_allowed=false} = {}){
 	result = "<div id='gridrow-"+id+"' class='gridrow "+(valid == false ? 'invalid' : '')+"'>";
 	// TODO valid/invalid, accuracy, level etc.
 	// valid
@@ -221,7 +221,12 @@ function generate_gridrow(id, key, value, value_type, {
 	result += "<div class='gridcell key "+(key_editable ? '' : 'const')+"' "+(key_editable ? 'contenteditable' : '')+">"+key+"</div>";
 	// value
 	result += "<div class='gridcell value "+(value_editable ? '' : 'const')+"' "+(value_editable ? 'contenteditable' : '')+">"+(value ? value : '')+"</div>"; // TODO value_type
-	//
+	// accuracy
+	if (accuracy != null)
+		result += "<div class='gridcell accuracy'>"+get_dropdown('select-accuracy-'+id, 0, 10, false, accuracy)+"</div>";
+	// level
+	if (level_allowed)
+		result += "<div class='gridcell level'>"+get_dropdown('select-level-'+id, 0, 10, true, level)+"</div>";	
 	result += '</div>';
 	return result;
 }
@@ -231,6 +236,18 @@ function toggle_valid(id){
 		document.getElementById('gridrow-'+id).classList.remove('invalid');
 	else
 		document.getElementById('gridrow-'+id).classList.add('invalid');
+}
+
+function get_dropdown(id, start, end, nullable, value){
+	result = "<select id='"+id+"'>";
+	if (nullable)
+		result += "<option value='' "+(value == null ? "selected='selected'" : '')+">-</option>";
+	for (var i=start; i<=end; i++){
+		selected = (i == value ? "selected='selected'" : '');
+		result += "<option value='"+i+"' "+selected+">"+i+"</option>";
+	}
+	result += "</select>";
+	return result;
 }
 /**************************
  End of functions

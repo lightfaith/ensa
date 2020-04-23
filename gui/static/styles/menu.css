@@ -23,7 +23,7 @@ Main layout
 .item-checked, .item-checked:hover {background-color: #30bf5d;}
 
 .Detail {grid-area: Detail; background-color: #ffffff;}
-.gridrow {display: flex; width: 50%;}
+.gridrow {display: flex; width: 50%; align-content: flex-start;}
 .gridrow.invalid {text-decoration: line-through;}
 .gridcell.const {background-color: #eeeeee; color: #666666;}
 .gridcell.valid {flex: 30px;}
