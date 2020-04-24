@@ -185,9 +185,9 @@ function item_click(category, id)
 			for (var i in informations)
 			{
 				data = informations[i];
-				if (data[4] == 'codename')
-					continue;
-				detail += generate_gridrow('information-'+data[0], data[4], data[11], 'text', {level:data[5], accuracy:data[6], valid:data[7], modified:data[8], note:data[9], level_allowed:true});
+				/*if (data[4] == 'codename')
+					continue;*/
+				detail += generate_gridrow('information-'+data[0], data[4], data[11], 'text', {key_editable:(data[4] != 'codename'), value_editable:(data[4] != 'codename'), level:data[5], accuracy:data[6], valid:data[7], modified:data[8], note:data[9], level_allowed:true});
 			}
 			break
 	} 
@@ -215,18 +215,22 @@ function generate_gridrow(id, key, value, value_type, {
 	result = "<div id='gridrow-"+id+"' class='gridrow "+(valid == false ? 'invalid' : '')+"'>";
 	// TODO valid/invalid, accuracy, level etc.
 	// valid
-	if (valid != null)
-		result += "<div class='gridcell valid'><input id='valid-"+id+"' type='checkbox' "+(valid ? 'checked' : '')+" onclick='toggle_valid(`"+id+"`)'></div>";
+	if (valid != null){
+		result += "<div class='gridcell valid'>";
+		if (key != 'codename')
+			result += "<input id='valid-"+id+"' type='checkbox' "+(valid ? 'checked' : '')+" onclick='toggle_valid(`"+id+"`)' onfocus='row_focus(`"+id+"`)' onfocusout='row_unfocus(`"+id+"`)'>";
+		result += "</div>";
+	}
 	// key
-	result += "<div class='gridcell key "+(key_editable ? '' : 'const')+"' "+(key_editable ? 'contenteditable' : '')+">"+key+"</div>";
+	result += "<div class='gridcell key "+(key_editable ? '' : 'const')+"' "+(key_editable ? 'contenteditable' : '')+" onfocus='row_focus(`"+id+"`)' onfocusout='row_unfocus(`"+id+"`)'>"+key+"</div>";
 	// value
-	result += "<div class='gridcell value "+(value_editable ? '' : 'const')+"' "+(value_editable ? 'contenteditable' : '')+">"+(value ? value : '')+"</div>"; // TODO value_type
+	result += "<div class='gridcell value "+(value_editable ? '' : 'const')+"' "+(value_editable ? 'contenteditable' : '')+" onfocus='row_focus(`"+id+"`)' onfocusout='row_unfocus(`"+id+"`)'>"+(value ? value : '')+"</div>"; // TODO value_type
 	// accuracy
 	if (accuracy != null)
-		result += "<div class='gridcell accuracy'>"+get_dropdown('select-accuracy-'+id, 0, 10, false, accuracy)+"</div>";
+		result += "<div class='gridcell accuracy'>"+get_dropdown('select-accuracy-', id, 0, 10, false, accuracy)+"</div>";
 	// level
 	if (level_allowed)
-		result += "<div class='gridcell level'>"+get_dropdown('select-level-'+id, 0, 10, true, level)+"</div>";	
+		result += "<div class='gridcell level'>"+get_dropdown('select-level-', id, 0, 10, true, level)+"</div>";	
 	result += '</div>';
 	return result;
 }
@@ -238,8 +242,8 @@ function toggle_valid(id){
 		document.getElementById('gridrow-'+id).classList.add('invalid');
 }
 
-function get_dropdown(id, start, end, nullable, value){
-	result = "<select id='"+id+"'>";
+function get_dropdown(id_prepend, id, start, end, nullable, value){
+	result = "<select id='"+id_prepend+id+"' onfocus='row_focus(`"+id+"`)' onfocusout='row_unfocus(`"+id+"`)'>";
 	if (nullable)
 		result += "<option value='' "+(value == null ? "selected='selected'" : '')+">-</option>";
 	for (var i=start; i<=end; i++){
@@ -248,6 +252,15 @@ function get_dropdown(id, start, end, nullable, value){
 	}
 	result += "</select>";
 	return result;
+}
+
+function row_focus(id){
+	document.getElementById('gridrow-'+id).classList.add('focus');
+	// TODO show attachment
+}
+
+function row_unfocus(id){
+	document.getElementById('gridrow-'+id).classList.remove('focus');
 }
 /**************************
  End of functions

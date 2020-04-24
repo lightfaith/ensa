@@ -25,6 +25,8 @@ Main layout
 .Detail {grid-area: Detail; background-color: #ffffff;}
 .gridrow {display: flex; width: 50%; align-content: flex-start;}
 .gridrow.invalid {text-decoration: line-through;}
+.gridrow.focus {background-color: #c3dce3;}
+
 .gridcell.const {background-color: #eeeeee; color: #666666;}
 .gridcell.valid {flex: 30px;}
 .gridcell.key   {flex: 100px;}
