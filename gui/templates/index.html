@@ -71,11 +71,18 @@ function ajax(query, fkey, result)
 	// TODO escape stuff?
 }
 
-function request(query)
+function request(query, post_data=null)
 {
 	var req = new XMLHttpRequest();
-	req.open('GET', query, false);
-	req.send(null);
+	if (post_data === null){
+		req.open('GET', query, false);
+		req.send(null);
+	}
+	else{
+		console.log(post_data);
+		req.open('POST', query, false);
+		req.send(post_data);
+	}
 	if (req.status === 200)
 		return JSON.parse(req.responseText);
 	return '';
@@ -89,6 +96,10 @@ function get_by_id(dataset, id, id_index=0)
 		if (dataset[i][id_index] == id)
 			return dataset[i];
 	}
+}
+
+function unbr(data){
+	return data.replace('<br>', '\n').trim();
 }
 
 /**************************
@@ -172,7 +183,7 @@ function item_click(category, id)
 			ajax('get_associations', id, 'associations');
 			break;
 		case 'subject':
-			informations = request('/get_informations/'+'1'+'/'+id, 'informations'); // TODO dynamic reference time
+			informations = request('/get_informations/'+'1'+'/'+id); // TODO dynamic reference time
 			break;
 	}
 
@@ -277,15 +288,16 @@ function row_unfocus(id){
 function save_changes(){
 	// TODO maybe different for different types?
 	// subject
-	var note_data = document.getElementById('gridrow-subject-note').children[1].innerHTML;
+	var note_data = unbr(document.getElementById('gridrow-subject-note').children[1].innerHTML);
 	var data = get_by_id(subjects, last['subject']);
 	var old = (data[3] === null) ? '' : data[3];
 	if (note_data != old)
 	{
 		alert('note changed'); // TODO update
+		request('/update_subject/'+last["ring"]+'/'+last["subject"], note_data);
 	}
-	// TODO trim(), change <br>s to \ns
 	
+
 	// subject informations
 	var id;
 	items = document.getElementsByClassName('gridrow');

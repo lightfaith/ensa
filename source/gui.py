@@ -43,7 +43,15 @@ def get_associations(ring):
 def get_informations(reference_time, subject):
     return json.dumps(ensa.db.get_informations(subject=int(subject), reference_time=int(reference_time)))
 
-
+@GUI.app.route('/update_subject/<ring>/<subject>', methods=['POST'])
+def update_subject(ring, subject):
+    ensa.db.update_subject(subject, request.get_data().decode(), ring)
+    print(ensa.db.get_subjects())
+    return json.dumps('It works')
+    
+@GUI.app.route('/update_informations/<ring>/<reference_time>/<subject>', methods=['POST'])
+def update_informations():
+    pass
 
 @GUI.app.route('/')
 def gui_index():

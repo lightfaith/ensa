@@ -290,6 +290,18 @@ class Database():
                     "      AND ring_id = :r"),
                    {'s': subject_id,
                     'r': ring})
+
+    def update_subject(self, subject_id, note, ring=None):
+        ring = ring or ensa.current_ring
+        if not self.ring_ok(ring):
+            return
+        self.query(("UPDATE Subject "
+                    "SET note = :n "
+                    "WHERE subject_id = :s "
+                    "      AND ring_id = :r"),
+                    {'n': note,
+                     's': subject_id, 
+                     'r': ring})
 ###########################################
 # Information methods
 ###########################################
